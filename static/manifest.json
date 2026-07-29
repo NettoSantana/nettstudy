@@ -1,0 +1,10 @@
+{
+  "name": "NettStudy",
+  "short_name": "NettStudy",
+  "description": "Aprender, praticar e evoluir.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7ff",
+  "theme_color": "#4b5bdc",
+  "lang": "pt-BR"
+}

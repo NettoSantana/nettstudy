@@ -1,0 +1,8 @@
+<!--
+Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\partials\sidebar.html
+Data e hora do último recode: 29/07/2026 16:15 -03:00
+Motivo da alteração: criar a navegação lateral compartilhada dos dashboards.
+-->
+<aside class="sidebar"><nav>
+  {% if perfil_logado == 'responsavel' %}<a class="ativo" href="{{ url_for('dashboard_responsavel') }}">Visão geral</a><a href="#">Progresso</a><a href="#">Relatórios</a>{% else %}<a class="ativo" href="{{ url_for('dashboard_aluno') }}">Missão de hoje</a><a href="#">Minha trilha</a><a href="#">Conquistas</a>{% endif %}
+</nav></aside>

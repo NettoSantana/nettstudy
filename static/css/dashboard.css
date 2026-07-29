@@ -1,0 +1,60 @@
+/* Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
+Data e hora do último recode: 29/07/2026 16:15 -03:00
+Motivo da alteração: criar a identidade visual inicial responsiva do NettStudy. */
+
+:root { --primaria:#4b5bdc; --primaria-escura:#3444bd; --secundaria:#28a98b; --fundo:#f5f7ff; --texto:#20243a; --suave:#6f7691; --branco:#fff; --borda:#e2e6f2; --erro:#b42318; --sucesso:#067647; --sombra:0 18px 45px rgba(42,53,120,.12); }
+* { box-sizing:border-box; }
+body { margin:0; font-family:Inter,Segoe UI,Arial,sans-serif; background:var(--fundo); color:var(--texto); }
+a { color:inherit; text-decoration:none; }
+button,input { font:inherit; }
+.topbar { height:68px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:var(--branco); border-bottom:1px solid var(--borda); position:sticky; top:0; z-index:10; }
+.marca { display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.2rem; color:var(--primaria); }
+.marca-simbolo { width:38px; height:38px; display:grid; place-items:center; border-radius:12px; color:#fff; background:var(--primaria); }
+.topbar-acoes { display:flex; align-items:center; gap:14px; color:var(--suave); }
+.layout { min-height:calc(100vh - 68px); display:grid; grid-template-columns:230px 1fr; }
+.sidebar { padding:24px 16px; background:#20284f; color:#e9ecff; }
+.sidebar nav { display:grid; gap:8px; }
+.sidebar a { padding:12px 14px; border-radius:12px; }
+.sidebar a:hover,.sidebar a.ativo { background:rgba(255,255,255,.12); }
+.conteudo { padding:32px; max-width:1240px; width:100%; margin:0 auto; }
+.hero { display:grid; grid-template-columns:1.25fr .75fr; gap:28px; align-items:center; min-height:calc(100vh - 68px); padding:48px max(24px,7vw); }
+.hero-card,.card,.login-card { background:var(--branco); border:1px solid var(--borda); border-radius:24px; box-shadow:var(--sombra); }
+.hero-texto h1 { font-size:clamp(2.4rem,5vw,4.8rem); line-height:1.02; margin:0 0 20px; }
+.hero-texto h1 span { color:var(--primaria); }
+.hero-texto p { font-size:1.15rem; line-height:1.7; color:var(--suave); max-width:640px; }
+.acoes { display:flex; gap:12px; flex-wrap:wrap; margin-top:28px; }
+.botao { border:0; border-radius:14px; padding:13px 20px; font-weight:750; cursor:pointer; display:inline-flex; justify-content:center; align-items:center; }
+.botao-primario { background:var(--primaria); color:#fff; }
+.botao-primario:hover { background:var(--primaria-escura); }
+.botao-secundario { background:#eef0ff; color:var(--primaria); }
+.hero-card { padding:26px; }
+.mini-missao { display:grid; gap:14px; }
+.mini-item,.atividade { padding:16px; border:1px solid var(--borda); border-radius:16px; background:#fbfcff; }
+.login-pagina { min-height:100vh; display:grid; place-items:center; padding:24px; }
+.login-card { width:min(460px,100%); padding:32px; }
+.login-card h1 { margin:0 0 8px; }
+.formulario { display:grid; gap:16px; margin-top:24px; }
+.campo { display:grid; gap:7px; }
+.campo label { font-weight:700; }
+.campo input { width:100%; border:1px solid var(--borda); border-radius:12px; padding:13px 14px; outline:none; }
+.campo input:focus { border-color:var(--primaria); box-shadow:0 0 0 3px rgba(75,91,220,.12); }
+.flash { margin:14px 0; padding:12px 14px; border-radius:12px; background:#fff3f2; color:var(--erro); }
+.flash.sucesso { background:#ecfdf3; color:var(--sucesso); }
+.cabecalho-pagina { display:flex; justify-content:space-between; gap:20px; align-items:end; margin-bottom:24px; }
+.cabecalho-pagina h1 { margin:0; }
+.grade-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+.card { padding:22px; }
+.numero { font-size:2rem; font-weight:850; color:var(--primaria); margin-top:8px; }
+.grade-principal { display:grid; grid-template-columns:1.4fr .8fr; gap:18px; margin-top:18px; }
+.lista { display:grid; gap:12px; }
+.atividade { display:flex; justify-content:space-between; gap:16px; align-items:center; }
+.status { font-size:.86rem; font-weight:800; padding:7px 10px; border-radius:999px; background:#eef0ff; color:var(--primaria); }
+.progresso { height:10px; background:#eceffa; border-radius:999px; overflow:hidden; margin-top:10px; }
+.progresso span { display:block; height:100%; background:var(--secundaria); border-radius:inherit; }
+.missao { display:grid; gap:14px; }
+.missao-item { display:grid; grid-template-columns:42px 1fr auto; align-items:center; gap:14px; padding:18px; border:1px solid var(--borda); border-radius:18px; background:#fff; }
+.missao-check { width:42px; height:42px; display:grid; place-items:center; border-radius:50%; background:#eef0ff; color:var(--primaria); font-weight:900; }
+.missao-item.concluida .missao-check { background:#dff8ef; color:var(--sucesso); }
+.rodape-nota { color:var(--suave); font-size:.9rem; margin-top:20px; }
+@media (max-width:900px) { .hero,.grade-principal { grid-template-columns:1fr; } .layout { grid-template-columns:1fr; } .sidebar { display:none; } .grade-cards { grid-template-columns:1fr; } .conteudo { padding:22px; } }
+@media (max-width:560px) { .topbar { padding:0 16px; } .topbar-acoes span { display:none; } .hero { padding:28px 18px; } .hero-texto h1 { font-size:2.6rem; } .atividade,.cabecalho-pagina { align-items:flex-start; flex-direction:column; } }
