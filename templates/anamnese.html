@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\anamnese.html
-Data e hora do último recode: 30/07/2026 18:41 -03:00
-Motivo da alteração: criar anamnese pedagógica em cinco etapas, múltiplas escolhas e resumo final.
+Data e hora do último recode: 30/07/2026 18:59 -03:00
+Motivo da alteração: bloquear novas escolhas ao atingir os limites de interesses e objetivos.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -68,8 +68,8 @@ Motivo da alteração: criar anamnese pedagógica em cinco etapas, múltiplas es
     {% elif etapa == 5 %}
     <form method="post" class="anamnese-form"><input type="hidden" name="etapa" value="5">
         <div class="titulo-etapa"><h2>Interesses e objetivos</h2><p>Selecione até cinco interesses e até quatro objetivos.</p></div>
-        <fieldset class="grupo-escolhas"><legend>Assuntos preferidos — máximo 5</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.interesses %}<label class="escolha"><input type="checkbox" name="interesses" value="{{ valor }}" {% if valor in respostas.get('interesses',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
-        <fieldset class="grupo-escolhas"><legend>Objetivos do responsável — máximo 4</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.objetivos %}<label class="escolha"><input type="checkbox" name="objetivos" value="{{ valor }}" {% if valor in respostas.get('objetivos',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
+        <fieldset class="grupo-escolhas grupo-limitado" data-limite="5"><legend>Assuntos preferidos — <span class="contador-escolhas">0 de 5 selecionados</span></legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.interesses %}<label class="escolha"><input type="checkbox" name="interesses" value="{{ valor }}" {% if valor in respostas.get('interesses',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
+        <fieldset class="grupo-escolhas grupo-limitado" data-limite="4"><legend>Objetivos do responsável — <span class="contador-escolhas">0 de 4 selecionados</span></legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.objetivos %}<label class="escolha"><input type="checkbox" name="objetivos" value="{{ valor }}" {% if valor in respostas.get('objetivos',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <fieldset class="grupo-escolhas"><legend>Informações que podem ajudar na adaptação</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.condicoes %}<label class="escolha"><input type="checkbox" name="condicoes" value="{{ valor }}" {% if valor in respostas.get('condicoes',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <div class="campo"><label>Observações adicionais — opcional</label><textarea name="observacoes" rows="4">{{ respostas.get('observacoes','') }}</textarea></div>
         <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', etapa=4) }}">Voltar</a><button class="button" type="submit">Revisar resumo</button></div>
@@ -94,12 +94,53 @@ document.querySelectorAll('.grupo-escolhas').forEach(function(grupo){
   grupo.addEventListener('change', function(evento){
     var nome=evento.target.name;
     var marcados=grupo.querySelectorAll('input[name="'+nome+'"]:checked');
+
     if(evento.target.value==='nenhuma'||evento.target.value==='nao_informar'){
-      marcados.forEach(function(c){if(c!==evento.target)c.checked=false;});
+      marcados.forEach(function(c){
+        if(c!==evento.target){
+          c.checked=false;
+        }
+      });
     } else {
-      grupo.querySelectorAll('input[name="'+nome+'"][value="nenhuma"],input[name="'+nome+'"][value="nao_informar"]').forEach(function(c){c.checked=false;});
+      grupo.querySelectorAll(
+        'input[name="'+nome+'"][value="nenhuma"],'+
+        'input[name="'+nome+'"][value="nao_informar"]'
+      ).forEach(function(c){
+        c.checked=false;
+      });
     }
   });
+});
+
+document.querySelectorAll('.grupo-limitado').forEach(function(grupo){
+  var limite=parseInt(grupo.dataset.limite,10);
+  var caixas=Array.from(grupo.querySelectorAll('input[type="checkbox"]'));
+  var contador=grupo.querySelector('.contador-escolhas');
+
+  function atualizarLimite(){
+    var marcadas=caixas.filter(function(caixa){
+      return caixa.checked;
+    });
+    var limiteAtingido=marcadas.length>=limite;
+
+    caixas.forEach(function(caixa){
+      caixa.disabled=limiteAtingido&&!caixa.checked;
+      var rotulo=caixa.closest('.escolha');
+      if(rotulo){
+        rotulo.classList.toggle('escolha-bloqueada',caixa.disabled);
+      }
+    });
+
+    if(contador){
+      contador.textContent=marcadas.length+' de '+limite+' selecionados';
+    }
+  }
+
+  caixas.forEach(function(caixa){
+    caixa.addEventListener('change',atualizarLimite);
+  });
+
+  atualizarLimite();
 });
 </script>
 </body></html>
