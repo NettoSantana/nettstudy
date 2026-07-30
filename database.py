@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 14:11 -03:00
-# Motivo da alteração: criar as tabelas de responsáveis, alunos e vínculos, mantendo o login atual do NettStudy.
+# Data e hora do último recode: 30/07/2026 14:36 -03:00
+# Motivo da alteração: incluir o cadastro transacional do responsável, aluno e vínculo familiar.
 
 import sqlite3
 from pathlib import Path
@@ -380,3 +380,181 @@ def listar_alunos_do_responsavel(
         ).fetchall()
 
     return [dict(registro) for registro in registros]
+
+
+def identificador_disponivel(
+    caminho_banco: str,
+    identificador: str,
+) -> bool:
+    identificador_normalizado = identificador.strip().lower()
+
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT id
+            FROM usuarios
+            WHERE identificador = ?
+            """,
+            (identificador_normalizado,),
+        ).fetchone()
+
+    return registro is None
+
+
+def cadastrar_familia(
+    caminho_banco: str,
+    nome_responsavel: str,
+    email_responsavel: str,
+    senha_responsavel: str,
+    telefone_responsavel: str,
+    nome_aluno: str,
+    nome_exibicao_aluno: str,
+    ano_escolar: str,
+    usuario_aluno: str,
+    pin_aluno: str,
+    parentesco: str = "Responsável",
+) -> dict[str, int]:
+    nome_responsavel = nome_responsavel.strip()
+    email_responsavel = email_responsavel.strip().lower()
+    telefone_responsavel = telefone_responsavel.strip()
+    nome_aluno = nome_aluno.strip()
+    nome_exibicao_aluno = nome_exibicao_aluno.strip()
+    ano_escolar = ano_escolar.strip()
+    usuario_aluno = usuario_aluno.strip().lower()
+    parentesco = parentesco.strip() or "Responsável"
+
+    if not nome_responsavel:
+        raise ValueError("Informe o nome do responsável.")
+
+    if not email_responsavel:
+        raise ValueError("Informe o e-mail do responsável.")
+
+    if len(senha_responsavel) < 8:
+        raise ValueError("A senha do responsável deve ter pelo menos 8 caracteres.")
+
+    if not nome_aluno:
+        raise ValueError("Informe o nome do aluno.")
+
+    if not nome_exibicao_aluno:
+        nome_exibicao_aluno = nome_aluno.split()[0]
+
+    if not usuario_aluno:
+        raise ValueError("Informe o usuário do aluno.")
+
+    if not pin_aluno.isdigit() or len(pin_aluno) != 4:
+        raise ValueError("O PIN do aluno deve conter exatamente 4 números.")
+
+    try:
+        with conectar(caminho_banco) as conexao:
+            cursor_usuario_responsavel = conexao.execute(
+                """
+                INSERT INTO usuarios (
+                    nome,
+                    identificador,
+                    senha_hash,
+                    perfil
+                )
+                VALUES (?, ?, ?, 'responsavel')
+                """,
+                (
+                    nome_responsavel,
+                    email_responsavel,
+                    generate_password_hash(senha_responsavel),
+                ),
+            )
+
+            cursor_responsavel = conexao.execute(
+                """
+                INSERT INTO responsaveis (
+                    usuario_id,
+                    nome_completo,
+                    email,
+                    telefone
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    cursor_usuario_responsavel.lastrowid,
+                    nome_responsavel,
+                    email_responsavel,
+                    telefone_responsavel or None,
+                ),
+            )
+
+            cursor_usuario_aluno = conexao.execute(
+                """
+                INSERT INTO usuarios (
+                    nome,
+                    identificador,
+                    senha_hash,
+                    perfil
+                )
+                VALUES (?, ?, ?, 'aluno')
+                """,
+                (
+                    nome_exibicao_aluno,
+                    usuario_aluno,
+                    generate_password_hash(pin_aluno),
+                ),
+            )
+
+            cursor_aluno = conexao.execute(
+                """
+                INSERT INTO alunos (
+                    usuario_id,
+                    nome_completo,
+                    nome_exibicao,
+                    ano_escolar
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    cursor_usuario_aluno.lastrowid,
+                    nome_aluno,
+                    nome_exibicao_aluno,
+                    ano_escolar or None,
+                ),
+            )
+
+            conexao.execute(
+                """
+                INSERT INTO responsavel_aluno (
+                    responsavel_id,
+                    aluno_id,
+                    parentesco,
+                    principal
+                )
+                VALUES (?, ?, ?, 1)
+                """,
+                (
+                    cursor_responsavel.lastrowid,
+                    cursor_aluno.lastrowid,
+                    parentesco,
+                ),
+            )
+
+            return {
+                "usuario_responsavel_id": int(
+                    cursor_usuario_responsavel.lastrowid
+                ),
+                "responsavel_id": int(cursor_responsavel.lastrowid),
+                "usuario_aluno_id": int(cursor_usuario_aluno.lastrowid),
+                "aluno_id": int(cursor_aluno.lastrowid),
+            }
+
+    except sqlite3.IntegrityError as erro:
+        mensagem = str(erro).lower()
+
+        if "usuarios.identificador" in mensagem:
+            raise ValueError(
+                "O e-mail do responsável ou o usuário do aluno já está em uso."
+            ) from erro
+
+        if "responsaveis.email" in mensagem:
+            raise ValueError(
+                "Já existe um responsável cadastrado com este e-mail."
+            ) from erro
+
+        raise ValueError(
+            "Não foi possível concluir o cadastro. Revise os dados informados."
+        ) from erro
