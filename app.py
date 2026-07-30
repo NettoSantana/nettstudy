@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 20:05 -03:00
-# Motivo da alteração: permitir vários alunos por responsável com seleção independente.
+# Data e hora do último recode: 30/07/2026 20:15 -03:00
+# Motivo da alteração: adicionar validação de e-mail sem bloquear o uso do sistema.
 
 import os
 from datetime import date
@@ -10,7 +10,7 @@ from typing import Any, Callable
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
-from modules.email_service import enviar_email_recuperacao
+from modules.email_service import enviar_email_recuperacao, enviar_email_validacao
 
 from config import Config
 from modules.avaliacao_resumo import avaliar_resumo
@@ -78,6 +78,8 @@ from database import (
     obter_recuperacao_por_token,
     redefinir_senha_responsavel_por_token,
     redefinir_pin_aluno_por_token,
+    criar_token_validacao_email,
+    validar_email_por_token,
 )
 
 
@@ -147,6 +149,26 @@ def registrar_rotas(app: Flask) -> None:
                     "login.html",
                     identificador=identificador,
                 ), 401
+
+            validacao = criar_token_validacao_email(
+                app.config["DATABASE_PATH"],
+                cadastro["responsavel_id"],
+                app.config["VALIDACAO_EMAIL_HORAS"],
+                app.config["VALIDACAO_EMAIL_REENVIO_SEGUNDOS"],
+                ignorar_intervalo=True,
+            )
+            if validacao and validacao.get("token"):
+                link_validacao = f"{app.config['BASE_URL']}{url_for('validar_email', token=validacao['token'])}"
+                try:
+                    enviar_email_validacao(
+                        app.config["RESEND_API_KEY"],
+                        app.config["RESEND_FROM"],
+                        validacao["email"],
+                        validacao["nome"],
+                        link_validacao,
+                    )
+                except Exception:
+                    app.logger.exception("Falha ao enviar e-mail de validação após o cadastro.")
 
             session.clear()
             session.update(
@@ -373,6 +395,46 @@ def registrar_rotas(app: Flask) -> None:
             "novo_cadastro.html",
             dados=dados,
         )
+
+    @app.get("/validar-email/<token>")
+    def validar_email(token: str):
+        if validar_email_por_token(app.config["DATABASE_PATH"], token):
+            flash("E-mail validado com sucesso.", "sucesso")
+        else:
+            flash("Este link de validação é inválido, expirou ou já foi utilizado.", "erro")
+        destino = "dashboard_responsavel" if session.get("perfil") == "responsavel" else "login"
+        return redirect(url_for(destino))
+
+    @app.post("/responsavel/reenviar-validacao-email")
+    @login_obrigatorio("responsavel")
+    def reenviar_validacao_email():
+        responsavel = buscar_responsavel_por_usuario(
+            app.config["DATABASE_PATH"], int(session["usuario_id"])
+        )
+        if not responsavel or responsavel.get("email_validado_em"):
+            flash("Seu e-mail já está validado.", "sucesso")
+            return redirect(url_for("dashboard_responsavel"))
+        validacao = criar_token_validacao_email(
+            app.config["DATABASE_PATH"],
+            int(responsavel["id"]),
+            app.config["VALIDACAO_EMAIL_HORAS"],
+            app.config["VALIDACAO_EMAIL_REENVIO_SEGUNDOS"],
+        )
+        if validacao and validacao.get("aguarde"):
+            flash("Aguarde um minuto antes de solicitar outro e-mail.", "aviso")
+            return redirect(url_for("dashboard_responsavel"))
+        if validacao and validacao.get("token"):
+            link_validacao = f"{app.config['BASE_URL']}{url_for('validar_email', token=validacao['token'])}"
+            try:
+                enviar_email_validacao(
+                    app.config["RESEND_API_KEY"], app.config["RESEND_FROM"],
+                    validacao["email"], validacao["nome"], link_validacao,
+                )
+                flash("Enviamos um novo link de validação para seu e-mail.", "sucesso")
+            except Exception:
+                app.logger.exception("Falha ao reenviar e-mail de validação.")
+                flash("Não foi possível enviar o e-mail agora. Tente novamente em instantes.", "erro")
+        return redirect(url_for("dashboard_responsavel"))
 
     @app.route("/anamnese", methods=["GET", "POST"])
     @login_obrigatorio("responsavel")

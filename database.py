@@ -1,5 +1,5 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 20:05 -03:00
+# Data e hora do último recode: 30/07/2026 20:15 -03:00
 # Motivo da alteração: permitir até cinco alunos por responsável com perfis independentes.
 
 import hashlib
@@ -269,6 +269,25 @@ CREATE INDEX IF NOT EXISTS idx_tokens_recuperacao_responsavel
 """
 
 
+VALIDACAO_EMAIL_SCHEMA = """
+CREATE TABLE IF NOT EXISTS tokens_validacao_email (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    responsavel_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expira_em TEXT NOT NULL,
+    usado_em TEXT,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (responsavel_id) REFERENCES responsaveis(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_validacao_email_hash
+    ON tokens_validacao_email (token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_validacao_email_responsavel
+    ON tokens_validacao_email (responsavel_id, criado_em);
+"""
+
+
 def conectar(caminho_banco: str) -> sqlite3.Connection:
     Path(caminho_banco).parent.mkdir(parents=True, exist_ok=True)
     conexao = sqlite3.connect(caminho_banco)
@@ -283,7 +302,21 @@ def inicializar_banco(caminho_banco: str) -> None:
         conexao.executescript(LEITURA_ADAPTATIVA_SCHEMA)
         conexao.executescript(RESET_MISSAO_SCHEMA)
         conexao.executescript(RECUPERACAO_ACESSO_SCHEMA)
+        conexao.executescript(VALIDACAO_EMAIL_SCHEMA)
+        _migrar_validacao_email(conexao)
         _criar_dados_demonstracao(conexao)
+
+
+def _migrar_validacao_email(conexao: sqlite3.Connection) -> None:
+    colunas = {
+        coluna["name"]
+        for coluna in conexao.execute("PRAGMA table_info(responsaveis)").fetchall()
+    }
+    if "email_validado_em" not in colunas:
+        conexao.execute("ALTER TABLE responsaveis ADD COLUMN email_validado_em TEXT")
+        conexao.execute(
+            "UPDATE responsaveis SET email_validado_em = COALESCE(criado_em, CURRENT_TIMESTAMP)"
+        )
 
 
 def _criar_dados_demonstracao(conexao: sqlite3.Connection) -> None:
@@ -508,6 +541,7 @@ def buscar_responsavel_por_usuario(
                 nome_completo,
                 email,
                 telefone,
+                email_validado_em,
                 ativo,
                 criado_em
             FROM responsaveis
@@ -2046,5 +2080,105 @@ def redefinir_pin_aluno_por_token(
         conexao.execute(
             "UPDATE tokens_recuperacao_acesso SET usado_em = ? WHERE id = ?",
             (agora, recuperacao["token_id"]),
+        )
+    return True
+
+
+def criar_token_validacao_email(
+    caminho_banco: str,
+    responsavel_id: int,
+    horas_validade: int = 24,
+    intervalo_reenvio_segundos: int = 60,
+    ignorar_intervalo: bool = False,
+) -> dict[str, Any] | None:
+    agora = datetime.now(timezone.utc)
+    expira_em = agora + timedelta(hours=max(1, horas_validade))
+
+    with conectar(caminho_banco) as conexao:
+        responsavel = conexao.execute(
+            """
+            SELECT id, nome_completo, email, email_validado_em
+            FROM responsaveis
+            WHERE id = ? AND ativo = 1
+            """,
+            (responsavel_id,),
+        ).fetchone()
+        if not responsavel or responsavel["email_validado_em"]:
+            return None
+
+        ultimo = conexao.execute(
+            """
+            SELECT criado_em
+            FROM tokens_validacao_email
+            WHERE responsavel_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (responsavel_id,),
+        ).fetchone()
+        if ultimo and not ignorar_intervalo:
+            criado = datetime.fromisoformat(ultimo["criado_em"].replace("Z", "+00:00"))
+            if criado.tzinfo is None:
+                criado = criado.replace(tzinfo=timezone.utc)
+            if (agora - criado).total_seconds() < intervalo_reenvio_segundos:
+                return {"aguarde": True}
+
+        conexao.execute(
+            """
+            UPDATE tokens_validacao_email
+            SET usado_em = ?
+            WHERE responsavel_id = ? AND usado_em IS NULL
+            """,
+            (agora.isoformat(), responsavel_id),
+        )
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        conexao.execute(
+            """
+            INSERT INTO tokens_validacao_email (responsavel_id, token_hash, expira_em, criado_em)
+            VALUES (?, ?, ?, ?)
+            """,
+            (responsavel_id, token_hash, expira_em.isoformat(), agora.isoformat()),
+        )
+
+    return {
+        "token": token,
+        "nome": responsavel["nome_completo"],
+        "email": responsavel["email"],
+    }
+
+
+def validar_email_por_token(caminho_banco: str, token: str) -> bool:
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    agora = datetime.now(timezone.utc)
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT t.id, t.responsavel_id, t.expira_em, t.usado_em, r.email_validado_em
+            FROM tokens_validacao_email t
+            INNER JOIN responsaveis r ON r.id = t.responsavel_id
+            WHERE t.token_hash = ? AND r.ativo = 1
+            """,
+            (token_hash,),
+        ).fetchone()
+        if not registro or registro["usado_em"] or registro["email_validado_em"]:
+            return False
+        expira = datetime.fromisoformat(registro["expira_em"])
+        if expira.tzinfo is None:
+            expira = expira.replace(tzinfo=timezone.utc)
+        if expira <= agora:
+            return False
+        momento = agora.isoformat()
+        conexao.execute(
+            "UPDATE responsaveis SET email_validado_em = ?, atualizado_em = ? WHERE id = ?",
+            (momento, momento, registro["responsavel_id"]),
+        )
+        conexao.execute(
+            "UPDATE tokens_validacao_email SET usado_em = ? WHERE id = ?",
+            (momento, registro["id"]),
+        )
+        conexao.execute(
+            "UPDATE tokens_validacao_email SET usado_em = ? WHERE responsavel_id = ? AND usado_em IS NULL",
+            (momento, registro["responsavel_id"]),
         )
     return True
