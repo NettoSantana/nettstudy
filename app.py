@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 20:12 -03:00
-# Motivo da alteração: corrigir erro 500 movendo o envio de validação do login para o novo cadastro.
+# Data e hora do último recode: 30/07/2026 20:21 -03:00
+# Motivo da alteração: integrar Leitura ao motor pedagógico e aplicar nível real na história e no resumo.
 
 import os
 from datetime import date
@@ -908,13 +908,14 @@ def registrar_rotas(app: Flask) -> None:
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
         )
+        perfil_leitura = garantir_perfil_pedagogico(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+        )
         historia = obter_historia_do_dia(
             aluno_id=int(aluno["id"]),
-            nivel_leitura=(
-                anamnese["nivel_leitura"]
-                if anamnese
-                else "basico"
-            ),
+            nivel_leitura=int(perfil_leitura["nivel_leitura"]),
+            interesses=perfil_leitura.get("temas_preferidos", ""),
         )
         codigos = [
             pergunta["id"]
@@ -977,6 +978,18 @@ def registrar_rotas(app: Flask) -> None:
                     resposta,
                     resposta_correta_leitura(pergunta, resposta),
                 )
+                registrar_desempenho(
+                    app.config["DATABASE_PATH"],
+                    int(aluno["id"]),
+                    data_atividade,
+                    "leitura",
+                    pergunta,
+                    tentativa["numero_tentativa"],
+                    tentativa["correta"],
+                    tentativa["dica_nivel"],
+                    tentativa["resposta_revelada"],
+                    tentativa["pontos"],
+                )
 
                 dica = None
                 if tentativa["dica_nivel"]:
@@ -1010,7 +1023,11 @@ def registrar_rotas(app: Flask) -> None:
 
             if acao == "avaliar_resumo":
                 resumo = request.form.get("resumo", "").strip()
-                avaliacao = avaliar_resumo(historia, resumo)
+                avaliacao = avaliar_resumo(
+                    historia,
+                    resumo,
+                    int(perfil_leitura["nivel_leitura"]),
+                )
                 versao = registrar_versao_resumo(
                     app.config["DATABASE_PATH"],
                     int(sessao_leitura["id"]),

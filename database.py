@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 20:15 -03:00
-# Motivo da alteração: permitir até cinco alunos por responsável com perfis independentes.
+# Data e hora do último recode: 30/07/2026 20:21 -03:00
+# Motivo da alteração: substituir planos pedagógicos incompatíveis ainda não iniciados sem apagar progresso real.
 
 import hashlib
 import json
@@ -1160,7 +1160,6 @@ def obter_ou_criar_sessao_adaptativa(
 
         if not sessao:
             fila = list(codigos_questoes)
-            random.shuffle(fila)
             cursor = conexao.execute(
                 """
                 INSERT INTO sessoes_adaptativas (
@@ -1175,6 +1174,26 @@ def obter_ou_criar_sessao_adaptativa(
             sessao_id = int(sessao["id"])
             fila = json.loads(sessao["fila_json"])
             status = sessao["status"]
+
+            total_tentativas = conexao.execute(
+                "SELECT COUNT(*) AS total FROM tentativas_adaptativas WHERE sessao_id = ?",
+                (sessao_id,),
+            ).fetchone()["total"]
+
+            if (
+                status == "ativa"
+                and int(total_tentativas or 0) == 0
+                and fila != list(codigos_questoes)
+            ):
+                fila = list(codigos_questoes)
+                conexao.execute(
+                    """
+                    UPDATE sessoes_adaptativas
+                    SET fila_json = ?, atualizado_em = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (json.dumps(fila), sessao_id),
+                )
 
         resolvidas = max(0, len(codigos_questoes) - len(fila))
         progresso = round((resolvidas / len(codigos_questoes)) * 100) if codigos_questoes else 0

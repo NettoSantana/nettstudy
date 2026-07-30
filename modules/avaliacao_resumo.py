@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\avaliacao_resumo.py
-# Data e hora do último recode: 30/07/2026 17:19 -03:00
-# Motivo da alteração: avaliar resumos por rubrica de compreensão, com retorno orientativo e estrutura preparada para IA.
+# Data e hora do último recode: 30/07/2026 20:21 -03:00
+# Motivo da alteração: ajustar a avaliação do resumo ao nível pedagógico da criança.
 
 import re
 import unicodedata
@@ -86,7 +86,7 @@ def _proporcao_copia(resumo: str, historia: dict[str, Any]) -> float:
     return len(pares_resumo & pares_texto) / len(pares_resumo)
 
 
-def avaliar_resumo(historia: dict[str, Any], resumo: str) -> dict[str, Any]:
+def avaliar_resumo(historia: dict[str, Any], resumo: str, nivel_aluno: int = 3) -> dict[str, Any]:
     resumo = (resumo or "").strip()
     palavras_resumo = _palavras(resumo)
     texto_normalizado = _normalizar(resumo)
@@ -203,10 +203,16 @@ def avaliar_resumo(historia: dict[str, Any], resumo: str) -> dict[str, Any]:
 
     pontuacao = sum(criterio["nota"] for criterio in criterios.values())
 
-    if len(palavras_resumo) < 15:
+    nivel_aluno = max(1, min(5, int(nivel_aluno or 3)))
+    minimo_palavras = {1: 5, 2: 8, 3: 12, 4: 15, 5: 18}[nivel_aluno]
+
+    if len(palavras_resumo) < minimo_palavras:
         pontuacao = min(pontuacao, 3)
         status = "refazer"
-        mensagem = "Seu texto ainda está muito curto. Releia a história e conte com mais detalhes."
+        mensagem = (
+            f"Seu texto ainda está curto para esta atividade. "
+            f"Tente escrever pelo menos {minimo_palavras} palavras contando o que aconteceu."
+        )
     elif pontuacao >= 7:
         status = "concluido"
         mensagem = "Você demonstrou boa compreensão da história."
@@ -237,6 +243,8 @@ def avaliar_resumo(historia: dict[str, Any], resumo: str) -> dict[str, Any]:
         "pontos_fortes": pontos_fortes,
         "melhorar": melhorar,
         "total_palavras": len(palavras_resumo),
+        "minimo_palavras": minimo_palavras,
+        "nivel_aluno": nivel_aluno,
         "proporcao_copia": round(proporcao_copia, 3),
         "personagens_esperados": personagens,
         "palavras_chave_encontradas": chaves_presentes,

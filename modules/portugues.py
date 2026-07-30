@@ -1,47 +1,67 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\portugues.py
-# Data e hora do último recode: 30/07/2026 18:11 -03:00
-# Motivo da alteração: classificar questões por habilidade, nível e contexto para o motor pedagógico.
+# Data e hora do último recode: 30/07/2026 20:21 -03:00
+# Motivo da alteração: criar banco de Português por níveis 1 a 5, habilidades e progressão compatível com o perfil pedagógico.
+
+from typing import Any
+
 
 TEXTO = "Na manhã de sábado, Lia encontrou um passarinho no quintal. Ele estava assustado e não conseguia voar. Lia chamou seu pai, colocou água em uma pequena vasilha e ficou observando de longe. Depois de descansar, o passarinho abriu as asas e voou até uma árvore."
 
+
+def _q(codigo: str, nivel: int, habilidade: str, tema: str, enunciado: str,
+       alternativas: list[str], correta: str, dicas: list[str], explicacao: str) -> dict[str, Any]:
+    return {
+        "id": codigo, "nivel": nivel, "habilidade": habilidade, "tema": tema,
+        "enunciado": enunciado, "alternativas": alternativas, "correta": correta,
+        "dicas": dicas, "explicacao": explicacao,
+    }
+
+
 QUESTOES = [
-    {"id": "por-01", "enunciado": "Onde Lia encontrou o passarinho?", "alternativas": ["Na escola", "No quintal", "Na rua", "Na cozinha"], "correta": "No quintal", "dicas": ["A informação aparece logo na primeira frase.", "Procure o local citado depois da palavra passarinho.", "O local faz parte da casa e costuma ter plantas."], "explicacao": "O texto informa que Lia encontrou o passarinho no quintal."},
-    {"id": "por-02", "enunciado": "Como o passarinho estava?", "alternativas": ["Assustado", "Faminto", "Cantando", "Dormindo"], "correta": "Assustado", "dicas": ["Leia novamente a segunda frase.", "A palavra descreve o sentimento do passarinho.", "Ele estava com medo e não conseguia voar."], "explicacao": "O texto diz que ele estava assustado."},
-    {"id": "por-03", "enunciado": "Quem Lia chamou?", "alternativas": ["Sua mãe", "Seu irmão", "Seu pai", "Sua professora"], "correta": "Seu pai", "dicas": ["A resposta aparece depois de dizer que o passarinho não voava.", "Lia chamou um adulto da família.", "O texto usa a palavra pai."], "explicacao": "Lia chamou seu pai."},
-    {"id": "por-04", "enunciado": "Qual palavra é sinônimo de 'assustado'?", "alternativas": ["Alegre", "Com medo", "Cansado", "Rápido"], "correta": "Com medo", "dicas": ["Sinônimo é uma palavra ou expressão com sentido parecido.", "Pense em como alguém se sente quando leva um susto.", "Assustado descreve alguém que sente medo."], "explicacao": "Assustado significa estar com medo."},
-    {"id": "por-05", "enunciado": "Qual frase está pontuada corretamente?", "alternativas": ["Lia chamou seu pai", "Lia chamou, seu pai.", "Lia chamou seu pai.", "lia chamou seu pai."], "correta": "Lia chamou seu pai.", "dicas": ["Uma frase deve começar com letra maiúscula.", "Uma frase declarativa termina com ponto final.", "Não separe o verbo e seu complemento com vírgula nesse caso."], "explicacao": "A frase começa com letra maiúscula e termina com ponto final."},
-    {"id": "por-06", "enunciado": "Qual é o plural de 'árvore'?", "alternativas": ["Árvores", "Árvoreis", "Árvoras", "Árvore"], "correta": "Árvores", "dicas": ["Plural indica mais de uma árvore.", "Na maioria dos casos, acrescentamos s ao final.", "A palavra mantém sua forma e recebe a letra s."], "explicacao": "O plural correto é árvores."},
-    {"id": "por-07", "enunciado": "Na frase 'O passarinho abriu as asas', qual é o verbo?", "alternativas": ["passarinho", "abriu", "asas", "o"], "correta": "abriu", "dicas": ["O verbo indica uma ação ou estado.", "Pergunte: o que o passarinho fez?", "A ação realizada foi abrir."], "explicacao": "Abriu indica a ação realizada."},
-    {"id": "por-08", "enunciado": "Qual palavra está escrita corretamente?", "alternativas": ["passarino", "pasarinho", "passarinho", "passarinhio"], "correta": "passarinho", "dicas": ["Observe a quantidade de letras s.", "A palavra vem de pássaro e usa ss.", "O final correto é nho."], "explicacao": "A grafia correta é passarinho."},
-    {"id": "por-09", "enunciado": "Por que Lia observou o passarinho de longe?", "alternativas": ["Para não assustá-lo mais", "Porque estava chovendo", "Para chamar os amigos", "Porque queria ir embora"], "correta": "Para não assustá-lo mais", "dicas": ["A resposta não está escrita exatamente, mas pode ser concluída pelo cuidado de Lia.", "Pense por que alguém evita chegar perto de um animal assustado.", "Manter distância ajuda o animal a ficar mais tranquilo."], "explicacao": "Essa é a conclusão coerente com o cuidado mostrado por Lia."},
-    {"id": "por-10", "enunciado": "Qual é a ideia principal do texto?", "alternativas": ["Lia cuidou de um passarinho até ele conseguir voar", "Lia plantou uma árvore", "O pai de Lia comprou uma ave", "Lia perdeu uma vasilha"], "correta": "Lia cuidou de um passarinho até ele conseguir voar", "dicas": ["A ideia principal resume o texto inteiro.", "Considere o problema, o cuidado de Lia e o final da história.", "O passarinho precisava de ajuda e depois conseguiu voar."], "explicacao": "Essa alternativa resume o começo, o cuidado e o desfecho do texto."},
+    _q("por-101",1,"ortografia","alfabetizacao","Qual palavra começa com a letra B?",["Casa","Bola","Dado","Foca"],"Bola",["Observe a primeira letra.","Procure a palavra que começa com B.","Bola começa com B."],"A palavra bola começa com a letra B."),
+    _q("por-102",1,"formacao_frases","alfabetizacao","Qual opção forma uma frase completa?",["O gato.","Muito azul","Na escola","E depois"],"O gato.",["Uma frase pode comunicar uma ideia completa.","Procure quem aparece na frase.","'O gato.' apresenta uma ideia completa."],"A opção 'O gato.' forma uma frase completa."),
+    _q("por-103",1,"vocabulario","animais","Qual palavra nomeia um animal?",["Mesa","Cachorro","Janela","Lápis"],"Cachorro",["Pense em um ser vivo.","Ele pode ser um animal de estimação.","Cachorro é um animal."],"Cachorro é o nome de um animal."),
+    _q("por-104",1,"ortografia","silabas","Qual palavra tem duas sílabas?",["Sol","Bola","Elefante","Borboleta"],"Bola",["Bata palmas ao falar.","Bo-la.","Bola tem duas sílabas."],"A palavra bola tem duas sílabas."),
+    _q("por-105",1,"localizacao_informacoes","leitura_curta","Leia: 'Ana tem uma pipa.' O que Ana tem?",["Uma bola","Uma pipa","Um livro","Uma boneca"],"Uma pipa",["A resposta está na frase.","Procure a palavra depois de 'uma'.","Ana tem uma pipa."],"A frase informa que Ana tem uma pipa."),
+    _q("por-106",1,"sequencia_acontecimentos","rotina","O que costuma acontecer primeiro?",["Dormir","Acordar","Almoçar","Ir para a cama"],"Acordar",["Pense no início do dia.","Antes de fazer as atividades, levantamos.","Primeiro acordamos."],"Acordar costuma acontecer primeiro."),
+    _q("por-201",2,"ortografia","grafia","Qual palavra está escrita corretamente?",["caza","casa","cassa","kasa"],"casa",["Pense na palavra usada para moradia.","Ela começa com c.","A grafia correta é casa."],"Casa é a escrita correta."),
+    _q("por-202",2,"pontuacao","frase","Qual frase termina corretamente?",["Hoje está sol","Hoje está sol.","hoje está sol.","Hoje, está sol"],"Hoje está sol.",["A frase começa com letra maiúscula.","Uma afirmação termina com ponto final.","'Hoje está sol.' está completa."],"A frase correta começa com maiúscula e termina com ponto."),
+    _q("por-203",2,"localizacao_informacoes","animais","Leia: 'O coelho correu para a toca.' Para onde o coelho correu?",["Para a escola","Para a toca","Para o rio","Para a árvore"],"Para a toca",["A resposta aparece no fim da frase.","Procure o local depois de 'para'.","O coelho correu para a toca."],"O coelho correu para a toca."),
+    _q("por-204",2,"sinonimos_antonimos","vocabulario","Qual é o contrário de grande?",["Alto","Pequeno","Largo","Forte"],"Pequeno",["Procure uma palavra com sentido oposto.","Pense em tamanho.","Pequeno é o contrário de grande."],"Pequeno é o antônimo de grande."),
+    _q("por-205",2,"formacao_frases","ordem","Organize as palavras: 'bola / a / caiu'.",["Caiu bola a.","A bola caiu.","Bola a caiu.","A caiu bola."],"A bola caiu.",["Comece com o artigo A.","Depois vem quem caiu.","A bola caiu."],"A ordem correta é 'A bola caiu.'"),
+    _q("por-206",2,"vocabulario","contexto","Na frase 'A sopa está quente', como está a sopa?",["Fria","Quente","Doce","Vazia"],"Quente",["A resposta está na frase.","Procure a característica da sopa.","A sopa está quente."],"A sopa está quente."),
+    _q("por-301",3,"localizacao_informacoes","animais","Onde Lia encontrou o passarinho?",["Na escola","No quintal","Na rua","Na cozinha"],"No quintal",["A informação aparece na primeira frase.","Procure o local citado.","Lia o encontrou no quintal."],"O texto informa que Lia encontrou o passarinho no quintal."),
+    _q("por-302",3,"interpretacao","emocao","Como o passarinho estava?",["Assustado","Faminto","Cantando","Dormindo"],"Assustado",["Leia a segunda frase.","A palavra descreve o sentimento.","O texto diz que ele estava assustado."],"O passarinho estava assustado."),
+    _q("por-303",3,"ortografia","plural","Qual é o plural de 'árvore'?",["Árvores","Árvoreis","Árvoras","Árvore"],"Árvores",["Plural indica mais de uma.","Acrescente s.","O plural é árvores."],"O plural correto é árvores."),
+    _q("por-304",3,"pontuacao","frase","Qual frase está pontuada corretamente?",["Lia chamou seu pai","Lia chamou, seu pai.","Lia chamou seu pai.","lia chamou seu pai."],"Lia chamou seu pai.",["Comece com letra maiúscula.","Termine a afirmação com ponto final.","Não use vírgula entre verbo e complemento."],"A frase correta é 'Lia chamou seu pai.'"),
+    _q("por-305",3,"vocabulario","sinonimo","Qual palavra tem sentido parecido com 'assustado'?",["Alegre","Com medo","Cansado","Rápido"],"Com medo",["Procure um sentido semelhante.","Pense em quem levou um susto.","Assustado significa com medo."],"Com medo é expressão de sentido semelhante."),
+    _q("por-306",3,"sequencia_acontecimentos","texto","O que aconteceu depois que o passarinho descansou?",["Ele voou","Ele dormiu","Lia foi à escola","Começou a chover"],"Ele voou",["Leia o final do texto.","Observe o que aconteceu depois do descanso.","Ele abriu as asas e voou."],"Depois de descansar, o passarinho voou."),
+    _q("por-401",4,"classes_palavras","verbo","Na frase 'O passarinho abriu as asas', qual é o verbo?",["passarinho","abriu","asas","o"],"abriu",["O verbo indica ação.","Pergunte o que ele fez.","A ação foi abrir."],"Abriu é o verbo da frase."),
+    _q("por-402",4,"interpretacao","inferencia","Por que Lia observou o passarinho de longe?",["Para não assustá-lo mais","Porque estava chovendo","Para chamar os amigos","Porque queria ir embora"],"Para não assustá-lo mais",["A resposta precisa ser concluída.","Pense no cuidado com um animal assustado.","A distância ajudava a não aumentar o medo."],"Lia manteve distância para não assustá-lo mais."),
+    _q("por-403",4,"gramatica_aplicada","pronome","Na frase 'Ele estava assustado', a palavra 'Ele' refere-se a quem?",["Ao pai","Ao passarinho","À Lia","À árvore"],"Ao passarinho",["Procure o nome citado antes.","O pronome substitui esse nome.","Ele se refere ao passarinho."],"O pronome Ele retoma o passarinho."),
+    _q("por-404",4,"formacao_frases","coesao","Qual palavra completa melhor: 'O passarinho descansou, ___ conseguiu voar.'",["porque","depois","mas","nunca"],"depois",["A frase mostra sequência.","Primeiro descansou e em seguida voou.","Depois indica o que ocorreu em seguida."],"Depois completa a sequência corretamente."),
+    _q("por-405",4,"interpretacao","causa_consequencia","Qual foi a consequência do descanso do passarinho?",["Ele conseguiu voar","Lia ficou triste","O pai foi embora","A água acabou"],"Ele conseguiu voar",["Consequência é o que acontece depois.","Leia a última frase.","Após descansar, ele voou."],"O descanso ajudou o passarinho a conseguir voar."),
+    _q("por-406",4,"classes_palavras","adjetivo","Qual palavra caracteriza o passarinho?",["passarinho","assustado","voar","água"],"assustado",["Procure a palavra que mostra como ele estava.","Ela apresenta uma característica.","Assustado caracteriza o passarinho."],"Assustado funciona como característica do passarinho."),
+    _q("por-501",5,"interpretacao","ideia_principal","Qual é a ideia principal do texto?",["Lia cuidou de um passarinho até ele conseguir voar","Lia plantou uma árvore","O pai comprou uma ave","Lia perdeu uma vasilha"],"Lia cuidou de um passarinho até ele conseguir voar",["Resuma o texto inteiro.","Considere problema, cuidado e final.","A primeira opção reúne os fatos principais."],"A ideia principal é o cuidado de Lia até a recuperação da ave."),
+    _q("por-502",5,"producao_textual","resumo","Qual frase resume melhor o final?",["Lia saiu correndo.","O passarinho descansou e voltou a voar.","O pai comprou água.","A árvore caiu."],"O passarinho descansou e voltou a voar.",["Procure o acontecimento final.","O descanso trouxe uma mudança.","Ele voltou a voar."],"Essa frase resume corretamente o desfecho."),
+    _q("por-503",5,"gramatica_aplicada","conectivo","Qual conectivo indica oposição?",["e","porque","mas","depois"],"mas",["Oposição mostra contraste.","A palavra liga ideias contrárias.","Mas indica oposição."],"Mas é um conectivo de oposição."),
+    _q("por-504",5,"interpretacao","intencao","Que atitude de Lia demonstra cuidado?",["Observar de longe e oferecer água","Prender o passarinho","Fazer barulho","Levá-lo para a escola"],"Observar de longe e oferecer água",["Procure ações que respeitam o animal.","Ela ajudou sem aumentar o medo.","Ofereceu água e manteve distância."],"Essas ações demonstram cuidado."),
+    _q("por-505",5,"vocabulario","contexto","No texto, 'vasilha' significa:",["Um recipiente","Uma árvore","Um alimento","Uma janela"],"Um recipiente",["Observe o que foi colocado nela.","Ela recebeu água.","Vasilha é um recipiente."],"Vasilha é um recipiente usado para colocar algo."),
+    _q("por-506",5,"producao_textual","titulo","Qual seria outro bom título para o texto?",["O cuidado de Lia","A escola vazia","A árvore perdida","O sábado chuvoso"],"O cuidado de Lia",["O título deve representar o assunto principal.","O texto mostra ajuda a um animal.","'O cuidado de Lia' resume o tema."],"Esse título representa o assunto central do texto."),
 ]
-
-
-METADADOS = {
-    "por-01": ("localizacao_informacoes", 3, "animais"), "por-02": ("interpretacao", 3, "emocao"),
-    "por-03": ("localizacao_informacoes", 3, "familia"), "por-04": ("sinonimos_antonimos", 4, "vocabulario"),
-    "por-05": ("pontuacao", 4, "frase"), "por-06": ("ortografia", 3, "plural"),
-    "por-07": ("classes_palavras", 4, "verbo"), "por-08": ("ortografia", 3, "grafia"),
-    "por-09": ("interpretacao", 5, "inferencia"), "por-10": ("interpretacao", 5, "ideia_principal"),
-}
-
-for questao in QUESTOES:
-    habilidade, nivel, tema = METADADOS[questao["id"]]
-    questao.update(habilidade=habilidade, nivel=nivel, tema=tema)
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 
 
-def obter_questao(codigo: str) -> dict | None:
+def obter_questao(codigo: str) -> dict[str, Any] | None:
     return QUESTOES_POR_ID.get(codigo)
 
 
-def resposta_correta(questao: dict, resposta: str) -> bool:
+def resposta_correta(questao: dict[str, Any], resposta: str) -> bool:
     return resposta == questao["correta"]
 
 
-def enriquecer_resultado(resultado: dict) -> dict:
+def enriquecer_resultado(resultado: dict[str, Any]) -> dict[str, Any]:
     detalhes = []
     for item in resultado["detalhes"]:
         questao = obter_questao(item["id"])

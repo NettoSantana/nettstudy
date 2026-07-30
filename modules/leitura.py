@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\leitura.py
-# Data e hora do último recode: 30/07/2026 17:19 -03:00
-# Motivo da alteração: adicionar dicas progressivas, evidências do texto e explicações às perguntas de Leitura.
+# Data e hora do último recode: 30/07/2026 20:21 -03:00
+# Motivo da alteração: classificar histórias e perguntas por nível, habilidade e interesse para o motor pedagógico.
 
 from datetime import date
 from typing import Any
@@ -295,13 +295,41 @@ HISTORIAS = [
 ]
 
 
-NIVEIS_COMPATIVEIS = {
-    "iniciante": {"basico"},
-    "basico": {"basico", "intermediario"},
-    "intermediario": {"basico", "intermediario"},
-    "avancado": {"intermediario"},
-}
+NIVEL_NUMERICO = {"basico": 2, "intermediario": 4}
 
+HABILIDADES_PERGUNTAS = (
+    "localizacao_informacoes",
+    "causa_consequencia",
+    "ideia_principal",
+)
+
+
+def _nivel_historia(historia: dict[str, Any]) -> int:
+    return NIVEL_NUMERICO.get(historia.get("nivel", "basico"), 2)
+
+
+
+def _texto_simples(texto: str) -> str:
+    import unicodedata
+    base = unicodedata.normalize("NFKD", texto or "")
+    return "".join(c for c in base if not unicodedata.combining(c)).lower()
+
+def _interesses_normalizados(interesses: str | None) -> set[str]:
+    texto = (interesses or "").lower()
+    mapa = {
+        "animais": {"animal", "cachorro", "natureza"},
+        "ciencia": {"ciência", "água", "máquina", "sombra"},
+        "espaco": {"planeta", "saturno", "espaço"},
+        "esportes": {"bola", "quadra", "futebol"},
+        "dinheiro": {"moeda", "dinheiro", "troca", "bicicleta"},
+        "historia": {"cultura", "brasil", "pelourinho", "região"},
+        "maquinas": {"máquina", "oficina", "rampa"},
+    }
+    encontrados = set()
+    for interesse, termos in mapa.items():
+        if interesse in texto or any(termo in texto for termo in termos):
+            encontrados.add(interesse)
+    return encontrados
 
 def _sentenca_evidencia(historia: dict[str, Any], resposta_correta: str) -> tuple[int, str]:
     palavras_resposta = set(
@@ -361,6 +389,9 @@ def enriquecer_historia(historia: dict[str, Any]) -> dict[str, Any]:
                     f"Na página {pagina}, o texto mostra: “{evidencia}”."
                 ),
                 "ordem_original": indice,
+                "nivel": min(5, _nivel_historia(historia) + (1 if indice == 3 else 0)),
+                "habilidade": HABILIDADES_PERGUNTAS[min(indice - 1, len(HABILIDADES_PERGUNTAS) - 1)],
+                "tema": historia.get("tema", ""),
             }
         )
 
@@ -381,16 +412,41 @@ def resposta_correta(pergunta: dict[str, Any], resposta: str) -> bool:
 
 def obter_historia_do_dia(
     aluno_id: int,
-    nivel_leitura: str | None = None,
+    nivel_leitura: str | int | None = None,
     data_referencia: date | None = None,
+    interesses: str | None = None,
 ) -> dict[str, Any]:
-    nivel = (nivel_leitura or "basico").strip().lower()
-    niveis = NIVEIS_COMPATIVEIS.get(nivel, {"basico", "intermediario"})
-    candidatas = [historia for historia in HISTORIAS if historia["nivel"] in niveis]
+    if isinstance(nivel_leitura, int):
+        nivel_alvo = max(1, min(5, nivel_leitura))
+    else:
+        mapa = {"iniciante": 1, "basico": 2, "intermediario": 4, "avancado": 5}
+        nivel_alvo = mapa.get((nivel_leitura or "basico").strip().lower(), 2)
 
+    candidatas = [
+        historia
+        for historia in HISTORIAS
+        if _nivel_historia(historia) <= nivel_alvo + 1
+    ]
+    if not candidatas:
+        candidatas = [historia for historia in HISTORIAS if _nivel_historia(historia) == 2]
+
+    preferidos = _interesses_normalizados(interesses)
+    if preferidos:
+        relacionadas = []
+        for historia in candidatas:
+            base = _texto_simples(f"{historia['colecao']} {historia['tema']} {historia['titulo']}")
+            if any(interesse in base for interesse in preferidos):
+                relacionadas.append(historia)
+        if relacionadas:
+            candidatas = relacionadas
+
+    candidatas.sort(key=lambda historia: (abs(_nivel_historia(historia) - nivel_alvo), historia["id"]))
     referencia = data_referencia or date.today()
-    indice = (referencia.toordinal() + int(aluno_id)) % len(candidatas)
-    return enriquecer_historia(candidatas[indice])
+    faixa = candidatas[: max(1, min(5, len(candidatas)))]
+    indice = (referencia.toordinal() + int(aluno_id)) % len(faixa)
+    historia = enriquecer_historia(faixa[indice])
+    historia["nivel_numerico"] = _nivel_historia(historia)
+    return historia
 
 
 def corrigir(
