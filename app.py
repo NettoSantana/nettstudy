@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 29/07/2026 16:15 -03:00
-# Motivo da alteração: criar a base funcional inicial do NettStudy com autenticação, sessões e dashboards.
+# Data e hora do último recode: 30/07/2026 14:33 -03:00
+# Motivo da alteração: ligar os dashboards às tabelas reais de responsáveis, alunos e vínculos.
 
 import os
 from functools import wraps
@@ -10,7 +10,13 @@ from flask import Flask, flash, jsonify, redirect, render_template, request, ses
 from werkzeug.security import check_password_hash
 
 from config import Config
-from database import buscar_usuario_por_login, inicializar_banco
+from database import (
+    buscar_aluno_por_usuario,
+    buscar_responsavel_por_usuario,
+    buscar_usuario_por_login,
+    inicializar_banco,
+    listar_alunos_do_responsavel,
+)
 
 
 def create_app() -> Flask:
@@ -30,11 +36,15 @@ def login_obrigatorio(perfil: str | None = None) -> Callable:
             if not session.get("usuario_id"):
                 flash("Faça login para continuar.", "aviso")
                 return redirect(url_for("login"))
+
             if perfil and session.get("perfil") != perfil:
                 flash("Este acesso não pertence ao seu perfil.", "erro")
                 return redirect(url_for("portal"))
+
             return funcao(*args, **kwargs)
+
         return protegida
+
     return decorador
 
 
@@ -58,14 +68,37 @@ def registrar_rotas(app: Flask) -> None:
         if request.method == "POST":
             identificador = request.form.get("identificador", "").strip().lower()
             senha = request.form.get("senha", "")
-            usuario = buscar_usuario_por_login(app.config["DATABASE_PATH"], identificador)
-            if not usuario or not check_password_hash(usuario["senha_hash"], senha):
+
+            usuario = buscar_usuario_por_login(
+                app.config["DATABASE_PATH"],
+                identificador,
+            )
+
+            if not usuario or not check_password_hash(
+                usuario["senha_hash"],
+                senha,
+            ):
                 flash("Login ou senha inválidos.", "erro")
-                return render_template("login.html", identificador=identificador), 401
+                return render_template(
+                    "login.html",
+                    identificador=identificador,
+                ), 401
+
             session.clear()
-            session.update(usuario_id=usuario["id"], nome=usuario["nome"], perfil=usuario["perfil"])
-            destino = "dashboard_responsavel" if usuario["perfil"] == "responsavel" else "dashboard_aluno"
+            session.update(
+                usuario_id=usuario["id"],
+                nome=usuario["nome"],
+                perfil=usuario["perfil"],
+            )
+
+            destino = (
+                "dashboard_responsavel"
+                if usuario["perfil"] == "responsavel"
+                else "dashboard_aluno"
+            )
+
             return redirect(url_for(destino))
+
         return render_template("login.html")
 
     @app.get("/sair")
@@ -81,29 +114,101 @@ def registrar_rotas(app: Flask) -> None:
     @app.get("/responsavel")
     @login_obrigatorio("responsavel")
     def dashboard_responsavel():
-        aluno = {
-            "nome": "João",
-            "ano_escolar": "5º ano",
-            "sequencia": 4,
-            "pontos": 280,
-            "progresso_dia": 67,
-            "atividades": [
-                {"nome": "Português", "status": "Concluída", "progresso": 100},
-                {"nome": "Matemática", "status": "Em andamento", "progresso": 60},
-                {"nome": "Leitura", "status": "Pendente", "progresso": 0},
-            ],
-        }
-        return render_template("dashboard_responsavel.html", aluno=aluno)
+        usuario_id = int(session["usuario_id"])
+
+        responsavel = buscar_responsavel_por_usuario(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+        )
+
+        alunos = listar_alunos_do_responsavel(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+        )
+
+        aluno = None
+
+        if alunos:
+            aluno_registrado = alunos[0]
+            aluno = {
+                "id": aluno_registrado["id"],
+                "nome": aluno_registrado["nome_exibicao"],
+                "nome_completo": aluno_registrado["nome_completo"],
+                "ano_escolar": aluno_registrado["ano_escolar"] or "Não informado",
+                "parentesco": aluno_registrado["parentesco"] or "Responsável",
+                "principal": bool(aluno_registrado["principal"]),
+                "sequencia": 0,
+                "pontos": 0,
+                "progresso_dia": 0,
+                "atividades": [
+                    {
+                        "nome": "Português",
+                        "status": "Pendente",
+                        "progresso": 0,
+                    },
+                    {
+                        "nome": "Matemática",
+                        "status": "Pendente",
+                        "progresso": 0,
+                    },
+                    {
+                        "nome": "Leitura",
+                        "status": "Pendente",
+                        "progresso": 0,
+                    },
+                ],
+            }
+
+        return render_template(
+            "dashboard_responsavel.html",
+            responsavel=responsavel,
+            alunos=alunos,
+            aluno=aluno,
+        )
 
     @app.get("/aluno")
     @login_obrigatorio("aluno")
     def dashboard_aluno():
+        usuario_id = int(session["usuario_id"])
+
+        aluno = buscar_aluno_por_usuario(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+        )
+
+        if not aluno:
+            session.clear()
+            flash(
+                "O cadastro do aluno não foi encontrado. Entre novamente.",
+                "erro",
+            )
+            return redirect(url_for("login"))
+
         missao = [
-            {"nome": "Português", "descricao": "10 questões", "concluida": True},
-            {"nome": "Matemática", "descricao": "10 questões", "concluida": False},
-            {"nome": "Leitura", "descricao": "3 páginas e resumo", "concluida": False},
+            {
+                "nome": "Português",
+                "descricao": "10 questões",
+                "concluida": False,
+            },
+            {
+                "nome": "Matemática",
+                "descricao": "10 questões",
+                "concluida": False,
+            },
+            {
+                "nome": "Leitura",
+                "descricao": "3 páginas e resumo",
+                "concluida": False,
+            },
         ]
-        return render_template("dashboard_aluno.html", missao=missao, pontos=280, sequencia=4)
+
+        return render_template(
+            "dashboard_aluno.html",
+            aluno=aluno,
+            missao=missao,
+            pontos=0,
+            sequencia=0,
+        )
 
     @app.get("/pwa-instalar")
     def pwa_instalar():
@@ -111,20 +216,35 @@ def registrar_rotas(app: Flask) -> None:
 
     @app.get("/health")
     def health():
-        return jsonify(status="ok", produto="NettStudy", ambiente=app.config["APP_ENV"])
+        return jsonify(
+            status="ok",
+            produto="NettStudy",
+            ambiente=app.config["APP_ENV"],
+        )
 
 
 def registrar_erros(app: Flask) -> None:
     @app.errorhandler(404)
     def pagina_nao_encontrada(_erro):
-        return render_template("portal.html", erro="Página não encontrada."), 404
+        return render_template(
+            "portal.html",
+            erro="Página não encontrada.",
+        ), 404
 
     @app.errorhandler(500)
     def erro_interno(_erro):
-        return jsonify(erro="Erro interno do servidor.", status=500), 500
+        return jsonify(
+            erro="Erro interno do servidor.",
+            status=500,
+        ), 500
 
 
 app = create_app()
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=app.config["DEBUG"])
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "5000")),
+        debug=app.config["DEBUG"],
+    )
