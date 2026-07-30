@@ -1,8 +1,9 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 14:50 -03:00
-# Motivo da alteração: concluir cadastro, dashboards e anamnese inicial do NettStudy.
+# Data e hora do último recode: 30/07/2026 15:10 -03:00
+# Motivo da alteração: criar as atividades funcionais de Matemática, Português e Leitura.
 
 import os
+from datetime import date
 from functools import wraps
 from typing import Any, Callable
 
@@ -10,6 +11,10 @@ from flask import Flask, flash, jsonify, redirect, render_template, request, ses
 from werkzeug.security import check_password_hash
 
 from config import Config
+from modules.leitura import PAGINAS, PERGUNTAS, TITULO, corrigir as corrigir_leitura
+from modules.matematica import QUESTOES as QUESTOES_MATEMATICA, corrigir as corrigir_matematica
+from modules.portugues import QUESTOES as QUESTOES_PORTUGUES, TEXTO, corrigir as corrigir_portugues
+
 from database import (
     buscar_aluno_por_usuario,
     buscar_anamnese_por_aluno,
@@ -18,6 +23,8 @@ from database import (
     cadastrar_familia,
     inicializar_banco,
     listar_alunos_do_responsavel,
+    obter_resumo_diario,
+    registrar_resultado_atividade,
     salvar_anamnese,
 )
 
@@ -371,12 +378,34 @@ def registrar_rotas(app: Flask) -> None:
             else None
         )
 
+        resumo_dia = (
+            obter_resumo_diario(
+                app.config["DATABASE_PATH"],
+                int(aluno["id"]),
+                date.today().isoformat(),
+            )
+            if aluno
+            else {"materias": {}, "concluidas": 0, "progresso": 0, "pontos": 0, "sequencia": 0}
+        )
+
+        if aluno:
+            aluno["sequencia"] = resumo_dia["sequencia"]
+            aluno["pontos"] = resumo_dia["pontos"]
+            aluno["progresso_dia"] = resumo_dia["progresso"]
+            for atividade in aluno["atividades"]:
+                chave = atividade["nome"].lower().replace("á", "a").replace("ê", "e")
+                registro = resumo_dia["materias"].get(chave)
+                if registro:
+                    atividade["status"] = "Concluída"
+                    atividade["progresso"] = 100
+
         return render_template(
             "dashboard_responsavel.html",
             responsavel=responsavel,
             alunos=alunos,
             aluno=aluno,
             anamnese=anamnese_registro,
+            resumo_dia=resumo_dia,
         )
 
     @app.get("/aluno")
@@ -410,33 +439,90 @@ def registrar_rotas(app: Flask) -> None:
             )
             return redirect(url_for("login"))
 
+        resumo_dia = obter_resumo_diario(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+            date.today().isoformat(),
+        )
+        configuracao = [
+            ("Português", "portugues", "10 questões", "atividade_portugues"),
+            ("Matemática", "matematica", "10 questões", "atividade_matematica"),
+            ("Leitura", "leitura", "3 páginas, perguntas e resumo", "atividade_leitura"),
+        ]
         missao = [
             {
-                "nome": "Português",
-                "descricao": "10 questões",
-                "concluida": False,
-            },
-            {
-                "nome": "Matemática",
-                "descricao": "10 questões",
-                "concluida": False,
-            },
-            {
-                "nome": "Leitura",
-                "descricao": "3 páginas e resumo",
-                "concluida": False,
-            },
+                "nome": nome,
+                "chave": chave,
+                "descricao": descricao,
+                "rota": rota,
+                "concluida": chave in resumo_dia["materias"],
+            }
+            for nome, chave, descricao, rota in configuracao
         ]
 
         return render_template(
             "dashboard_aluno.html",
             aluno=aluno,
             missao=missao,
-            pontos=0,
-            sequencia=0,
-            atividades_concluidas=0,
-            progresso=0,
+            pontos=resumo_dia["pontos"],
+            sequencia=resumo_dia["sequencia"],
+            atividades_concluidas=resumo_dia["concluidas"],
+            progresso=resumo_dia["progresso"],
         )
+
+    def _aluno_logado_com_anamnese() -> dict[str, Any] | None:
+        aluno = buscar_aluno_por_usuario(
+            app.config["DATABASE_PATH"],
+            int(session["usuario_id"]),
+        )
+        if not aluno or not buscar_anamnese_por_aluno(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+        ):
+            return None
+        return aluno
+
+    @app.route("/atividade/matematica", methods=["GET", "POST"])
+    @login_obrigatorio("aluno")
+    def atividade_matematica():
+        aluno = _aluno_logado_com_anamnese()
+        if not aluno:
+            flash("Conclua a anamnese antes das atividades.", "aviso")
+            return redirect(url_for("login"))
+        if request.method == "POST":
+            resultado = corrigir_matematica(request.form.to_dict())
+            registrar_resultado_atividade(app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat(), "matematica", resultado)
+            return render_template("resultado_atividade.html", materia="Matemática", resultado=resultado)
+        return render_template("atividade_matematica.html", aluno=aluno, questoes=QUESTOES_MATEMATICA)
+
+    @app.route("/atividade/portugues", methods=["GET", "POST"])
+    @login_obrigatorio("aluno")
+    def atividade_portugues():
+        aluno = _aluno_logado_com_anamnese()
+        if not aluno:
+            flash("Conclua a anamnese antes das atividades.", "aviso")
+            return redirect(url_for("login"))
+        if request.method == "POST":
+            resultado = corrigir_portugues(request.form.to_dict())
+            registrar_resultado_atividade(app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat(), "portugues", resultado)
+            return render_template("resultado_atividade.html", materia="Português", resultado=resultado)
+        return render_template("atividade_portugues.html", aluno=aluno, texto=TEXTO, questoes=QUESTOES_PORTUGUES)
+
+    @app.route("/atividade/leitura", methods=["GET", "POST"])
+    @login_obrigatorio("aluno")
+    def atividade_leitura():
+        aluno = _aluno_logado_com_anamnese()
+        if not aluno:
+            flash("Conclua a anamnese antes das atividades.", "aviso")
+            return redirect(url_for("login"))
+        if request.method == "POST":
+            resultado = corrigir_leitura(request.form.to_dict(), request.form.get("resumo", ""))
+            if not resultado["resumo_valido"]:
+                flash("Escreva um resumo com pelo menos 15 palavras.", "erro")
+                return render_template("atividade_leitura.html", aluno=aluno, titulo=TITULO, paginas=PAGINAS, perguntas=PERGUNTAS, resumo=request.form.get("resumo", "")), 400
+            registrar_resultado_atividade(app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat(), "leitura", resultado, TITULO)
+            return render_template("resultado_atividade.html", materia="Leitura", resultado=resultado)
+        return render_template("atividade_leitura.html", aluno=aluno, titulo=TITULO, paginas=PAGINAS, perguntas=PERGUNTAS, resumo="")
 
     @app.get("/pwa-instalar")
     def pwa_instalar():

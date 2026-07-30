@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 14:50 -03:00
-# Motivo da alteração: incluir anamnese inicial e manter o cadastro transacional da família.
+# Data e hora do último recode: 30/07/2026 15:10 -03:00
+# Motivo da alteração: registrar atividades diárias, respostas, pontos e resumos de leitura.
 
 import sqlite3
 from pathlib import Path
@@ -87,6 +87,45 @@ CREATE INDEX IF NOT EXISTS idx_responsavel_aluno_responsavel
 
 CREATE INDEX IF NOT EXISTS idx_responsavel_aluno_aluno
     ON responsavel_aluno (aluno_id);
+
+CREATE TABLE IF NOT EXISTS atividades_diarias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    aluno_id INTEGER NOT NULL,
+    data_atividade TEXT NOT NULL,
+    materia TEXT NOT NULL CHECK (materia IN ('matematica', 'portugues', 'leitura')),
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'concluida')),
+    acertos INTEGER NOT NULL DEFAULT 0,
+    total_questoes INTEGER NOT NULL DEFAULT 0,
+    pontos INTEGER NOT NULL DEFAULT 0,
+    concluida_em TEXT,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (aluno_id, data_atividade, materia),
+    FOREIGN KEY (aluno_id) REFERENCES alunos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS respostas_atividades (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    atividade_id INTEGER NOT NULL,
+    questao_codigo TEXT NOT NULL,
+    resposta TEXT,
+    correta INTEGER NOT NULL DEFAULT 0 CHECK (correta IN (0, 1)),
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (atividade_id, questao_codigo),
+    FOREIGN KEY (atividade_id) REFERENCES atividades_diarias(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS resumos_leitura (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    atividade_id INTEGER NOT NULL UNIQUE,
+    titulo TEXT NOT NULL,
+    resumo TEXT NOT NULL,
+    valido INTEGER NOT NULL DEFAULT 0 CHECK (valido IN (0, 1)),
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (atividade_id) REFERENCES atividades_diarias(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_atividades_aluno_data
+    ON atividades_diarias (aluno_id, data_atividade);
 """
 
 
@@ -696,3 +735,114 @@ def salvar_anamnese(
                 observacoes or None,
             ),
         )
+
+
+
+def registrar_resultado_atividade(
+    caminho_banco: str,
+    aluno_id: int,
+    data_atividade: str,
+    materia: str,
+    resultado: dict[str, Any],
+    titulo_leitura: str | None = None,
+) -> int:
+    if materia not in {"matematica", "portugues", "leitura"}:
+        raise ValueError("Matéria inválida.")
+
+    with conectar(caminho_banco) as conexao:
+        cursor = conexao.execute(
+            """
+            INSERT INTO atividades_diarias (
+                aluno_id, data_atividade, materia, status,
+                acertos, total_questoes, pontos, concluida_em
+            )
+            VALUES (?, ?, ?, 'concluida', ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(aluno_id, data_atividade, materia) DO UPDATE SET
+                status = 'concluida',
+                acertos = excluded.acertos,
+                total_questoes = excluded.total_questoes,
+                pontos = excluded.pontos,
+                concluida_em = CURRENT_TIMESTAMP
+            """,
+            (
+                aluno_id,
+                data_atividade,
+                materia,
+                int(resultado["acertos"]),
+                int(resultado["total"]),
+                int(resultado["pontos"]),
+            ),
+        )
+        atividade = conexao.execute(
+            "SELECT id FROM atividades_diarias WHERE aluno_id = ? AND data_atividade = ? AND materia = ?",
+            (aluno_id, data_atividade, materia),
+        ).fetchone()
+        atividade_id = int(atividade["id"])
+
+        conexao.execute("DELETE FROM respostas_atividades WHERE atividade_id = ?", (atividade_id,))
+        for detalhe in resultado["detalhes"]:
+            conexao.execute(
+                """
+                INSERT INTO respostas_atividades (
+                    atividade_id, questao_codigo, resposta, correta
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    atividade_id,
+                    detalhe["id"],
+                    detalhe.get("resposta") or None,
+                    int(bool(detalhe["acertou"])),
+                ),
+            )
+
+        if materia == "leitura":
+            conexao.execute(
+                """
+                INSERT INTO resumos_leitura (
+                    atividade_id, titulo, resumo, valido
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(atividade_id) DO UPDATE SET
+                    titulo = excluded.titulo,
+                    resumo = excluded.resumo,
+                    valido = excluded.valido
+                """,
+                (
+                    atividade_id,
+                    titulo_leitura or "Leitura do dia",
+                    resultado.get("resumo", ""),
+                    int(bool(resultado.get("resumo_valido"))),
+                ),
+            )
+
+    return atividade_id
+
+
+def obter_resumo_diario(
+    caminho_banco: str,
+    aluno_id: int,
+    data_atividade: str,
+) -> dict[str, Any]:
+    with conectar(caminho_banco) as conexao:
+        registros = conexao.execute(
+            """
+            SELECT materia, status, acertos, total_questoes, pontos
+            FROM atividades_diarias
+            WHERE aluno_id = ? AND data_atividade = ?
+            """,
+            (aluno_id, data_atividade),
+        ).fetchall()
+
+        pontos_total = conexao.execute(
+            "SELECT COALESCE(SUM(pontos), 0) AS total FROM atividades_diarias WHERE aluno_id = ?",
+            (aluno_id,),
+        ).fetchone()["total"]
+
+    por_materia = {registro["materia"]: dict(registro) for registro in registros}
+    concluidas = sum(1 for registro in registros if registro["status"] == "concluida")
+    return {
+        "materias": por_materia,
+        "concluidas": concluidas,
+        "progresso": round((concluidas / 3) * 100),
+        "pontos": int(pontos_total),
+        "sequencia": 1 if concluidas == 3 else 0,
+    }
