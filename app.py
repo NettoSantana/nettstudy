@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 19:36 -03:00
-# Motivo da alteração: implementar recuperação de senha do responsável e PIN dos alunos por e-mail.
+# Data e hora do último recode: 30/07/2026 20:05 -03:00
+# Motivo da alteração: permitir vários alunos por responsável com seleção independente.
 
 import os
 from datetime import date
@@ -52,11 +52,13 @@ from modules.portugues import (
 
 from database import (
     buscar_aluno_por_usuario,
+    buscar_aluno_do_responsavel,
     buscar_anamnese_por_aluno,
     buscar_responsavel_por_usuario,
     buscar_usuario_por_login,
     buscar_usuario_por_id,
     cadastrar_familia,
+    cadastrar_aluno_para_responsavel,
     inicializar_banco,
     listar_alunos_do_responsavel,
     finalizar_sessao_adaptativa,
@@ -379,17 +381,23 @@ def registrar_rotas(app: Flask) -> None:
         alunos = listar_alunos_do_responsavel(app.config["DATABASE_PATH"], usuario_id)
         if not alunos:
             flash("Cadastre um aluno antes de preencher a anamnese.", "aviso")
-            return redirect(url_for("dashboard_responsavel"))
+            return redirect(url_for("novo_aluno"))
 
-        aluno = alunos[0]
-        aluno_id = int(aluno["id"])
-        estado = obter_estado_anamnese(app.config["DATABASE_PATH"], aluno_id)
+        aluno_id = request.args.get("aluno_id", type=int) or request.form.get("aluno_id", type=int)
+        aluno_id = aluno_id or session.get("aluno_responsavel_id") or int(alunos[0]["id"])
+        aluno = buscar_aluno_do_responsavel(app.config["DATABASE_PATH"], usuario_id, int(aluno_id))
+        if not aluno:
+            flash("Aluno não encontrado para esta conta.", "erro")
+            return redirect(url_for("dashboard_responsavel"))
+        session["aluno_responsavel_id"] = int(aluno["id"])
+
+        estado = obter_estado_anamnese(app.config["DATABASE_PATH"], int(aluno["id"]))
         respostas = estado["respostas"]
         etapa = request.args.get("etapa", type=int) or int(estado.get("etapa_atual") or 1)
         etapa = max(1, min(6, etapa))
 
         if not respostas:
-            registro = buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], aluno_id)
+            registro = buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], int(aluno["id"]))
             if registro:
                 respostas.update({"idade": str(registro["idade"]), "ano_escolar": registro["ano_escolar"]})
 
@@ -398,31 +406,22 @@ def registrar_rotas(app: Flask) -> None:
             acao = request.form.get("acao", "continuar")
             try:
                 if etapa_post <= 5:
-                    salvar_etapa_anamnese(
-                        app.config["DATABASE_PATH"], aluno_id, etapa_post, request.form
-                    )
-                    return redirect(url_for("anamnese", etapa=min(6, etapa_post + 1)))
-
+                    salvar_etapa_anamnese(app.config["DATABASE_PATH"], int(aluno["id"]), etapa_post, request.form)
+                    return redirect(url_for("anamnese", aluno_id=aluno["id"], etapa=min(6, etapa_post + 1)))
                 if acao == "confirmar":
-                    estado = obter_estado_anamnese(app.config["DATABASE_PATH"], aluno_id)
+                    estado = obter_estado_anamnese(app.config["DATABASE_PATH"], int(aluno["id"]))
                     respostas = estado["respostas"]
                     resumo = montar_resumo_anamnese(respostas, aluno["nome_exibicao"])
-                    legado = converter_para_anamnese_legada(respostas)
-                    salvar_anamnese(
-                        caminho_banco=app.config["DATABASE_PATH"], aluno_id=aluno_id,
-                        **legado,
-                    )
-                    concluir_anamnese_estruturada(
-                        app.config["DATABASE_PATH"], aluno_id, resumo
-                    )
-                    garantir_perfil_pedagogico(app.config["DATABASE_PATH"], aluno_id)
+                    salvar_anamnese(caminho_banco=app.config["DATABASE_PATH"], aluno_id=int(aluno["id"]), **converter_para_anamnese_legada(respostas))
+                    concluir_anamnese_estruturada(app.config["DATABASE_PATH"], int(aluno["id"]), resumo)
+                    garantir_perfil_pedagogico(app.config["DATABASE_PATH"], int(aluno["id"]))
                     flash("Anamnese concluída e perfil pedagógico atualizado.", "sucesso")
-                    return redirect(url_for("dashboard_responsavel"))
+                    return redirect(url_for("dashboard_responsavel", aluno_id=aluno["id"]))
             except (ValueError, TypeError) as erro:
                 flash(str(erro), "erro")
                 etapa = etapa_post
 
-        estado = obter_estado_anamnese(app.config["DATABASE_PATH"], aluno_id)
+        estado = obter_estado_anamnese(app.config["DATABASE_PATH"], int(aluno["id"]))
         respostas = {**respostas, **estado["respostas"]}
         resumo = montar_resumo_anamnese(respostas, aluno["nome_exibicao"]) if etapa == 6 else None
         return render_template(
@@ -444,130 +443,97 @@ def registrar_rotas(app: Flask) -> None:
     @login_obrigatorio("responsavel")
     def dashboard_responsavel():
         usuario_id = int(session["usuario_id"])
-
-        responsavel = buscar_responsavel_por_usuario(
-            app.config["DATABASE_PATH"],
-            usuario_id,
-        )
-
-        alunos = listar_alunos_do_responsavel(
-            app.config["DATABASE_PATH"],
-            usuario_id,
-        )
+        responsavel = buscar_responsavel_por_usuario(app.config["DATABASE_PATH"], usuario_id)
+        alunos = listar_alunos_do_responsavel(app.config["DATABASE_PATH"], usuario_id)
+        aluno_id = request.args.get("aluno_id", type=int) or session.get("aluno_responsavel_id")
+        aluno_registrado = None
+        if alunos:
+            aluno_id = int(aluno_id or alunos[0]["id"])
+            aluno_registrado = buscar_aluno_do_responsavel(app.config["DATABASE_PATH"], usuario_id, aluno_id)
+            if not aluno_registrado:
+                aluno_registrado = alunos[0]
+                aluno_id = int(aluno_registrado["id"])
+            session["aluno_responsavel_id"] = aluno_id
 
         aluno = None
-
-        if alunos:
-            aluno_registrado = alunos[0]
+        if aluno_registrado:
+            resumo_dia = obter_resumo_diario(app.config["DATABASE_PATH"], aluno_id, date.today().isoformat())
+            atividades = []
+            for nome in ("Português", "Matemática", "Leitura"):
+                chave = nome.lower().replace("á", "a").replace("ê", "e")
+                concluida = bool(resumo_dia["materias"].get(chave))
+                atividades.append({"nome": nome, "status": "Concluída" if concluida else "Pendente", "progresso": 100 if concluida else 0})
             aluno = {
-                "id": aluno_registrado["id"],
+                "id": aluno_id,
                 "nome": aluno_registrado["nome_exibicao"],
                 "nome_completo": aluno_registrado["nome_completo"],
                 "ano_escolar": aluno_registrado["ano_escolar"] or "Não informado",
                 "parentesco": aluno_registrado["parentesco"] or "Responsável",
                 "principal": bool(aluno_registrado["principal"]),
-                "sequencia": 0,
-                "pontos": 0,
-                "progresso_dia": 0,
-                "atividades": [
-                    {
-                        "nome": "Português",
-                        "status": "Pendente",
-                        "progresso": 0,
-                    },
-                    {
-                        "nome": "Matemática",
-                        "status": "Pendente",
-                        "progresso": 0,
-                    },
-                    {
-                        "nome": "Leitura",
-                        "status": "Pendente",
-                        "progresso": 0,
-                    },
-                ],
+                "sequencia": resumo_dia["sequencia"],
+                "pontos": resumo_dia["pontos"],
+                "progresso_dia": resumo_dia["progresso"],
+                "atividades": atividades,
             }
+        else:
+            resumo_dia = {"materias": {}, "concluidas": 0, "progresso": 0, "pontos": 0, "sequencia": 0}
 
-        anamnese_registro = (
-            buscar_anamnese_por_aluno(
-                app.config["DATABASE_PATH"],
-                int(aluno["id"]),
-            )
-            if aluno
-            else None
-        )
-
-        resumo_dia = (
-            obter_resumo_diario(
-                app.config["DATABASE_PATH"],
-                int(aluno["id"]),
-                date.today().isoformat(),
-            )
-            if aluno
-            else {"materias": {}, "concluidas": 0, "progresso": 0, "pontos": 0, "sequencia": 0}
-        )
-
-        if aluno:
-            aluno["sequencia"] = resumo_dia["sequencia"]
-            aluno["pontos"] = resumo_dia["pontos"]
-            aluno["progresso_dia"] = resumo_dia["progresso"]
-            for atividade in aluno["atividades"]:
-                chave = atividade["nome"].lower().replace("á", "a").replace("ê", "e")
-                registro = resumo_dia["materias"].get(chave)
-                if registro:
-                    atividade["status"] = "Concluída"
-                    atividade["progresso"] = 100
-
-        reset_missao = (
-            obter_reset_missao_dia(
-                app.config["DATABASE_PATH"],
-                int(aluno["id"]),
-                date.today().isoformat(),
-            )
-            if aluno
-            else None
-        )
-
-        perfil_pedagogico = (
-            garantir_perfil_pedagogico(
-                app.config["DATABASE_PATH"],
-                int(aluno["id"]),
-            )
-            if aluno and anamnese_registro
-            else None
-        )
-
+        anamnese_registro = buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], aluno_id) if aluno else None
+        reset_missao = obter_reset_missao_dia(app.config["DATABASE_PATH"], aluno_id, date.today().isoformat()) if aluno else None
+        perfil = garantir_perfil_pedagogico(app.config["DATABASE_PATH"], aluno_id) if aluno and anamnese_registro else None
         return render_template(
-            "dashboard_responsavel.html",
-            responsavel=responsavel,
-            alunos=alunos,
-            aluno=aluno,
-            anamnese=anamnese_registro,
-            resumo_dia=resumo_dia,
-            reset_missao=reset_missao,
-            perfil_pedagogico=perfil_pedagogico,
+            "dashboard_responsavel.html", responsavel=responsavel, alunos=alunos,
+            aluno=aluno, anamnese=anamnese_registro, resumo_dia=resumo_dia,
+            reset_missao=reset_missao, perfil_pedagogico=perfil, limite_alunos=5,
         )
+
+    @app.route("/responsavel/alunos/novo", methods=["GET", "POST"])
+    @login_obrigatorio("responsavel")
+    def novo_aluno():
+        usuario_id = int(session["usuario_id"])
+        alunos = listar_alunos_do_responsavel(app.config["DATABASE_PATH"], usuario_id)
+        if len(alunos) >= 5:
+            flash("O limite é de cinco alunos por responsável.", "aviso")
+            return redirect(url_for("dashboard_responsavel"))
+
+        dados = {"nome_aluno": "", "nome_exibicao_aluno": "", "ano_escolar": "", "usuario_aluno": "", "parentesco": "Responsável"}
+        if request.method == "POST":
+            dados = {chave: request.form.get(chave, "").strip() for chave in dados}
+            pin = request.form.get("pin_aluno", "").strip()
+            confirmar = request.form.get("confirmar_pin", "").strip()
+            if pin != confirmar:
+                flash("A confirmação do PIN não confere.", "erro")
+                return render_template("novo_aluno.html", dados=dados, total_alunos=len(alunos)), 400
+            try:
+                cadastro = cadastrar_aluno_para_responsavel(
+                    app.config["DATABASE_PATH"], usuario_id,
+                    dados["nome_aluno"], dados["nome_exibicao_aluno"], dados["ano_escolar"],
+                    dados["usuario_aluno"], pin, dados["parentesco"],
+                )
+            except ValueError as erro:
+                flash(str(erro), "erro")
+                return render_template("novo_aluno.html", dados=dados, total_alunos=len(alunos)), 400
+            session["aluno_responsavel_id"] = cadastro["aluno_id"]
+            flash("Aluno adicionado. Agora preencha a anamnese individual.", "sucesso")
+            return redirect(url_for("anamnese", aluno_id=cadastro["aluno_id"]))
+        return render_template("novo_aluno.html", dados=dados, total_alunos=len(alunos))
 
     @app.get("/responsavel/perfil-pedagogico")
     @login_obrigatorio("responsavel")
     def perfil_pedagogico():
-        alunos = listar_alunos_do_responsavel(
-            app.config["DATABASE_PATH"],
-            int(session["usuario_id"]),
-        )
+        usuario_id = int(session["usuario_id"])
+        alunos = listar_alunos_do_responsavel(app.config["DATABASE_PATH"], usuario_id)
         if not alunos:
             flash("Nenhum aluno vinculado.", "aviso")
             return redirect(url_for("dashboard_responsavel"))
-        aluno = alunos[0]
-        perfil = garantir_perfil_pedagogico(
-            app.config["DATABASE_PATH"],
-            int(aluno["id"]),
-        )
-        return render_template(
-            "perfil_pedagogico.html",
-            aluno=aluno,
-            perfil=perfil,
-        )
+        aluno_id = request.args.get("aluno_id", type=int) or session.get("aluno_responsavel_id") or int(alunos[0]["id"])
+        aluno = buscar_aluno_do_responsavel(app.config["DATABASE_PATH"], usuario_id, int(aluno_id))
+        if not aluno:
+            flash("Aluno não encontrado para esta conta.", "erro")
+            return redirect(url_for("dashboard_responsavel"))
+        session["aluno_responsavel_id"] = int(aluno["id"])
+        perfil = garantir_perfil_pedagogico(app.config["DATABASE_PATH"], int(aluno["id"]))
+        return render_template("perfil_pedagogico.html", aluno=aluno, perfil=perfil)
 
     @app.post("/responsavel/refazer-missao")
     @login_obrigatorio("responsavel")
@@ -579,11 +545,11 @@ def registrar_rotas(app: Flask) -> None:
 
         if not aluno_id:
             flash("Aluno inválido para reiniciar a missão.", "erro")
-            return redirect(url_for("dashboard_responsavel"))
+            return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
 
         if confirmacao != "REFAZER":
             flash("Digite REFAZER para confirmar a operação.", "erro")
-            return redirect(url_for("dashboard_responsavel"))
+            return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
 
         usuario = buscar_usuario_por_id(
             app.config["DATABASE_PATH"],
@@ -591,7 +557,7 @@ def registrar_rotas(app: Flask) -> None:
         )
         if not usuario or not check_password_hash(usuario["senha_hash"], senha):
             flash("Senha do responsável inválida.", "erro")
-            return redirect(url_for("dashboard_responsavel"))
+            return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
 
         try:
             refazer_missao_do_dia(
@@ -603,13 +569,13 @@ def registrar_rotas(app: Flask) -> None:
             )
         except ValueError as erro:
             flash(str(erro), "erro")
-            return redirect(url_for("dashboard_responsavel"))
+            return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
 
         flash(
             "Missão de hoje reiniciada. O histórico anterior foi preservado.",
             "sucesso",
         )
-        return redirect(url_for("dashboard_responsavel"))
+        return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
 
     @app.get("/aluno")
     @login_obrigatorio("aluno")

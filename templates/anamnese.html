@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\anamnese.html
-Data e hora do último recode: 30/07/2026 18:59 -03:00
-Motivo da alteração: bloquear novas escolhas ao atingir os limites de interesses e objetivos.
+Data e hora do último recode: 30/07/2026 20:05 -03:00
+Motivo da alteração: vincular cada anamnese ao aluno selecionado pelo responsável.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -24,7 +24,7 @@ Motivo da alteração: bloquear novas escolhas ao atingir os limites de interess
     {% with mensagens=get_flashed_messages(with_categories=true) %}{% for categoria,mensagem in mensagens %}<div class="flash {{ categoria }}">{{ mensagem }}</div>{% endfor %}{% endwith %}
 
     {% if etapa == 1 %}
-    <form method="post" class="anamnese-form"><input type="hidden" name="etapa" value="1">
+    <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="1">
         <div class="titulo-etapa"><h2>Dados escolares</h2><p>Informações gerais para definir a referência inicial.</p></div>
         <div class="grade-form">
             <div class="campo"><label>Idade</label><input name="idade" type="number" min="4" max="18" value="{{ respostas.get('idade','') }}" required></div>
@@ -33,27 +33,27 @@ Motivo da alteração: bloquear novas escolhas ao atingir os limites de interess
             <div class="campo"><label>Situação escolar</label><select name="situacao_escolar" required><option value="">Selecione</option>{% for valor,rotulo in opcoes.situacao_escolar %}<option value="{{ valor }}" {% if respostas.get('situacao_escolar')==valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
         </div>
         <fieldset class="grupo-escolhas"><legend>Acompanhamento atual</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.acompanhamentos %}<label class="escolha"><input type="checkbox" name="acompanhamentos" value="{{ valor }}" {% if valor in respostas.get('acompanhamentos',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
-        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('dashboard_responsavel') }}">Sair</a><button class="button" type="submit">Continuar</button></div>
+        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('dashboard_responsavel', aluno_id=aluno.id) }}">Sair</a><button class="button" type="submit">Continuar</button></div>
     </form>
 
     {% elif etapa == 2 %}
-    <form method="post" class="anamnese-form"><input type="hidden" name="etapa" value="2">
+    <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="2">
         <div class="titulo-etapa"><h2>Leitura e escrita</h2><p>Avalie o que a criança consegue fazer hoje.</p></div>
         <div class="habilidades-anamnese">{% for chave,rotulo in opcoes.leitura_habilidades %}<div class="habilidade-linha"><strong>{{ rotulo }}</strong><div class="escala-opcoes">{% for valor,texto in opcoes.escala %}<label><input type="radio" name="{{ chave }}" value="{{ valor }}" {% if respostas.get(chave)==valor %}checked{% endif %} required><span>{{ texto }}</span></label>{% endfor %}</div></div>{% endfor %}</div>
         <fieldset class="grupo-escolhas"><legend>Dificuldades percebidas</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.dificuldades_leitura %}<label class="escolha"><input type="checkbox" name="dificuldades_leitura" value="{{ valor }}" {% if valor in respostas.get('dificuldades_leitura',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
-        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', etapa=1) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
+        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=1) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
     </form>
 
     {% elif etapa == 3 %}
-    <form method="post" class="anamnese-form"><input type="hidden" name="etapa" value="3">
+    <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="3">
         <div class="titulo-etapa"><h2>Matemática</h2><p>Avalie cada habilidade sem preocupação com diagnóstico definitivo.</p></div>
         <div class="habilidades-anamnese">{% for chave,rotulo in opcoes.matematica_habilidades %}<div class="habilidade-linha"><strong>{{ rotulo }}</strong><div class="escala-opcoes">{% for valor,texto in opcoes.escala %}<label><input type="radio" name="{{ chave }}" value="{{ valor }}" {% if respostas.get(chave)==valor %}checked{% endif %} required><span>{{ texto }}</span></label>{% endfor %}</div></div>{% endfor %}</div>
         <fieldset class="grupo-escolhas"><legend>Dificuldades percebidas</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.dificuldades_matematica %}<label class="escolha"><input type="checkbox" name="dificuldades_matematica" value="{{ valor }}" {% if valor in respostas.get('dificuldades_matematica',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
-        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', etapa=2) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
+        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=2) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
     </form>
 
     {% elif etapa == 4 %}
-    <form method="post" class="anamnese-form"><input type="hidden" name="etapa" value="4">
+    <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="4">
         <div class="titulo-etapa"><h2>Atenção e rotina</h2><p>Essas respostas ajustam volume, ritmo e forma de apresentação.</p></div>
         <div class="grade-form">
             <div class="campo"><label>Tempo de concentração</label><select name="concentracao" required><option value="">Selecione</option>{% for valor,rotulo in opcoes.concentracao %}<option value="{{ valor }}" {% if respostas.get('concentracao')==valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}</select></div>
@@ -62,17 +62,17 @@ Motivo da alteração: bloquear novas escolhas ao atingir os limites de interess
         </div>
         <fieldset class="grupo-escolhas"><legend>Reação diante das atividades</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.reacoes %}<label class="escolha"><input type="checkbox" name="reacoes" value="{{ valor }}" {% if valor in respostas.get('reacoes',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <fieldset class="grupo-escolhas"><legend>Forma preferida de aprender</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.formas_aprender %}<label class="escolha"><input type="checkbox" name="formas_aprender" value="{{ valor }}" {% if valor in respostas.get('formas_aprender',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
-        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', etapa=3) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
+        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=3) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
     </form>
 
     {% elif etapa == 5 %}
-    <form method="post" class="anamnese-form"><input type="hidden" name="etapa" value="5">
+    <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="5">
         <div class="titulo-etapa"><h2>Interesses e objetivos</h2><p>Selecione até cinco interesses e até quatro objetivos.</p></div>
         <fieldset class="grupo-escolhas grupo-limitado" data-limite="5"><legend>Assuntos preferidos — <span class="contador-escolhas">0 de 5 selecionados</span></legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.interesses %}<label class="escolha"><input type="checkbox" name="interesses" value="{{ valor }}" {% if valor in respostas.get('interesses',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <fieldset class="grupo-escolhas grupo-limitado" data-limite="4"><legend>Objetivos do responsável — <span class="contador-escolhas">0 de 4 selecionados</span></legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.objetivos %}<label class="escolha"><input type="checkbox" name="objetivos" value="{{ valor }}" {% if valor in respostas.get('objetivos',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <fieldset class="grupo-escolhas"><legend>Informações que podem ajudar na adaptação</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.condicoes %}<label class="escolha"><input type="checkbox" name="condicoes" value="{{ valor }}" {% if valor in respostas.get('condicoes',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <div class="campo"><label>Observações adicionais — opcional</label><textarea name="observacoes" rows="4">{{ respostas.get('observacoes','') }}</textarea></div>
-        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', etapa=4) }}">Voltar</a><button class="button" type="submit">Revisar resumo</button></div>
+        <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=4) }}">Voltar</a><button class="button" type="submit">Revisar resumo</button></div>
     </form>
 
     {% else %}
@@ -85,7 +85,7 @@ Motivo da alteração: bloquear novas escolhas ao atingir os limites de interess
         <article><h3>Interesses</h3><p>{{ resumo.interesses|join(', ') }}</p><h3>Objetivos</h3><p>{{ resumo.objetivos|join(', ') }}</p></article>
         <article class="plano-inicial"><h3>Plano inicial sugerido</h3><p>Fase: diagnóstico silencioso</p><p>Período de observação: 5 dias</p><p>Os níveis serão ajustados conforme acertos, tentativas e dicas.</p></article>
     </div>
-    <form method="post"><input type="hidden" name="etapa" value="6"><input type="hidden" name="acao" value="confirmar"><div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', etapa=5) }}">Voltar e corrigir</a><button class="button" type="submit">Confirmar e criar perfil</button></div></form>
+    <form method="post"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="6"><input type="hidden" name="acao" value="confirmar"><div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=5) }}">Voltar e corrigir</a><button class="button" type="submit">Confirmar e criar perfil</button></div></form>
     {% endif %}
 </section>
 </main>

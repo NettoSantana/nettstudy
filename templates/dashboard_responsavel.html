@@ -1,111 +1,19 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_responsavel.html
-Data e hora do último recode: 30/07/2026 18:11 -03:00
-Motivo da alteração: adicionar o recurso Refazer missão de hoje com confirmação e histórico preservado.
+Data e hora do último recode: 30/07/2026 20:05 -03:00
+Motivo da alteração: permitir selecionar e acompanhar até cinco alunos por responsável.
 -->
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>NettStudy | Responsável</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-</head>
-<body>
-<header class="topbar">
-    <a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a>
-    <span>{{ responsavel.nome_completo if responsavel else usuario_logado }}</span>
-    <a class="button secondary" href="{{ url_for('sair') }}">Sair</a>
-</header>
-
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NettStudy | Responsável</title><link rel="stylesheet" href="{{ url_for('static',filename='css/dashboard.css') }}"></head><body>
+<header class="topbar"><a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a><span>{{ responsavel.nome_completo if responsavel else usuario_logado }}</span><a class="button secondary" href="{{ url_for('sair') }}">Sair</a></header>
 <main class="content">
-    {% with mensagens = get_flashed_messages(with_categories=true) %}
-        {% for categoria, mensagem in mensagens %}
-            <div class="flash {{ categoria }}">{{ mensagem }}</div>
-        {% endfor %}
-    {% endwith %}
-
-    {% if aluno %}
-        <p>PAINEL DO RESPONSÁVEL</p>
-        <h1>Progresso de {{ aluno.nome }}</h1>
-
-        <div class="metrics">
-            <div class="metric"><span>Sequência</span><strong>{{ aluno.sequencia }} dias</strong></div>
-            <div class="metric"><span>Pontos</span><strong>{{ aluno.pontos }}</strong></div>
-            <div class="metric"><span>Missão de hoje</span><strong>{{ aluno.progresso_dia }}%</strong></div>
-        </div>
-
-        <section class="panel">
-            <h2>Atividades de hoje</h2>
-            {% for item in aluno.atividades %}
-                <div class="activity-row">
-                    <div>
-                        <strong>{{ item.nome }}</strong>
-                        <small>{{ item.progresso }}% concluído</small>
-                    </div>
-                    <span class="status">{{ item.status }}</span>
-                </div>
-            {% endfor %}
-        </section>
-
-        <section class="panel">
-            <h2>Anamnese inicial</h2>
-            {% if anamnese %}
-                <p>Concluída. O perfil inicial do aluno está registrado.</p>
-                <a class="button secondary" href="{{ url_for('anamnese') }}">Revisar anamnese</a>
-            {% else %}
-                <a class="button" href="{{ url_for('anamnese') }}">Preencher anamnese</a>
-            {% endif %}
-        </section>
-
-
-        {% if perfil_pedagogico %}
-            <section class="panel perfil-resumo">
-                <div><p>PERFIL PEDAGÓGICO</p><h2>{{ perfil_pedagogico.faixa_desenvolvimento }}</h2><span class="texto-suave">{% if perfil_pedagogico.fase == 'diagnostico' %}Diagnóstico silencioso: {{ perfil_pedagogico.dias_restantes_diagnostico }} dia(s) restante(s).{% else %}Trilha adaptativa ativa.{% endif %}</span></div>
-                <div class="niveis-resumo"><span>Matemática <strong>Nível {{ perfil_pedagogico.nivel_matematica }}</strong></span><span>Português <strong>Nível {{ perfil_pedagogico.nivel_portugues }}</strong></span><span>Leitura <strong>Nível {{ perfil_pedagogico.nivel_leitura }}</strong></span></div>
-                <a class="button secondary" href="{{ url_for('perfil_pedagogico') }}">Ver habilidades e evolução</a>
-            </section>
-        {% endif %}
-        <section class="panel reset-panel">
-            <h2>Refazer missão de hoje</h2>
-            {% if reset_missao %}
-                <p class="reset-bloqueado">
-                    A missão de hoje já foi reiniciada. O histórico anterior continua preservado.
-                </p>
-            {% else %}
-                <p>
-                    Use somente quando precisar repetir a missão do dia. A tentativa atual será
-                    arquivada e uma nova missão começará com zero pontos.
-                </p>
-                <details class="reset-details">
-                    <summary class="button secondary">Abrir confirmação</summary>
-                    <form class="reset-form" method="post" action="{{ url_for('refazer_missao') }}">
-                        <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
-                        <div class="reset-alerta">
-                            Isso reiniciará as três atividades de hoje. O histórico anterior não será apagado.
-                        </div>
-                        <label>
-                            Motivo opcional
-                            <input name="motivo" type="text" maxlength="200" placeholder="Ex.: teste acompanhado">
-                        </label>
-                        <label>
-                            Senha do responsável
-                            <input name="senha" type="password" autocomplete="current-password" required>
-                        </label>
-                        <label>
-                            Digite REFAZER para confirmar
-                            <input name="confirmacao" type="text" autocomplete="off" required>
-                        </label>
-                        <div class="reset-acoes">
-                            <button class="button danger" type="submit">Confirmar reset do dia</button>
-                        </div>
-                    </form>
-                </details>
-            {% endif %}
-        </section>
-    {% else %}
-        <section class="panel"><h1>Nenhum aluno cadastrado</h1></section>
-    {% endif %}
-</main>
-</body>
-</html>
+{% with mensagens=get_flashed_messages(with_categories=true) %}{% for categoria,mensagem in mensagens %}<div class="flash {{ categoria }}">{{ mensagem }}</div>{% endfor %}{% endwith %}
+<section class="panel alunos-painel"><div class="painel-cabecalho"><div><p>MEUS ALUNOS</p><h1>Perfis da família</h1></div>{% if alunos|length < limite_alunos %}<a class="button" href="{{ url_for('novo_aluno') }}">+ Adicionar aluno</a>{% endif %}</div>
+{% if alunos %}<div class="alunos-grade">{% for item in alunos %}<a class="aluno-seletor {% if aluno and item.id==aluno.id %}ativo{% endif %}" href="{{ url_for('dashboard_responsavel',aluno_id=item.id) }}"><strong>{{ item.nome_exibicao }}</strong><span>{{ item.ano_escolar or 'Ano não informado' }}</span>{% if item.principal %}<small>Primeiro perfil</small>{% endif %}</a>{% endfor %}</div><p class="texto-suave">{{ alunos|length }} de {{ limite_alunos }} perfis utilizados.</p>{% else %}<p>Nenhum aluno cadastrado.</p><a class="button" href="{{ url_for('novo_aluno') }}">Adicionar primeiro aluno</a>{% endif %}</section>
+{% if aluno %}
+<p>PAINEL DO RESPONSÁVEL</p><h1>Progresso de {{ aluno.nome }}</h1>
+<div class="metrics"><div class="metric"><span>Sequência</span><strong>{{ aluno.sequencia }} dias</strong></div><div class="metric"><span>Pontos</span><strong>{{ aluno.pontos }}</strong></div><div class="metric"><span>Missão de hoje</span><strong>{{ aluno.progresso_dia }}%</strong></div></div>
+<section class="panel"><h2>Atividades de hoje</h2>{% for item in aluno.atividades %}<div class="activity-row"><div><strong>{{ item.nome }}</strong><small>{{ item.progresso }}% concluído</small></div><span class="status">{{ item.status }}</span></div>{% endfor %}</section>
+<section class="panel"><h2>Anamnese de {{ aluno.nome }}</h2>{% if anamnese %}<p>Concluída. O perfil inicial deste aluno está registrado.</p><a class="button secondary" href="{{ url_for('anamnese',aluno_id=aluno.id) }}">Revisar anamnese</a>{% else %}<p>Cada aluno precisa de uma anamnese própria.</p><a class="button" href="{{ url_for('anamnese',aluno_id=aluno.id) }}">Preencher anamnese</a>{% endif %}</section>
+{% if perfil_pedagogico %}<section class="panel perfil-resumo"><div><p>PERFIL PEDAGÓGICO</p><h2>{{ perfil_pedagogico.faixa_desenvolvimento }}</h2><span class="texto-suave">{% if perfil_pedagogico.fase=='diagnostico' %}Diagnóstico silencioso: {{ perfil_pedagogico.dias_restantes_diagnostico }} dia(s) restante(s).{% else %}Trilha adaptativa ativa.{% endif %}</span></div><div class="niveis-resumo"><span>Matemática <strong>Nível {{ perfil_pedagogico.nivel_matematica }}</strong></span><span>Português <strong>Nível {{ perfil_pedagogico.nivel_portugues }}</strong></span><span>Leitura <strong>Nível {{ perfil_pedagogico.nivel_leitura }}</strong></span></div><a class="button secondary" href="{{ url_for('perfil_pedagogico',aluno_id=aluno.id) }}">Ver habilidades e evolução</a></section>{% endif %}
+<section class="panel reset-panel"><h2>Refazer missão de hoje</h2>{% if reset_missao %}<p class="reset-bloqueado">A missão de hoje já foi reiniciada. O histórico anterior continua preservado.</p>{% else %}<p>Use somente quando precisar repetir a missão deste aluno. A tentativa atual será arquivada.</p><details class="reset-details"><summary class="button secondary">Abrir confirmação</summary><form class="reset-form" method="post" action="{{ url_for('refazer_missao') }}"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><div class="reset-alerta">Isso reiniciará as três atividades de hoje somente para {{ aluno.nome }}.</div><label>Motivo opcional<input name="motivo" type="text" maxlength="200"></label><label>Senha do responsável<input name="senha" type="password" required></label><label>Digite REFAZER para confirmar<input name="confirmacao" type="text" required></label><div class="reset-acoes"><button class="button danger" type="submit">Confirmar reset do dia</button></div></form></details>{% endif %}</section>
+{% endif %}</main></body></html>

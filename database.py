@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 19:36 -03:00
-# Motivo da alteração: adicionar recuperação segura da senha do responsável e do PIN dos alunos.
+# Data e hora do último recode: 30/07/2026 20:05 -03:00
+# Motivo da alteração: permitir até cinco alunos por responsável com perfis independentes.
 
 import hashlib
 import json
@@ -581,6 +581,118 @@ def listar_alunos_do_responsavel(
 
     return [dict(registro) for registro in registros]
 
+
+
+def buscar_aluno_do_responsavel(
+    caminho_banco: str,
+    usuario_responsavel_id: int,
+    aluno_id: int,
+) -> dict[str, Any] | None:
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT
+                a.id,
+                a.usuario_id,
+                a.nome_completo,
+                a.nome_exibicao,
+                a.data_nascimento,
+                a.ano_escolar,
+                a.avatar,
+                ra.parentesco,
+                ra.principal
+            FROM responsaveis r
+            INNER JOIN responsavel_aluno ra
+                ON ra.responsavel_id = r.id
+            INNER JOIN alunos a
+                ON a.id = ra.aluno_id
+            WHERE r.usuario_id = ?
+              AND a.id = ?
+              AND r.ativo = 1
+              AND a.ativo = 1
+            """,
+            (usuario_responsavel_id, aluno_id),
+        ).fetchone()
+
+    return dict(registro) if registro else None
+
+
+def cadastrar_aluno_para_responsavel(
+    caminho_banco: str,
+    usuario_responsavel_id: int,
+    nome_aluno: str,
+    nome_exibicao_aluno: str,
+    ano_escolar: str,
+    usuario_aluno: str,
+    pin_aluno: str,
+    parentesco: str = "Responsável",
+    limite_alunos: int = 5,
+) -> dict[str, int]:
+    nome_aluno = nome_aluno.strip()
+    nome_exibicao_aluno = nome_exibicao_aluno.strip()
+    ano_escolar = ano_escolar.strip()
+    usuario_aluno = usuario_aluno.strip().lower()
+    parentesco = parentesco.strip() or "Responsável"
+
+    if not nome_aluno:
+        raise ValueError("Informe o nome do aluno.")
+    if not nome_exibicao_aluno:
+        nome_exibicao_aluno = nome_aluno.split()[0]
+    if not usuario_aluno:
+        raise ValueError("Informe o usuário do aluno.")
+    if not pin_aluno.isdigit() or len(pin_aluno) != 4:
+        raise ValueError("O PIN do aluno deve conter exatamente 4 números.")
+
+    try:
+        with conectar(caminho_banco) as conexao:
+            responsavel = conexao.execute(
+                "SELECT id FROM responsaveis WHERE usuario_id = ? AND ativo = 1",
+                (usuario_responsavel_id,),
+            ).fetchone()
+            if not responsavel:
+                raise ValueError("Responsável não encontrado.")
+
+            quantidade = conexao.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM responsavel_aluno ra
+                INNER JOIN alunos a ON a.id = ra.aluno_id
+                WHERE ra.responsavel_id = ? AND a.ativo = 1
+                """,
+                (responsavel["id"],),
+            ).fetchone()["total"]
+            if int(quantidade) >= limite_alunos:
+                raise ValueError(f"O limite é de {limite_alunos} alunos por responsável.")
+
+            cursor_usuario = conexao.execute(
+                """
+                INSERT INTO usuarios (nome, identificador, senha_hash, perfil)
+                VALUES (?, ?, ?, 'aluno')
+                """,
+                (nome_exibicao_aluno, usuario_aluno, generate_password_hash(pin_aluno)),
+            )
+            cursor_aluno = conexao.execute(
+                """
+                INSERT INTO alunos (usuario_id, nome_completo, nome_exibicao, ano_escolar)
+                VALUES (?, ?, ?, ?)
+                """,
+                (cursor_usuario.lastrowid, nome_aluno, nome_exibicao_aluno, ano_escolar or None),
+            )
+            conexao.execute(
+                """
+                INSERT INTO responsavel_aluno (responsavel_id, aluno_id, parentesco, principal)
+                VALUES (?, ?, ?, 0)
+                """,
+                (responsavel["id"], cursor_aluno.lastrowid, parentesco),
+            )
+            return {
+                "usuario_aluno_id": int(cursor_usuario.lastrowid),
+                "aluno_id": int(cursor_aluno.lastrowid),
+            }
+    except sqlite3.IntegrityError as erro:
+        if "usuarios.identificador" in str(erro).lower():
+            raise ValueError("Este usuário de aluno já está em uso.") from erro
+        raise ValueError("Não foi possível cadastrar o aluno.") from erro
 
 def identificador_disponivel(
     caminho_banco: str,
