@@ -1,15 +1,65 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_responsavel.html
-Data e hora do último recode: 30/07/2026 20:15 -03:00
-Motivo da alteração: exibir aviso e reenvio enquanto o e-mail do responsável não estiver validado.
+Data e hora do último recode: 30/07/2026 20:16 -03:00
+Motivo da alteração: organizar os perfis da família em cartões separados e clicáveis.
 -->
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NettStudy | Responsável</title><link rel="stylesheet" href="{{ url_for('static',filename='css/dashboard.css') }}"></head><body>
 <header class="topbar"><a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a><span>{{ responsavel.nome_completo if responsavel else usuario_logado }}</span><a class="button secondary" href="{{ url_for('sair') }}">Sair</a></header>
 <main class="content">
 {% with mensagens=get_flashed_messages(with_categories=true) %}{% for categoria,mensagem in mensagens %}<div class="flash {{ categoria }}">{{ mensagem }}</div>{% endfor %}{% endwith %}
 {% if responsavel and not responsavel.email_validado_em %}<section class="aviso-validacao-email"><div><strong>Valide seu e-mail para proteger sua conta.</strong><span>Enviamos um link para {{ responsavel.email }}. Você pode continuar usando o NettStudy normalmente.</span></div><form method="post" action="{{ url_for('reenviar_validacao_email') }}"><button class="button secondary" type="submit">Reenviar e-mail</button></form></section>{% endif %}
-<section class="panel alunos-painel"><div class="painel-cabecalho"><div><p>MEUS ALUNOS</p><h1>Perfis da família</h1></div>{% if alunos|length < limite_alunos %}<a class="button" href="{{ url_for('novo_aluno') }}">+ Adicionar aluno</a>{% endif %}</div>
-{% if alunos %}<div class="alunos-grade">{% for item in alunos %}<a class="aluno-seletor {% if aluno and item.id==aluno.id %}ativo{% endif %}" href="{{ url_for('dashboard_responsavel',aluno_id=item.id) }}"><strong>{{ item.nome_exibicao }}</strong><span>{{ item.ano_escolar or 'Ano não informado' }}</span>{% if item.principal %}<small>Primeiro perfil</small>{% endif %}</a>{% endfor %}</div><p class="texto-suave">{{ alunos|length }} de {{ limite_alunos }} perfis utilizados.</p>{% else %}<p>Nenhum aluno cadastrado.</p><a class="button" href="{{ url_for('novo_aluno') }}">Adicionar primeiro aluno</a>{% endif %}</section>
+<section class="panel alunos-painel">
+    <div class="painel-cabecalho">
+        <div>
+            <p>MEUS ALUNOS</p>
+            <h1>Perfis da família</h1>
+        </div>
+
+        {% if alunos|length < limite_alunos %}
+            <a class="button" href="{{ url_for('novo_aluno') }}">
+                + Adicionar aluno
+            </a>
+        {% endif %}
+    </div>
+
+    {% if alunos %}
+        <div class="alunos-grade">
+            {% for item in alunos %}
+                <a
+                    class="aluno-seletor {% if aluno and item.id == aluno.id %}ativo{% endif %}"
+                    href="{{ url_for('dashboard_responsavel', aluno_id=item.id) }}"
+                >
+                    <div class="aluno-seletor-topo">
+                        <strong>{{ item.nome_exibicao }}</strong>
+
+                        {% if item.principal %}
+                            <span class="aluno-selo">Primeiro perfil</span>
+                        {% endif %}
+                    </div>
+
+                    <span class="aluno-ano">
+                        {{ item.ano_escolar or 'Ano não informado' }}
+                    </span>
+
+                    <small>
+                        Clique para visualizar o progresso
+                    </small>
+                </a>
+            {% endfor %}
+        </div>
+
+        <p class="texto-suave alunos-contador">
+            {{ alunos|length }} de {{ limite_alunos }} perfis utilizados.
+        </p>
+    {% else %}
+        <div class="alunos-vazio">
+            <p>Nenhum aluno cadastrado.</p>
+            <a class="button" href="{{ url_for('novo_aluno') }}">
+                Adicionar primeiro aluno
+            </a>
+        </div>
+    {% endif %}
+</section>
 {% if aluno %}
 <p>PAINEL DO RESPONSÁVEL</p><h1>Progresso de {{ aluno.nome }}</h1>
 <div class="metrics"><div class="metric"><span>Sequência</span><strong>{{ aluno.sequencia }} dias</strong></div><div class="metric"><span>Pontos</span><strong>{{ aluno.pontos }}</strong></div><div class="metric"><span>Missão de hoje</span><strong>{{ aluno.progresso_dia }}%</strong></div></div>
