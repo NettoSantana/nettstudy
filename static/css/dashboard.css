@@ -1,7 +1,7 @@
 /*
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 30/07/2026 17:31 -03:00
-Motivo da alteração: restaurar o layout da página inicial sem remover os estilos dos dashboards.
+Data e hora do último recode: 30/07/2026 17:54 -03:00
+Motivo da alteração: adicionar o painel responsivo de confirmação do reset diário.
 */
 
 :root {
@@ -299,5 +299,83 @@ a {
 
     .metric strong {
         font-size: 28px;
+    }
+}
+
+
+.reset-panel {
+    border-color: #ead8b0;
+}
+
+.reset-details {
+    margin-top: 18px;
+}
+
+.reset-details summary {
+    width: fit-content;
+    list-style: none;
+}
+
+.reset-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.reset-form {
+    display: grid;
+    gap: 16px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.reset-form label {
+    display: grid;
+    gap: 8px;
+    font-weight: 700;
+}
+
+.reset-form input {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font: inherit;
+}
+
+.reset-alerta {
+    padding: 14px;
+    border: 1px solid #e6c77b;
+    border-radius: 12px;
+    color: #72530b;
+    background: #fff8df;
+}
+
+.reset-bloqueado {
+    padding: 14px;
+    border-radius: 12px;
+    color: var(--success-text);
+    background: var(--success-bg);
+}
+
+.button.danger {
+    color: #ffffff;
+    background: #b53434;
+    box-shadow: none;
+}
+
+.button.danger:hover {
+    background: #942929;
+}
+
+.reset-acoes {
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 700px) {
+    .reset-details summary,
+    .reset-acoes .button {
+        width: 100%;
     }
 }

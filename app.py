@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 17:19 -03:00
-# Motivo da alteração: aplicar perguntas adaptativas e avaliação progressiva do resumo em Leitura.
+# Data e hora do último recode: 30/07/2026 17:54 -03:00
+# Motivo da alteração: permitir que o responsável refaça a missão do dia preservando o histórico anterior.
 
 import os
 from datetime import date
@@ -36,12 +36,15 @@ from database import (
     buscar_anamnese_por_aluno,
     buscar_responsavel_por_usuario,
     buscar_usuario_por_login,
+    buscar_usuario_por_id,
     cadastrar_familia,
     inicializar_banco,
     listar_alunos_do_responsavel,
     finalizar_sessao_adaptativa,
     obter_ou_criar_sessao_adaptativa,
     obter_resumo_diario,
+    obter_reset_missao_dia,
+    refazer_missao_do_dia,
     registrar_resultado_atividade,
     registrar_tentativa_adaptativa,
     obter_ou_criar_sessao_leitura,
@@ -423,6 +426,16 @@ def registrar_rotas(app: Flask) -> None:
                     atividade["status"] = "Concluída"
                     atividade["progresso"] = 100
 
+        reset_missao = (
+            obter_reset_missao_dia(
+                app.config["DATABASE_PATH"],
+                int(aluno["id"]),
+                date.today().isoformat(),
+            )
+            if aluno
+            else None
+        )
+
         return render_template(
             "dashboard_responsavel.html",
             responsavel=responsavel,
@@ -430,7 +443,50 @@ def registrar_rotas(app: Flask) -> None:
             aluno=aluno,
             anamnese=anamnese_registro,
             resumo_dia=resumo_dia,
+            reset_missao=reset_missao,
         )
+
+    @app.post("/responsavel/refazer-missao")
+    @login_obrigatorio("responsavel")
+    def refazer_missao():
+        aluno_id = request.form.get("aluno_id", type=int)
+        senha = request.form.get("senha", "")
+        confirmacao = request.form.get("confirmacao", "").strip()
+        motivo = request.form.get("motivo", "").strip()
+
+        if not aluno_id:
+            flash("Aluno inválido para reiniciar a missão.", "erro")
+            return redirect(url_for("dashboard_responsavel"))
+
+        if confirmacao != "REFAZER":
+            flash("Digite REFAZER para confirmar a operação.", "erro")
+            return redirect(url_for("dashboard_responsavel"))
+
+        usuario = buscar_usuario_por_id(
+            app.config["DATABASE_PATH"],
+            int(session["usuario_id"]),
+        )
+        if not usuario or not check_password_hash(usuario["senha_hash"], senha):
+            flash("Senha do responsável inválida.", "erro")
+            return redirect(url_for("dashboard_responsavel"))
+
+        try:
+            refazer_missao_do_dia(
+                app.config["DATABASE_PATH"],
+                int(session["usuario_id"]),
+                aluno_id,
+                date.today().isoformat(),
+                motivo,
+            )
+        except ValueError as erro:
+            flash(str(erro), "erro")
+            return redirect(url_for("dashboard_responsavel"))
+
+        flash(
+            "Missão de hoje reiniciada. O histórico anterior foi preservado.",
+            "sucesso",
+        )
+        return redirect(url_for("dashboard_responsavel"))
 
     @app.get("/aluno")
     @login_obrigatorio("aluno")

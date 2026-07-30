@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 17:19 -03:00
-# Motivo da alteração: registrar sessões adaptativas de Leitura e versões avaliadas do resumo.
+# Data e hora do último recode: 30/07/2026 17:54 -03:00
+# Motivo da alteração: preservar o histórico e permitir uma nova missão diária após confirmação do responsável.
 
 import json
 import random
@@ -228,6 +228,25 @@ CREATE INDEX IF NOT EXISTS idx_versoes_resumo_sessao
 """
 
 
+RESET_MISSAO_SCHEMA = """
+CREATE TABLE IF NOT EXISTS resets_missao_diaria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    responsavel_usuario_id INTEGER NOT NULL,
+    aluno_id INTEGER NOT NULL,
+    data_atividade TEXT NOT NULL,
+    motivo TEXT,
+    historico_json TEXT NOT NULL,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (aluno_id, data_atividade),
+    FOREIGN KEY (responsavel_usuario_id) REFERENCES usuarios(id) ON DELETE RESTRICT,
+    FOREIGN KEY (aluno_id) REFERENCES alunos(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_resets_missao_aluno_data
+    ON resets_missao_diaria (aluno_id, data_atividade);
+"""
+
+
 def conectar(caminho_banco: str) -> sqlite3.Connection:
     Path(caminho_banco).parent.mkdir(parents=True, exist_ok=True)
     conexao = sqlite3.connect(caminho_banco)
@@ -240,6 +259,7 @@ def inicializar_banco(caminho_banco: str) -> None:
     with conectar(caminho_banco) as conexao:
         conexao.executescript(SCHEMA)
         conexao.executescript(LEITURA_ADAPTATIVA_SCHEMA)
+        conexao.executescript(RESET_MISSAO_SCHEMA)
         _criar_dados_demonstracao(conexao)
 
 
@@ -1525,4 +1545,207 @@ def obter_resultado_sessao_leitura(
             "resumo_valido": pontuacao_resumo >= 7,
             "detalhes": detalhes,
         }
+
+
+def buscar_usuario_por_id(
+    caminho_banco: str,
+    usuario_id: int,
+) -> dict[str, Any] | None:
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT id, nome, identificador, senha_hash, perfil, ativo
+            FROM usuarios
+            WHERE id = ?
+            """,
+            (usuario_id,),
+        ).fetchone()
+    return dict(registro) if registro else None
+
+
+def obter_reset_missao_dia(
+    caminho_banco: str,
+    aluno_id: int,
+    data_atividade: str,
+) -> dict[str, Any] | None:
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT id, motivo, criado_em
+            FROM resets_missao_diaria
+            WHERE aluno_id = ? AND data_atividade = ?
+            """,
+            (aluno_id, data_atividade),
+        ).fetchone()
+    return dict(registro) if registro else None
+
+
+def refazer_missao_do_dia(
+    caminho_banco: str,
+    responsavel_usuario_id: int,
+    aluno_id: int,
+    data_atividade: str,
+    motivo: str = "",
+) -> dict[str, Any]:
+    motivo = (motivo or "").strip()
+
+    with conectar(caminho_banco) as conexao:
+        vinculo = conexao.execute(
+            """
+            SELECT r.id AS responsavel_id, a.nome_exibicao
+            FROM responsaveis r
+            INNER JOIN responsavel_aluno ra ON ra.responsavel_id = r.id
+            INNER JOIN alunos a ON a.id = ra.aluno_id
+            WHERE r.usuario_id = ?
+              AND a.id = ?
+              AND r.ativo = 1
+              AND a.ativo = 1
+            """,
+            (responsavel_usuario_id, aluno_id),
+        ).fetchone()
+        if not vinculo:
+            raise ValueError("O aluno não pertence a este responsável.")
+
+        reset_existente = conexao.execute(
+            """
+            SELECT id
+            FROM resets_missao_diaria
+            WHERE aluno_id = ? AND data_atividade = ?
+            """,
+            (aluno_id, data_atividade),
+        ).fetchone()
+        if reset_existente:
+            raise ValueError("A missão de hoje já foi reiniciada uma vez.")
+
+        atividades = [dict(row) for row in conexao.execute(
+            "SELECT * FROM atividades_diarias WHERE aluno_id = ? AND data_atividade = ?",
+            (aluno_id, data_atividade),
+        ).fetchall()]
+        atividade_ids = [int(item["id"]) for item in atividades]
+
+        respostas = []
+        resumos = []
+        if atividade_ids:
+            marcas = ",".join("?" for _ in atividade_ids)
+            respostas = [dict(row) for row in conexao.execute(
+                f"SELECT * FROM respostas_atividades WHERE atividade_id IN ({marcas})",
+                atividade_ids,
+            ).fetchall()]
+            resumos = [dict(row) for row in conexao.execute(
+                f"SELECT * FROM resumos_leitura WHERE atividade_id IN ({marcas})",
+                atividade_ids,
+            ).fetchall()]
+
+        sessoes_adaptativas = [dict(row) for row in conexao.execute(
+            "SELECT * FROM sessoes_adaptativas WHERE aluno_id = ? AND data_atividade = ?",
+            (aluno_id, data_atividade),
+        ).fetchall()]
+        sessoes_adaptativas_ids = [int(item["id"]) for item in sessoes_adaptativas]
+        tentativas_adaptativas = []
+        if sessoes_adaptativas_ids:
+            marcas = ",".join("?" for _ in sessoes_adaptativas_ids)
+            tentativas_adaptativas = [dict(row) for row in conexao.execute(
+                f"SELECT * FROM tentativas_adaptativas WHERE sessao_id IN ({marcas})",
+                sessoes_adaptativas_ids,
+            ).fetchall()]
+
+        sessoes_leitura = [dict(row) for row in conexao.execute(
+            "SELECT * FROM sessoes_leitura WHERE aluno_id = ? AND data_atividade = ?",
+            (aluno_id, data_atividade),
+        ).fetchall()]
+        sessoes_leitura_ids = [int(item["id"]) for item in sessoes_leitura]
+        tentativas_leitura = []
+        versoes_resumo = []
+        if sessoes_leitura_ids:
+            marcas = ",".join("?" for _ in sessoes_leitura_ids)
+            tentativas_leitura = [dict(row) for row in conexao.execute(
+                f"SELECT * FROM tentativas_leitura WHERE sessao_id IN ({marcas})",
+                sessoes_leitura_ids,
+            ).fetchall()]
+            versoes_resumo = [dict(row) for row in conexao.execute(
+                f"SELECT * FROM versoes_resumo WHERE sessao_id IN ({marcas})",
+                sessoes_leitura_ids,
+            ).fetchall()]
+
+        historico = {
+            "aluno_id": aluno_id,
+            "aluno_nome": vinculo["nome_exibicao"],
+            "data_atividade": data_atividade,
+            "atividades_diarias": atividades,
+            "respostas_atividades": respostas,
+            "resumos_leitura": resumos,
+            "sessoes_adaptativas": sessoes_adaptativas,
+            "tentativas_adaptativas": tentativas_adaptativas,
+            "sessoes_leitura": sessoes_leitura,
+            "tentativas_leitura": tentativas_leitura,
+            "versoes_resumo": versoes_resumo,
+        }
+
+        conexao.execute(
+            """
+            INSERT INTO resets_missao_diaria (
+                responsavel_usuario_id,
+                aluno_id,
+                data_atividade,
+                motivo,
+                historico_json
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                responsavel_usuario_id,
+                aluno_id,
+                data_atividade,
+                motivo or None,
+                json.dumps(historico, ensure_ascii=False),
+            ),
+        )
+
+        if atividade_ids:
+            marcas = ",".join("?" for _ in atividade_ids)
+            conexao.execute(
+                f"DELETE FROM respostas_atividades WHERE atividade_id IN ({marcas})",
+                atividade_ids,
+            )
+            conexao.execute(
+                f"DELETE FROM resumos_leitura WHERE atividade_id IN ({marcas})",
+                atividade_ids,
+            )
+
+        if sessoes_adaptativas_ids:
+            marcas = ",".join("?" for _ in sessoes_adaptativas_ids)
+            conexao.execute(
+                f"DELETE FROM tentativas_adaptativas WHERE sessao_id IN ({marcas})",
+                sessoes_adaptativas_ids,
+            )
+
+        if sessoes_leitura_ids:
+            marcas = ",".join("?" for _ in sessoes_leitura_ids)
+            conexao.execute(
+                f"DELETE FROM tentativas_leitura WHERE sessao_id IN ({marcas})",
+                sessoes_leitura_ids,
+            )
+            conexao.execute(
+                f"DELETE FROM versoes_resumo WHERE sessao_id IN ({marcas})",
+                sessoes_leitura_ids,
+            )
+
+        conexao.execute(
+            "DELETE FROM sessoes_adaptativas WHERE aluno_id = ? AND data_atividade = ?",
+            (aluno_id, data_atividade),
+        )
+        conexao.execute(
+            "DELETE FROM sessoes_leitura WHERE aluno_id = ? AND data_atividade = ?",
+            (aluno_id, data_atividade),
+        )
+        conexao.execute(
+            "DELETE FROM atividades_diarias WHERE aluno_id = ? AND data_atividade = ?",
+            (aluno_id, data_atividade),
+        )
+
+    return {
+        "aluno_id": aluno_id,
+        "data_atividade": data_atividade,
+        "historico_preservado": True,
+    }
 
