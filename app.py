@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 15:10 -03:00
-# Motivo da alteração: criar as atividades funcionais de Matemática, Português e Leitura.
+# Data e hora do último recode: 30/07/2026 15:29 -03:00
+# Motivo da alteração: aplicar o fluxo adaptativo de uma questão por vez em Matemática e Português.
 
 import os
 from datetime import date
@@ -12,8 +12,19 @@ from werkzeug.security import check_password_hash
 
 from config import Config
 from modules.leitura import PAGINAS, PERGUNTAS, TITULO, corrigir as corrigir_leitura
-from modules.matematica import QUESTOES as QUESTOES_MATEMATICA, corrigir as corrigir_matematica
-from modules.portugues import QUESTOES as QUESTOES_PORTUGUES, TEXTO, corrigir as corrigir_portugues
+from modules.matematica import (
+    QUESTOES as QUESTOES_MATEMATICA,
+    enriquecer_resultado as enriquecer_resultado_matematica,
+    obter_questao as obter_questao_matematica,
+    resposta_correta as resposta_correta_matematica,
+)
+from modules.portugues import (
+    QUESTOES as QUESTOES_PORTUGUES,
+    TEXTO,
+    enriquecer_resultado as enriquecer_resultado_portugues,
+    obter_questao as obter_questao_portugues,
+    resposta_correta as resposta_correta_portugues,
+)
 
 from database import (
     buscar_aluno_por_usuario,
@@ -23,8 +34,11 @@ from database import (
     cadastrar_familia,
     inicializar_banco,
     listar_alunos_do_responsavel,
+    finalizar_sessao_adaptativa,
+    obter_ou_criar_sessao_adaptativa,
     obter_resumo_diario,
     registrar_resultado_atividade,
+    registrar_tentativa_adaptativa,
     salvar_anamnese,
 )
 
@@ -482,6 +496,119 @@ def registrar_rotas(app: Flask) -> None:
             return None
         return aluno
 
+    def _processar_atividade_adaptativa(
+        aluno: dict[str, Any],
+        materia: str,
+        nome_materia: str,
+        questoes: list[dict[str, Any]],
+        obter_questao: Callable,
+        validar_resposta: Callable,
+        enriquecer_resultado: Callable,
+        template: str,
+        texto: str | None = None,
+    ):
+        data_atividade = date.today().isoformat()
+        codigos = [questao["id"] for questao in questoes]
+        sessao_adaptativa = obter_ou_criar_sessao_adaptativa(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+            data_atividade,
+            materia,
+            codigos,
+        )
+
+        if sessao_adaptativa["status"] == "concluida":
+            resultado = finalizar_sessao_adaptativa(
+                app.config["DATABASE_PATH"],
+                int(sessao_adaptativa["id"]),
+            )
+            return render_template(
+                "resultado_atividade.html",
+                materia=nome_materia,
+                resultado=enriquecer_resultado(resultado),
+                adaptativa=True,
+            )
+
+        if request.method == "POST":
+            codigo = request.form.get("questao_codigo", "").strip()
+            resposta = request.form.get("resposta", "").strip()
+            questao = obter_questao(codigo)
+            if not questao or not resposta:
+                flash("Escolha uma resposta para continuar.", "erro")
+                return redirect(url_for(request.endpoint))
+
+            tentativa = registrar_tentativa_adaptativa(
+                app.config["DATABASE_PATH"],
+                int(sessao_adaptativa["id"]),
+                codigo,
+                resposta,
+                validar_resposta(questao, resposta),
+            )
+
+            dica = None
+            if tentativa["dica_nivel"]:
+                dica = questao["dicas"][tentativa["dica_nivel"] - 1]
+
+            session["feedback_adaptativo"] = {
+                "materia": materia,
+                "acertou": tentativa["correta"],
+                "tentativa": tentativa["numero_tentativa"],
+                "pontos": tentativa["pontos"],
+                "dica": dica,
+                "resposta_revelada": tentativa["resposta_revelada"],
+                "resposta_correta": questao["correta"] if tentativa["resposta_revelada"] else None,
+                "explicacao": questao["explicacao"] if tentativa["resposta_revelada"] else None,
+                "concluida": tentativa["concluida"],
+            }
+            return redirect(url_for(request.endpoint, retorno="1"))
+
+        feedback = None
+        if request.args.get("retorno") == "1":
+            candidato = session.pop("feedback_adaptativo", None)
+            if candidato and candidato.get("materia") == materia:
+                feedback = candidato
+
+        if feedback:
+            return render_template(
+                template,
+                aluno=aluno,
+                materia=nome_materia,
+                texto=texto,
+                feedback=feedback,
+                questao=None,
+                progresso=sessao_adaptativa["progresso"],
+            )
+
+        sessao_adaptativa = obter_ou_criar_sessao_adaptativa(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+            data_atividade,
+            materia,
+            codigos,
+        )
+        if sessao_adaptativa["status"] == "concluida":
+            resultado = finalizar_sessao_adaptativa(
+                app.config["DATABASE_PATH"],
+                int(sessao_adaptativa["id"]),
+            )
+            return render_template(
+                "resultado_atividade.html",
+                materia=nome_materia,
+                resultado=enriquecer_resultado(resultado),
+                adaptativa=True,
+            )
+
+        questao = obter_questao(sessao_adaptativa["questao_atual"])
+        return render_template(
+            template,
+            aluno=aluno,
+            materia=nome_materia,
+            texto=texto,
+            feedback=None,
+            questao=questao,
+            progresso=sessao_adaptativa["progresso"],
+        )
+
     @app.route("/atividade/matematica", methods=["GET", "POST"])
     @login_obrigatorio("aluno")
     def atividade_matematica():
@@ -489,11 +616,16 @@ def registrar_rotas(app: Flask) -> None:
         if not aluno:
             flash("Conclua a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
-        if request.method == "POST":
-            resultado = corrigir_matematica(request.form.to_dict())
-            registrar_resultado_atividade(app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat(), "matematica", resultado)
-            return render_template("resultado_atividade.html", materia="Matemática", resultado=resultado)
-        return render_template("atividade_matematica.html", aluno=aluno, questoes=QUESTOES_MATEMATICA)
+        return _processar_atividade_adaptativa(
+            aluno,
+            "matematica",
+            "Matemática",
+            QUESTOES_MATEMATICA,
+            obter_questao_matematica,
+            resposta_correta_matematica,
+            enriquecer_resultado_matematica,
+            "atividade_matematica.html",
+        )
 
     @app.route("/atividade/portugues", methods=["GET", "POST"])
     @login_obrigatorio("aluno")
@@ -502,11 +634,17 @@ def registrar_rotas(app: Flask) -> None:
         if not aluno:
             flash("Conclua a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
-        if request.method == "POST":
-            resultado = corrigir_portugues(request.form.to_dict())
-            registrar_resultado_atividade(app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat(), "portugues", resultado)
-            return render_template("resultado_atividade.html", materia="Português", resultado=resultado)
-        return render_template("atividade_portugues.html", aluno=aluno, texto=TEXTO, questoes=QUESTOES_PORTUGUES)
+        return _processar_atividade_adaptativa(
+            aluno,
+            "portugues",
+            "Português",
+            QUESTOES_PORTUGUES,
+            obter_questao_portugues,
+            resposta_correta_portugues,
+            enriquecer_resultado_portugues,
+            "atividade_portugues.html",
+            TEXTO,
+        )
 
     @app.route("/atividade/leitura", methods=["GET", "POST"])
     @login_obrigatorio("aluno")

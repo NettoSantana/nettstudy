@@ -1,7 +1,9 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 15:10 -03:00
-# Motivo da alteração: registrar atividades diárias, respostas, pontos e resumos de leitura.
+# Data e hora do último recode: 30/07/2026 15:29 -03:00
+# Motivo da alteração: registrar sessões adaptativas, tentativas, dicas progressivas e resultados por questão.
 
+import json
+import random
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -126,6 +128,41 @@ CREATE TABLE IF NOT EXISTS resumos_leitura (
 
 CREATE INDEX IF NOT EXISTS idx_atividades_aluno_data
     ON atividades_diarias (aluno_id, data_atividade);
+
+CREATE TABLE IF NOT EXISTS sessoes_adaptativas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    aluno_id INTEGER NOT NULL,
+    data_atividade TEXT NOT NULL,
+    materia TEXT NOT NULL CHECK (materia IN ('matematica', 'portugues')),
+    fila_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ativa' CHECK (status IN ('ativa', 'concluida')),
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TEXT,
+    concluida_em TEXT,
+    UNIQUE (aluno_id, data_atividade, materia),
+    FOREIGN KEY (aluno_id) REFERENCES alunos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tentativas_adaptativas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sessao_id INTEGER NOT NULL,
+    questao_codigo TEXT NOT NULL,
+    numero_tentativa INTEGER NOT NULL,
+    resposta TEXT NOT NULL,
+    correta INTEGER NOT NULL DEFAULT 0 CHECK (correta IN (0, 1)),
+    dica_nivel INTEGER NOT NULL DEFAULT 0 CHECK (dica_nivel BETWEEN 0 AND 3),
+    resposta_revelada INTEGER NOT NULL DEFAULT 0 CHECK (resposta_revelada IN (0, 1)),
+    pontos INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (sessao_id, questao_codigo, numero_tentativa),
+    FOREIGN KEY (sessao_id) REFERENCES sessoes_adaptativas(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessoes_adaptativas_aluno_data
+    ON sessoes_adaptativas (aluno_id, data_atividade, materia);
+
+CREATE INDEX IF NOT EXISTS idx_tentativas_adaptativas_sessao
+    ON tentativas_adaptativas (sessao_id, questao_codigo);
 """
 
 
@@ -846,3 +883,228 @@ def obter_resumo_diario(
         "pontos": int(pontos_total),
         "sequencia": 1 if concluidas == 3 else 0,
     }
+
+
+
+def obter_ou_criar_sessao_adaptativa(
+    caminho_banco: str,
+    aluno_id: int,
+    data_atividade: str,
+    materia: str,
+    codigos_questoes: list[str],
+) -> dict[str, Any]:
+    if materia not in {"matematica", "portugues"}:
+        raise ValueError("Matéria adaptativa inválida.")
+
+    with conectar(caminho_banco) as conexao:
+        sessao = conexao.execute(
+            """
+            SELECT id, fila_json, status
+            FROM sessoes_adaptativas
+            WHERE aluno_id = ? AND data_atividade = ? AND materia = ?
+            """,
+            (aluno_id, data_atividade, materia),
+        ).fetchone()
+
+        if not sessao:
+            fila = list(codigos_questoes)
+            random.shuffle(fila)
+            cursor = conexao.execute(
+                """
+                INSERT INTO sessoes_adaptativas (
+                    aluno_id, data_atividade, materia, fila_json
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (aluno_id, data_atividade, materia, json.dumps(fila)),
+            )
+            sessao_id = int(cursor.lastrowid)
+            status = "ativa"
+        else:
+            sessao_id = int(sessao["id"])
+            fila = json.loads(sessao["fila_json"])
+            status = sessao["status"]
+
+        resolvidas = max(0, len(codigos_questoes) - len(fila))
+        progresso = round((resolvidas / len(codigos_questoes)) * 100) if codigos_questoes else 0
+
+        return {
+            "id": sessao_id,
+            "fila": fila,
+            "status": status,
+            "questao_atual": fila[0] if fila else None,
+            "progresso": progresso,
+        }
+
+
+def registrar_tentativa_adaptativa(
+    caminho_banco: str,
+    sessao_id: int,
+    questao_codigo: str,
+    resposta: str,
+    correta: bool,
+) -> dict[str, Any]:
+    with conectar(caminho_banco) as conexao:
+        sessao = conexao.execute(
+            """
+            SELECT id, aluno_id, data_atividade, materia, fila_json, status
+            FROM sessoes_adaptativas
+            WHERE id = ?
+            """,
+            (sessao_id,),
+        ).fetchone()
+
+        if not sessao or sessao["status"] != "ativa":
+            raise ValueError("Esta atividade não está mais ativa.")
+
+        fila = json.loads(sessao["fila_json"])
+        if not fila or fila[0] != questao_codigo:
+            raise ValueError("A questão enviada não corresponde à questão atual.")
+
+        tentativa_anterior = conexao.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM tentativas_adaptativas
+            WHERE sessao_id = ? AND questao_codigo = ?
+            """,
+            (sessao_id, questao_codigo),
+        ).fetchone()["total"]
+        numero_tentativa = int(tentativa_anterior) + 1
+
+        pontos_por_tentativa = {1: 10, 2: 8, 3: 6, 4: 4, 5: 2}
+        pontos = pontos_por_tentativa.get(numero_tentativa, 0) if correta else 0
+        dica_nivel = 0
+        resposta_revelada = 0
+
+        if not correta:
+            if numero_tentativa == 2:
+                dica_nivel = 1
+            elif numero_tentativa == 3:
+                dica_nivel = 2
+            elif numero_tentativa == 4:
+                dica_nivel = 3
+            elif numero_tentativa >= 5:
+                dica_nivel = 3
+                resposta_revelada = 1
+
+        conexao.execute(
+            """
+            INSERT INTO tentativas_adaptativas (
+                sessao_id, questao_codigo, numero_tentativa, resposta,
+                correta, dica_nivel, resposta_revelada, pontos
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                sessao_id,
+                questao_codigo,
+                numero_tentativa,
+                resposta,
+                int(correta),
+                dica_nivel,
+                resposta_revelada,
+                pontos,
+            ),
+        )
+
+        fila.pop(0)
+        if not correta and numero_tentativa < 5:
+            fila.append(questao_codigo)
+
+        concluida = len(fila) == 0
+        conexao.execute(
+            """
+            UPDATE sessoes_adaptativas
+            SET fila_json = ?,
+                status = ?,
+                atualizado_em = CURRENT_TIMESTAMP,
+                concluida_em = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE concluida_em END
+            WHERE id = ?
+            """,
+            (
+                json.dumps(fila),
+                "concluida" if concluida else "ativa",
+                int(concluida),
+                sessao_id,
+            ),
+        )
+
+        return {
+            "sessao_id": sessao_id,
+            "numero_tentativa": numero_tentativa,
+            "correta": bool(correta),
+            "dica_nivel": dica_nivel,
+            "resposta_revelada": bool(resposta_revelada),
+            "pontos": pontos,
+            "concluida": concluida,
+        }
+
+
+def finalizar_sessao_adaptativa(
+    caminho_banco: str,
+    sessao_id: int,
+) -> dict[str, Any]:
+    with conectar(caminho_banco) as conexao:
+        sessao = conexao.execute(
+            """
+            SELECT id, aluno_id, data_atividade, materia, status
+            FROM sessoes_adaptativas
+            WHERE id = ?
+            """,
+            (sessao_id,),
+        ).fetchone()
+        if not sessao or sessao["status"] != "concluida":
+            raise ValueError("A sessão ainda não foi concluída.")
+
+        linhas = conexao.execute(
+            """
+            SELECT
+                questao_codigo,
+                MAX(numero_tentativa) AS tentativas,
+                MAX(correta) AS acertou,
+                MAX(resposta_revelada) AS resposta_revelada,
+                SUM(pontos) AS pontos
+            FROM tentativas_adaptativas
+            WHERE sessao_id = ?
+            GROUP BY questao_codigo
+            ORDER BY questao_codigo
+            """,
+            (sessao_id,),
+        ).fetchall()
+
+        detalhes = []
+        for linha in linhas:
+            ultima = conexao.execute(
+                """
+                SELECT resposta
+                FROM tentativas_adaptativas
+                WHERE sessao_id = ? AND questao_codigo = ?
+                ORDER BY numero_tentativa DESC
+                LIMIT 1
+                """,
+                (sessao_id, linha["questao_codigo"]),
+            ).fetchone()
+            detalhes.append(
+                {
+                    "id": linha["questao_codigo"],
+                    "resposta": ultima["resposta"] if ultima else "",
+                    "acertou": bool(linha["acertou"]),
+                    "tentativas": int(linha["tentativas"]),
+                    "resposta_revelada": bool(linha["resposta_revelada"]),
+                    "pontos": int(linha["pontos"] or 0),
+                }
+            )
+
+        resultado = {
+            "acertos": sum(1 for item in detalhes if item["acertou"]),
+            "total": len(detalhes),
+            "pontos": sum(item["pontos"] for item in detalhes),
+            "detalhes": detalhes,
+        }
+
+    registrar_resultado_atividade(
+        caminho_banco,
+        int(sessao["aluno_id"]),
+        sessao["data_atividade"],
+        sessao["materia"],
+        resultado,
+    )
+    return resultado
