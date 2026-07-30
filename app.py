@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 20:15 -03:00
-# Motivo da alteração: adicionar validação de e-mail sem bloquear o uso do sistema.
+# Data e hora do último recode: 30/07/2026 20:12 -03:00
+# Motivo da alteração: corrigir erro 500 movendo o envio de validação do login para o novo cadastro.
 
 import os
 from datetime import date
@@ -149,26 +149,6 @@ def registrar_rotas(app: Flask) -> None:
                     "login.html",
                     identificador=identificador,
                 ), 401
-
-            validacao = criar_token_validacao_email(
-                app.config["DATABASE_PATH"],
-                cadastro["responsavel_id"],
-                app.config["VALIDACAO_EMAIL_HORAS"],
-                app.config["VALIDACAO_EMAIL_REENVIO_SEGUNDOS"],
-                ignorar_intervalo=True,
-            )
-            if validacao and validacao.get("token"):
-                link_validacao = f"{app.config['BASE_URL']}{url_for('validar_email', token=validacao['token'])}"
-                try:
-                    enviar_email_validacao(
-                        app.config["RESEND_API_KEY"],
-                        app.config["RESEND_FROM"],
-                        validacao["email"],
-                        validacao["nome"],
-                        link_validacao,
-                    )
-                except Exception:
-                    app.logger.exception("Falha ao enviar e-mail de validação após o cadastro.")
 
             session.clear()
             session.update(
@@ -377,6 +357,31 @@ def registrar_rotas(app: Flask) -> None:
                     "novo_cadastro.html",
                     dados=dados,
                 ), 400
+
+            validacao = criar_token_validacao_email(
+                app.config["DATABASE_PATH"],
+                cadastro["responsavel_id"],
+                app.config["VALIDACAO_EMAIL_HORAS"],
+                app.config["VALIDACAO_EMAIL_REENVIO_SEGUNDOS"],
+                ignorar_intervalo=True,
+            )
+            if validacao and validacao.get("token"):
+                link_validacao = (
+                    f"{app.config['BASE_URL']}"
+                    f"{url_for('validar_email', token=validacao['token'])}"
+                )
+                try:
+                    enviar_email_validacao(
+                        app.config["RESEND_API_KEY"],
+                        app.config["RESEND_FROM"],
+                        validacao["email"],
+                        validacao["nome"],
+                        link_validacao,
+                    )
+                except Exception:
+                    app.logger.exception(
+                        "Falha ao enviar e-mail de validação após o cadastro."
+                    )
 
             session.clear()
             session.update(
