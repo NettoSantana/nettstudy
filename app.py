@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 18:41 -03:00
-# Motivo da alteração: integrar anamnese pedagógica em cinco etapas com resumo final.
+# Data e hora do último recode: 30/07/2026 19:36 -03:00
+# Motivo da alteração: implementar recuperação de senha do responsável e PIN dos alunos por e-mail.
 
 import os
 from datetime import date
@@ -9,6 +9,8 @@ from typing import Any, Callable
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
+
+from modules.email_service import enviar_email_recuperacao
 
 from config import Config
 from modules.avaliacao_resumo import avaliar_resumo
@@ -70,6 +72,10 @@ from database import (
     registrar_versao_resumo,
     obter_resultado_sessao_leitura,
     salvar_anamnese,
+    criar_token_recuperacao_acesso,
+    obter_recuperacao_por_token,
+    redefinir_senha_responsavel_por_token,
+    redefinir_pin_aluno_por_token,
 )
 
 
@@ -156,6 +162,82 @@ def registrar_rotas(app: Flask) -> None:
             return redirect(url_for(destino))
 
         return render_template("login.html")
+
+    @app.route("/recuperar-acesso", methods=["GET", "POST"])
+    def recuperar_acesso():
+        if request.method == "POST":
+            email = request.form.get("email", "").strip().lower()
+            recuperacao = criar_token_recuperacao_acesso(
+                app.config["DATABASE_PATH"],
+                email,
+                app.config["RECUPERACAO_TOKEN_MINUTOS"],
+            )
+
+            if recuperacao:
+                link = f"{app.config['BASE_URL']}{url_for('redefinir_acesso', token=recuperacao['token'])}"
+                try:
+                    enviar_email_recuperacao(
+                        app.config["RESEND_API_KEY"],
+                        app.config["RESEND_FROM"],
+                        recuperacao["email"],
+                        recuperacao["nome"],
+                        link,
+                    )
+                except RuntimeError:
+                    app.logger.exception("Falha ao enviar e-mail de recuperação.")
+
+            flash(
+                "Se o e-mail estiver cadastrado, você receberá um link de recuperação.",
+                "sucesso",
+            )
+            return redirect(url_for("login"))
+
+        return render_template("recuperar_acesso.html")
+
+    @app.route("/redefinir-acesso/<token>", methods=["GET", "POST"])
+    def redefinir_acesso(token: str):
+        recuperacao = obter_recuperacao_por_token(
+            app.config["DATABASE_PATH"],
+            token,
+        )
+        if not recuperacao:
+            flash("Este link é inválido, expirou ou já foi utilizado.", "erro")
+            return redirect(url_for("recuperar_acesso"))
+
+        if request.method == "POST":
+            tipo = request.form.get("tipo", "").strip()
+            nova_senha = request.form.get("nova_senha", "")
+            confirmar = request.form.get("confirmar_senha", "")
+
+            if nova_senha != confirmar:
+                flash("A confirmação não confere.", "erro")
+            elif tipo == "responsavel":
+                if len(nova_senha) < 8:
+                    flash("A nova senha deve ter pelo menos 8 caracteres.", "erro")
+                elif redefinir_senha_responsavel_por_token(
+                    app.config["DATABASE_PATH"], token, nova_senha
+                ):
+                    flash("Senha do responsável atualizada. Faça login.", "sucesso")
+                    return redirect(url_for("login"))
+            elif tipo == "aluno":
+                aluno_id = request.form.get("aluno_id", type=int)
+                if not nova_senha.isdigit() or len(nova_senha) < 4 or len(nova_senha) > 6:
+                    flash("O novo PIN deve ter entre 4 e 6 números.", "erro")
+                elif aluno_id and redefinir_pin_aluno_por_token(
+                    app.config["DATABASE_PATH"], token, aluno_id, nova_senha
+                ):
+                    flash("PIN do aluno atualizado. Ele já pode entrar.", "sucesso")
+                    return redirect(url_for("login"))
+                else:
+                    flash("Selecione um aluno válido.", "erro")
+            else:
+                flash("Escolha qual acesso deseja recuperar.", "erro")
+
+        return render_template(
+            "redefinir_acesso.html",
+            token=token,
+            recuperacao=recuperacao,
+        )
 
     @app.route("/novo-cadastro", methods=["GET", "POST"])
     def novo_cadastro():

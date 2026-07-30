@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\login.html
-Data e hora do último recode: 30/07/2026 17:46 -03:00
-Motivo da alteração: corrigir o layout responsivo da tela de login em celulares.
+Data e hora do último recode: 30/07/2026 19:36 -03:00
+Motivo da alteração: adicionar acesso à recuperação de senha e PIN por e-mail.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -370,6 +370,10 @@ Motivo da alteração: corrigir o layout responsivo da tela de login em celulare
                     Entrar
                 </button>
             </form>
+
+            <a class="voltar" style="display:block;margin-top:18px;text-align:center;color:#4e5ce6;font-weight:700;text-decoration:none" href="{{ url_for('recuperar_acesso') }}">
+                Esqueci minha senha ou PIN
+            </a>
 
             <div class="separador">
                 <span>ou</span>

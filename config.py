@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\config.py
-# Data e hora do último recode: 29/07/2026 16:15 -03:00
-# Motivo da alteração: centralizar configurações de ambiente e banco do NettStudy.
+# Data e hora do último recode: 30/07/2026 19:36 -03:00
+# Motivo da alteração: configurar domínio e envio de e-mail para recuperação de acesso.
 
 import os
 from pathlib import Path
@@ -16,6 +16,10 @@ class Config:
     APP_ENV = os.getenv("APP_ENV", "development")
     DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
     DATABASE_PATH = os.getenv("NETTSTUDY_DB_PATH", str(BASE_DIR / "data" / "nettstudy.db"))
+    BASE_URL = os.getenv("NETTSTUDY_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    RESEND_FROM = os.getenv("RESEND_FROM", "NettStudy <noreply@nettsan.ia.br>")
+    RECUPERACAO_TOKEN_MINUTOS = int(os.getenv("RECUPERACAO_TOKEN_MINUTOS", "30"))
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = APP_ENV == "production"

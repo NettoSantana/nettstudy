@@ -1,10 +1,13 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 17:54 -03:00
-# Motivo da alteração: preservar o histórico e permitir uma nova missão diária após confirmação do responsável.
+# Data e hora do último recode: 30/07/2026 19:36 -03:00
+# Motivo da alteração: adicionar recuperação segura da senha do responsável e do PIN dos alunos.
 
+import hashlib
 import json
 import random
+import secrets
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -247,6 +250,25 @@ CREATE INDEX IF NOT EXISTS idx_resets_missao_aluno_data
 """
 
 
+RECUPERACAO_ACESSO_SCHEMA = """
+CREATE TABLE IF NOT EXISTS tokens_recuperacao_acesso (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    responsavel_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expira_em TEXT NOT NULL,
+    usado_em TEXT,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (responsavel_id) REFERENCES responsaveis(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_recuperacao_hash
+    ON tokens_recuperacao_acesso (token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_recuperacao_responsavel
+    ON tokens_recuperacao_acesso (responsavel_id, criado_em);
+"""
+
+
 def conectar(caminho_banco: str) -> sqlite3.Connection:
     Path(caminho_banco).parent.mkdir(parents=True, exist_ok=True)
     conexao = sqlite3.connect(caminho_banco)
@@ -260,6 +282,7 @@ def inicializar_banco(caminho_banco: str) -> None:
         conexao.executescript(SCHEMA)
         conexao.executescript(LEITURA_ADAPTATIVA_SCHEMA)
         conexao.executescript(RESET_MISSAO_SCHEMA)
+        conexao.executescript(RECUPERACAO_ACESSO_SCHEMA)
         _criar_dados_demonstracao(conexao)
 
 
@@ -1749,3 +1772,167 @@ def refazer_missao_do_dia(
         "historico_preservado": True,
     }
 
+
+
+
+def criar_token_recuperacao_acesso(
+    caminho_banco: str,
+    email_responsavel: str,
+    validade_minutos: int = 30,
+) -> dict[str, Any] | None:
+    email = (email_responsavel or "").strip().lower()
+    agora = datetime.now(timezone.utc)
+    expira_em = agora + timedelta(minutes=max(5, validade_minutos))
+
+    with conectar(caminho_banco) as conexao:
+        responsavel = conexao.execute(
+            """
+            SELECT id, nome_completo, email
+            FROM responsaveis
+            WHERE lower(email) = ?
+              AND ativo = 1
+            """,
+            (email,),
+        ).fetchone()
+        if not responsavel:
+            return None
+
+        conexao.execute(
+            """
+            UPDATE tokens_recuperacao_acesso
+            SET usado_em = ?
+            WHERE responsavel_id = ?
+              AND usado_em IS NULL
+            """,
+            (agora.isoformat(), responsavel["id"]),
+        )
+
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        conexao.execute(
+            """
+            INSERT INTO tokens_recuperacao_acesso (
+                responsavel_id,
+                token_hash,
+                expira_em
+            ) VALUES (?, ?, ?)
+            """,
+            (responsavel["id"], token_hash, expira_em.isoformat()),
+        )
+
+    return {
+        "token": token,
+        "nome": responsavel["nome_completo"],
+        "email": responsavel["email"],
+    }
+
+
+def obter_recuperacao_por_token(
+    caminho_banco: str,
+    token: str,
+) -> dict[str, Any] | None:
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    agora = datetime.now(timezone.utc)
+
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT
+                t.id AS token_id,
+                t.expira_em,
+                t.usado_em,
+                r.id AS responsavel_id,
+                r.usuario_id AS responsavel_usuario_id,
+                r.nome_completo,
+                r.email
+            FROM tokens_recuperacao_acesso t
+            INNER JOIN responsaveis r ON r.id = t.responsavel_id
+            WHERE t.token_hash = ?
+              AND r.ativo = 1
+            """,
+            (token_hash,),
+        ).fetchone()
+        if not registro or registro["usado_em"]:
+            return None
+
+        expira_em = datetime.fromisoformat(registro["expira_em"])
+        if expira_em.tzinfo is None:
+            expira_em = expira_em.replace(tzinfo=timezone.utc)
+        if expira_em <= agora:
+            return None
+
+        alunos = conexao.execute(
+            """
+            SELECT a.id, a.usuario_id, a.nome_exibicao, a.nome_completo
+            FROM responsavel_aluno ra
+            INNER JOIN alunos a ON a.id = ra.aluno_id
+            WHERE ra.responsavel_id = ?
+              AND a.ativo = 1
+            ORDER BY ra.principal DESC, a.nome_exibicao
+            """,
+            (registro["responsavel_id"],),
+        ).fetchall()
+
+    resultado = dict(registro)
+    resultado["alunos"] = [dict(aluno) for aluno in alunos]
+    return resultado
+
+
+def redefinir_senha_responsavel_por_token(
+    caminho_banco: str,
+    token: str,
+    nova_senha: str,
+) -> bool:
+    recuperacao = obter_recuperacao_por_token(caminho_banco, token)
+    if not recuperacao:
+        return False
+
+    agora = datetime.now(timezone.utc).isoformat()
+    with conectar(caminho_banco) as conexao:
+        conexao.execute(
+            """
+            UPDATE usuarios
+            SET senha_hash = ?, atualizado_em = ?
+            WHERE id = ? AND perfil = 'responsavel' AND ativo = 1
+            """,
+            (generate_password_hash(nova_senha), agora, recuperacao["responsavel_usuario_id"]),
+        )
+        conexao.execute(
+            "UPDATE tokens_recuperacao_acesso SET usado_em = ? WHERE id = ?",
+            (agora, recuperacao["token_id"]),
+        )
+    return True
+
+
+def redefinir_pin_aluno_por_token(
+    caminho_banco: str,
+    token: str,
+    aluno_id: int,
+    novo_pin: str,
+) -> bool:
+    recuperacao = obter_recuperacao_por_token(caminho_banco, token)
+    if not recuperacao:
+        return False
+
+    aluno = next(
+        (item for item in recuperacao["alunos"] if int(item["id"]) == int(aluno_id)),
+        None,
+    )
+    if not aluno:
+        return False
+
+    agora = datetime.now(timezone.utc).isoformat()
+    with conectar(caminho_banco) as conexao:
+        conexao.execute(
+            """
+            UPDATE usuarios
+            SET senha_hash = ?, atualizado_em = ?
+            WHERE id = ? AND perfil = 'aluno' AND ativo = 1
+            """,
+            (generate_password_hash(novo_pin), agora, aluno["usuario_id"]),
+        )
+        conexao.execute(
+            "UPDATE tokens_recuperacao_acesso SET usado_em = ? WHERE id = ?",
+            (agora, recuperacao["token_id"]),
+        )
+    return True
