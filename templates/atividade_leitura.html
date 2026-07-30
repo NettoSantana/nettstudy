@@ -1,2 +1,117 @@
-<!-- Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\atividade_leitura.html | Data e hora do último recode: 30/07/2026 15:10 -03:00 | Motivo: criar atividade funcional. -->
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NettStudy</title><style>body{margin:0;font-family:Inter,Arial,sans-serif;background:#f4f6ff;color:#18203a}.top{display:flex;justify-content:space-between;align-items:center;padding:18px 5%;background:white;border-bottom:1px solid #dfe3f3}.brand{font-weight:800;color:#4e5ce6;text-decoration:none;font-size:22px}.wrap{max-width:920px;margin:32px auto;padding:0 18px}.card{background:white;border:1px solid #dfe3f3;border-radius:20px;padding:26px;box-shadow:0 12px 32px rgba(35,45,95,.08);margin-bottom:18px}.question{margin:22px 0;padding:20px;border:1px solid #e2e5f2;border-radius:16px}.option{display:block;padding:10px 12px;margin:8px 0;border-radius:10px;background:#f7f8ff}.btn{display:inline-block;border:0;border-radius:12px;background:#4e5ce6;color:white;padding:14px 22px;font-weight:800;text-decoration:none;cursor:pointer}.muted{color:#66708d}.ok{color:#177245}.bad{color:#a52828}textarea{width:100%;min-height:150px;padding:12px;border:1px solid #cfd4e8;border-radius:12px;font:inherit;box-sizing:border-box}@media(max-width:600px){.card{padding:18px}.wrap{margin-top:18px}}</style></head><body><header class="top"><a class="brand" href="{{ url_for('dashboard_aluno') }}">NettStudy</a><a href="{{ url_for('sair') }}">Sair</a></header><main class="wrap"><div class="card"><p class="muted">Leitura do dia</p><h1>{{ titulo }}</h1></div>{% for pagina in paginas %}<article class="card"><p class="muted">Página {{ loop.index }} de 3</p><p>{{ pagina }}</p></article>{% endfor %}<form method="post"><div class="card"><h2>Interpretação</h2>{% for q in perguntas %}<section class="question"><strong>{{ loop.index }}. {{ q.enunciado }}</strong>{% for alt in q.alternativas %}<label class="option"><input type="radio" name="{{ q.id }}" value="{{ alt }}" required> {{ alt }}</label>{% endfor %}</section>{% endfor %}<h2>Conte com suas palavras</h2><p class="muted">Escreva um resumo com pelo menos 15 palavras.</p><textarea name="resumo" required>{{ resumo }}</textarea><br><br><button class="btn" type="submit">Concluir Leitura</button></div></form></main></body></html>
+<!--
+Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\atividade_leitura.html
+Data e hora do último recode: 30/07/2026 17:04 -03:00
+Motivo da alteração: apresentar a leitura autoral diária com coleção, tema, vocabulário e reflexão.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ historia.titulo }} | NettStudy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        body{margin:0;font-family:Inter,Arial,sans-serif;background:#f4f6ff;color:#18203a}
+        .top{display:flex;justify-content:space-between;align-items:center;padding:18px 5%;background:#fff;border-bottom:1px solid #dfe3f3}
+        .brand{font-weight:800;color:#4e5ce6;text-decoration:none;font-size:22px}
+        .wrap{max-width:920px;margin:32px auto;padding:0 18px}
+        .card{background:#fff;border:1px solid #dfe3f3;border-radius:20px;padding:26px;box-shadow:0 12px 32px rgba(35,45,95,.08);margin-bottom:18px}
+        .cabecalho-leitura{background:linear-gradient(135deg,#fff,#f2efff)}
+        .etiquetas{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+        .etiqueta{padding:7px 10px;border-radius:999px;background:#ece9ff;color:#4938bb;font-size:13px;font-weight:800}
+        .pagina-texto{font-size:1.12rem;line-height:1.8}
+        .question{margin:22px 0;padding:20px;border:1px solid #e2e5f2;border-radius:16px}
+        .option{display:block;padding:12px;margin:9px 0;border-radius:10px;background:#f7f8ff}
+        .btn{display:inline-block;border:0;border-radius:12px;background:#4e5ce6;color:#fff;padding:14px 22px;font-weight:800;text-decoration:none;cursor:pointer}
+        .muted{color:#66708d}
+        .vocabulario{display:flex;flex-wrap:wrap;gap:10px;padding:0;list-style:none}
+        .vocabulario li{padding:9px 12px;background:#f7f8ff;border:1px solid #e2e5f2;border-radius:12px}
+        .reflexao{padding:16px;border-left:4px solid #4e5ce6;background:#f7f8ff;border-radius:10px}
+        textarea{width:100%;min-height:170px;padding:12px;border:1px solid #cfd4e8;border-radius:12px;font:inherit;box-sizing:border-box}
+        @media(max-width:600px){.card{padding:18px}.wrap{margin-top:18px}.pagina-texto{font-size:1.02rem}}
+    </style>
+</head>
+<body>
+    <header class="top">
+        <a class="brand" href="{{ url_for('dashboard_aluno') }}">NettStudy</a>
+        <a href="{{ url_for('sair') }}">Sair</a>
+    </header>
+
+    <main class="wrap">
+        <section class="card cabecalho-leitura">
+            <div class="etiquetas">
+                <span class="etiqueta">{{ historia.colecao }}</span>
+                <span class="etiqueta">{{ historia.tema }}</span>
+                <span class="etiqueta">História autoral NettStudy</span>
+            </div>
+            <p class="muted">Leitura do dia</p>
+            <h1>{{ historia.titulo }}</h1>
+            <p class="muted">
+                Leia com calma. Hoje você verá apenas esta história.
+            </p>
+        </section>
+
+        {% for pagina in historia.paginas %}
+            <article class="card">
+                <p class="muted">Página {{ loop.index }} de {{ historia.paginas|length }}</p>
+                <p class="pagina-texto">{{ pagina }}</p>
+            </article>
+        {% endfor %}
+
+        <section class="card">
+            <h2>Palavras da leitura</h2>
+            <ul class="vocabulario">
+                {% for palavra in historia.vocabulario %}
+                    <li>{{ palavra }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <form method="post">
+            <section class="card">
+                <h2>O que você entendeu?</h2>
+
+                {% for q in historia.perguntas %}
+                    <div class="question">
+                        <strong>{{ loop.index }}. {{ q.enunciado }}</strong>
+
+                        {% for alt in q.alternativas %}
+                            <label class="option">
+                                <input
+                                    type="radio"
+                                    name="{{ q.id }}"
+                                    value="{{ alt }}"
+                                    required
+                                >
+                                {{ alt }}
+                            </label>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+
+                <h2>Conte com suas palavras</h2>
+                <p class="muted">
+                    Escreva um resumo com pelo menos 15 palavras.
+                    Não precisa copiar o texto.
+                </p>
+
+                <p class="reflexao">
+                    <strong>Para pensar:</strong>
+                    {{ historia.reflexao }}
+                </p>
+
+                <textarea
+                    name="resumo"
+                    required
+                    placeholder="O que aconteceu na história? O que você entendeu?"
+                >{{ resumo }}</textarea>
+
+                <br><br>
+                <button class="btn" type="submit">
+                    Concluir leitura
+                </button>
+            </section>
+        </form>
+    </main>
+</body>
+</html>

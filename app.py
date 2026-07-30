@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 15:29 -03:00
-# Motivo da alteração: aplicar o fluxo adaptativo de uma questão por vez em Matemática e Português.
+# Data e hora do último recode: 30/07/2026 17:04 -03:00
+# Motivo da alteração: integrar a Biblioteca Autoral NettStudy ao fluxo diário de Leitura.
 
 import os
 from datetime import date
@@ -11,7 +11,7 @@ from flask import Flask, flash, jsonify, redirect, render_template, request, ses
 from werkzeug.security import check_password_hash
 
 from config import Config
-from modules.leitura import PAGINAS, PERGUNTAS, TITULO, corrigir as corrigir_leitura
+from modules.leitura import corrigir as corrigir_leitura, obter_historia_do_dia
 from modules.matematica import (
     QUESTOES as QUESTOES_MATEMATICA,
     enriquecer_resultado as enriquecer_resultado_matematica,
@@ -653,14 +653,60 @@ def registrar_rotas(app: Flask) -> None:
         if not aluno:
             flash("Conclua a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
+
+        anamnese = buscar_anamnese_por_aluno(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+        )
+        historia = obter_historia_do_dia(
+            aluno_id=int(aluno["id"]),
+            nivel_leitura=(
+                anamnese["nivel_leitura"]
+                if anamnese
+                else "basico"
+            ),
+        )
+
         if request.method == "POST":
-            resultado = corrigir_leitura(request.form.to_dict(), request.form.get("resumo", ""))
+            resultado = corrigir_leitura(
+                historia,
+                request.form.to_dict(),
+                request.form.get("resumo", ""),
+            )
+
             if not resultado["resumo_valido"]:
-                flash("Escreva um resumo com pelo menos 15 palavras.", "erro")
-                return render_template("atividade_leitura.html", aluno=aluno, titulo=TITULO, paginas=PAGINAS, perguntas=PERGUNTAS, resumo=request.form.get("resumo", "")), 400
-            registrar_resultado_atividade(app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat(), "leitura", resultado, TITULO)
-            return render_template("resultado_atividade.html", materia="Leitura", resultado=resultado)
-        return render_template("atividade_leitura.html", aluno=aluno, titulo=TITULO, paginas=PAGINAS, perguntas=PERGUNTAS, resumo="")
+                flash(
+                    "Escreva um resumo com pelo menos 15 palavras.",
+                    "erro",
+                )
+                return render_template(
+                    "atividade_leitura.html",
+                    aluno=aluno,
+                    historia=historia,
+                    resumo=request.form.get("resumo", ""),
+                ), 400
+
+            registrar_resultado_atividade(
+                app.config["DATABASE_PATH"],
+                int(aluno["id"]),
+                date.today().isoformat(),
+                "leitura",
+                resultado,
+                historia["titulo"],
+            )
+
+            return render_template(
+                "resultado_atividade.html",
+                materia="Leitura",
+                resultado=resultado,
+            )
+
+        return render_template(
+            "atividade_leitura.html",
+            aluno=aluno,
+            historia=historia,
+            resumo="",
+        )
 
     @app.get("/pwa-instalar")
     def pwa_instalar():
