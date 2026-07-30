@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\leitura.py
-# Data e hora do último recode: 30/07/2026 17:04 -03:00
-# Motivo da alteração: criar a Biblioteca Autoral NettStudy com histórias por tema, nível e seleção diária.
+# Data e hora do último recode: 30/07/2026 17:19 -03:00
+# Motivo da alteração: adicionar dicas progressivas, evidências do texto e explicações às perguntas de Leitura.
 
 from datetime import date
 from typing import Any
@@ -303,6 +303,82 @@ NIVEIS_COMPATIVEIS = {
 }
 
 
+def _sentenca_evidencia(historia: dict[str, Any], resposta_correta: str) -> tuple[int, str]:
+    palavras_resposta = set(
+        palavra
+        for palavra in resposta_correta.lower().split()
+        if len(palavra) >= 4
+    )
+
+    melhor_pagina = 1
+    melhor_sentenca = historia["paginas"][0]
+    melhor_pontuacao = -1
+
+    for numero_pagina, pagina in enumerate(historia["paginas"], start=1):
+        sentencas = [
+            sentenca.strip()
+            for sentenca in pagina.replace("!", ".").replace("?", ".").split(".")
+            if sentenca.strip()
+        ]
+
+        for sentenca in sentencas:
+            palavras_sentenca = set(sentenca.lower().split())
+            pontuacao = len(palavras_resposta & palavras_sentenca)
+
+            if pontuacao > melhor_pontuacao:
+                melhor_pontuacao = pontuacao
+                melhor_pagina = numero_pagina
+                melhor_sentenca = sentenca
+
+    return melhor_pagina, melhor_sentenca
+
+
+def enriquecer_historia(historia: dict[str, Any]) -> dict[str, Any]:
+    historia_enriquecida = {
+        chave: valor
+        for chave, valor in historia.items()
+        if chave != "perguntas"
+    }
+    perguntas_enriquecidas = []
+
+    for indice, pergunta in enumerate(historia["perguntas"], start=1):
+        pagina, evidencia = _sentenca_evidencia(
+            historia,
+            pergunta["correta"],
+        )
+        perguntas_enriquecidas.append(
+            {
+                **pergunta,
+                "pagina_evidencia": pagina,
+                "evidencia": evidencia,
+                "dicas": [
+                    f"Releia a página {pagina}.",
+                    f"Procure a parte que fala sobre: {evidencia[:80]}...",
+                    "Compare cada alternativa com o que realmente aconteceu no texto.",
+                ],
+                "explicacao": (
+                    f"A resposta correta é “{pergunta['correta']}”. "
+                    f"Na página {pagina}, o texto mostra: “{evidencia}”."
+                ),
+                "ordem_original": indice,
+            }
+        )
+
+    historia_enriquecida["perguntas"] = perguntas_enriquecidas
+    return historia_enriquecida
+
+
+def obter_pergunta(historia: dict[str, Any], codigo: str) -> dict[str, Any] | None:
+    for pergunta in historia["perguntas"]:
+        if pergunta["id"] == codigo:
+            return pergunta
+    return None
+
+
+def resposta_correta(pergunta: dict[str, Any], resposta: str) -> bool:
+    return resposta == pergunta["correta"]
+
+
 def obter_historia_do_dia(
     aluno_id: int,
     nivel_leitura: str | None = None,
@@ -314,7 +390,7 @@ def obter_historia_do_dia(
 
     referencia = data_referencia or date.today()
     indice = (referencia.toordinal() + int(aluno_id)) % len(candidatas)
-    return candidatas[indice]
+    return enriquecer_historia(candidatas[indice])
 
 
 def corrigir(

@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\atividade_leitura.html
-Data e hora do último recode: 30/07/2026 17:04 -03:00
-Motivo da alteração: apresentar a leitura autoral diária com coleção, tema, vocabulário e reflexão.
+Data e hora do último recode: 30/07/2026 17:19 -03:00
+Motivo da alteração: mostrar uma pergunta por vez, dicas com retorno ao texto e avaliação orientativa do resumo.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -14,31 +14,36 @@ Motivo da alteração: apresentar a leitura autoral diária com coleção, tema,
         body{margin:0;font-family:Inter,Arial,sans-serif;background:#f4f6ff;color:#18203a}
         .top{display:flex;justify-content:space-between;align-items:center;padding:18px 5%;background:#fff;border-bottom:1px solid #dfe3f3}
         .brand{font-weight:800;color:#4e5ce6;text-decoration:none;font-size:22px}
-        .wrap{max-width:920px;margin:32px auto;padding:0 18px}
+        .wrap{max-width:820px;margin:32px auto;padding:0 18px}
         .card{background:#fff;border:1px solid #dfe3f3;border-radius:20px;padding:26px;box-shadow:0 12px 32px rgba(35,45,95,.08);margin-bottom:18px}
-        .cabecalho-leitura{background:linear-gradient(135deg,#fff,#f2efff)}
         .etiquetas{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
         .etiqueta{padding:7px 10px;border-radius:999px;background:#ece9ff;color:#4938bb;font-size:13px;font-weight:800}
         .pagina-texto{font-size:1.12rem;line-height:1.8}
-        .question{margin:22px 0;padding:20px;border:1px solid #e2e5f2;border-radius:16px}
-        .option{display:block;padding:12px;margin:9px 0;border-radius:10px;background:#f7f8ff}
+        .option{display:block;padding:15px;margin:12px 0;border:2px solid #e2e5f2;border-radius:14px;background:#fafbff;cursor:pointer}
+        .option:has(input:checked){border-color:#4e5ce6;background:#eef0ff}
         .btn{display:inline-block;border:0;border-radius:12px;background:#4e5ce6;color:#fff;padding:14px 22px;font-weight:800;text-decoration:none;cursor:pointer}
         .muted{color:#66708d}
-        .vocabulario{display:flex;flex-wrap:wrap;gap:10px;padding:0;list-style:none}
-        .vocabulario li{padding:9px 12px;background:#f7f8ff;border:1px solid #e2e5f2;border-radius:12px}
-        .reflexao{padding:16px;border-left:4px solid #4e5ce6;background:#f7f8ff;border-radius:10px}
-        textarea{width:100%;min-height:170px;padding:12px;border:1px solid #cfd4e8;border-radius:12px;font:inherit;box-sizing:border-box}
+        .feedback{text-align:center}
+        .feedback.ok{border-color:#8dd7ae;background:#f1fff6}
+        .feedback.bad{border-color:#f0b1b1;background:#fff6f6}
+        .hint{padding:16px;border-radius:14px;background:#fff7d9;color:#6f5510;margin:18px 0;text-align:left}
+        .answer{padding:16px;border-radius:14px;background:#eef0ff;text-align:left;margin:18px 0}
+        textarea{width:100%;min-height:190px;padding:14px;border:1px solid #cfd4e8;border-radius:12px;font:inherit;box-sizing:border-box}
+        .criterio{padding:14px;margin:10px 0;border:1px solid #e2e5f2;border-radius:12px}
+        .nota{font-weight:800;color:#4e5ce6}
+        .retorno-resumo{border-left:5px solid #4e5ce6}
         @media(max-width:600px){.card{padding:18px}.wrap{margin-top:18px}.pagina-texto{font-size:1.02rem}}
     </style>
 </head>
 <body>
-    <header class="top">
-        <a class="brand" href="{{ url_for('dashboard_aluno') }}">NettStudy</a>
-        <a href="{{ url_for('sair') }}">Sair</a>
-    </header>
+<header class="top">
+    <a class="brand" href="{{ url_for('dashboard_aluno') }}">NettStudy</a>
+    <a href="{{ url_for('sair') }}">Sair</a>
+</header>
 
-    <main class="wrap">
-        <section class="card cabecalho-leitura">
+<main class="wrap">
+    {% if fase == 'leitura' %}
+        <section class="card">
             <div class="etiquetas">
                 <span class="etiqueta">{{ historia.colecao }}</span>
                 <span class="etiqueta">{{ historia.tema }}</span>
@@ -46,13 +51,11 @@ Motivo da alteração: apresentar a leitura autoral diária com coleção, tema,
             </div>
             <p class="muted">Leitura do dia</p>
             <h1>{{ historia.titulo }}</h1>
-            <p class="muted">
-                Leia com calma. Hoje você verá apenas esta história.
-            </p>
+            <p class="muted">Leia com calma. As perguntas aparecerão somente depois da leitura.</p>
         </section>
 
         {% for pagina in historia.paginas %}
-            <article class="card">
+            <article class="card" id="pagina-{{ loop.index }}">
                 <p class="muted">Página {{ loop.index }} de {{ historia.paginas|length }}</p>
                 <p class="pagina-texto">{{ pagina }}</p>
             </article>
@@ -60,58 +63,113 @@ Motivo da alteração: apresentar a leitura autoral diária com coleção, tema,
 
         <section class="card">
             <h2>Palavras da leitura</h2>
-            <ul class="vocabulario">
-                {% for palavra in historia.vocabulario %}
-                    <li>{{ palavra }}</li>
-                {% endfor %}
-            </ul>
+            <p>{{ historia.vocabulario|join(' · ') }}</p>
+            <form method="post">
+                <input type="hidden" name="acao" value="iniciar_perguntas">
+                <button class="btn" type="submit">Começar as perguntas</button>
+            </form>
         </section>
 
-        <form method="post">
-            <section class="card">
-                <h2>O que você entendeu?</h2>
+    {% elif fase == 'feedback' %}
+        <section class="card feedback {{ 'ok' if feedback.acertou else 'bad' }}">
+            <p class="muted">Resposta registrada</p>
+            <h1>{{ 'Acertou!' if feedback.acertou else 'Ainda não' }}</h1>
 
-                {% for q in historia.perguntas %}
-                    <div class="question">
-                        <strong>{{ loop.index }}. {{ q.enunciado }}</strong>
+            {% if feedback.acertou %}
+                <p>Você conquistou {{ feedback.pontos }} pontos.</p>
+            {% else %}
+                <p>A pergunta voltará mais adiante.</p>
+            {% endif %}
 
-                        {% for alt in q.alternativas %}
-                            <label class="option">
-                                <input
-                                    type="radio"
-                                    name="{{ q.id }}"
-                                    value="{{ alt }}"
-                                    required
-                                >
-                                {{ alt }}
-                            </label>
-                        {% endfor %}
-                    </div>
+            {% if feedback.dica %}
+                <div class="hint">
+                    <strong>Dica:</strong>
+                    {{ feedback.dica }}
+                    {% if feedback.pagina_evidencia %}
+                        <br><a href="{{ url_for('atividade_leitura') }}#pagina-{{ feedback.pagina_evidencia }}">
+                            Voltar ao trecho da história
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if feedback.resposta_revelada %}
+                <div class="answer">
+                    <strong>Resposta correta:</strong>
+                    {{ feedback.resposta_correta }}
+                    <p>{{ feedback.explicacao }}</p>
+                </div>
+            {% endif %}
+
+            <a class="btn" href="{{ url_for('atividade_leitura') }}">
+                {{ 'Ir para o resumo' if feedback.perguntas_concluidas else 'Continuar' }}
+            </a>
+        </section>
+
+    {% elif fase == 'perguntas' and pergunta %}
+        <section class="card">
+            <p class="muted">Interpretação da leitura</p>
+            <h1>{{ pergunta.enunciado }}</h1>
+            <p class="muted">Escolha uma alternativa. Você verá somente a pergunta atual.</p>
+
+            <form method="post">
+                <input type="hidden" name="acao" value="responder">
+                <input type="hidden" name="pergunta_codigo" value="{{ pergunta.id }}">
+
+                {% for alternativa in pergunta.alternativas %}
+                    <label class="option">
+                        <input type="radio" name="resposta" value="{{ alternativa }}" required>
+                        {{ alternativa }}
+                    </label>
                 {% endfor %}
 
-                <h2>Conte com suas palavras</h2>
-                <p class="muted">
-                    Escreva um resumo com pelo menos 15 palavras.
-                    Não precisa copiar o texto.
-                </p>
+                <button class="btn" type="submit">Responder</button>
+            </form>
+        </section>
 
-                <p class="reflexao">
-                    <strong>Para pensar:</strong>
-                    {{ historia.reflexao }}
-                </p>
+    {% elif fase == 'resumo' %}
+        <section class="card">
+            <p class="muted">Última etapa</p>
+            <h1>Conte com suas palavras</h1>
+            <p>
+                Explique quem participa, o que aconteceu e como a história terminou.
+                Escreva pelo menos 15 palavras.
+            </p>
+            <div class="hint">
+                <strong>Para pensar:</strong> {{ historia.reflexao }}
+            </div>
+        </section>
 
+        {% if avaliacao_resumo %}
+            <section class="card retorno-resumo">
+                <h2>{{ avaliacao_resumo.pontuacao }} de 10 pontos</h2>
+                <p>{{ avaliacao_resumo.mensagem }}</p>
+
+                {% for chave, criterio in avaliacao_resumo.criterios.items() %}
+                    <div class="criterio">
+                        <strong>{{ criterio.titulo }}</strong>
+                        <span class="nota">{{ criterio.nota }}/{{ criterio.maximo }}</span>
+                        <p>{{ criterio.retorno }}</p>
+                    </div>
+                {% endfor %}
+            </section>
+        {% endif %}
+
+        <section class="card">
+            <form method="post">
+                <input type="hidden" name="acao" value="avaliar_resumo">
                 <textarea
                     name="resumo"
                     required
-                    placeholder="O que aconteceu na história? O que você entendeu?"
+                    placeholder="Conte o que você entendeu..."
                 >{{ resumo }}</textarea>
-
                 <br><br>
                 <button class="btn" type="submit">
-                    Concluir leitura
+                    {{ 'Enviar resumo' if not avaliacao_resumo else 'Melhorar e enviar novamente' }}
                 </button>
-            </section>
-        </form>
-    </main>
+            </form>
+        </section>
+    {% endif %}
+</main>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 17:04 -03:00
-# Motivo da alteração: integrar a Biblioteca Autoral NettStudy ao fluxo diário de Leitura.
+# Data e hora do último recode: 30/07/2026 17:19 -03:00
+# Motivo da alteração: aplicar perguntas adaptativas e avaliação progressiva do resumo em Leitura.
 
 import os
 from datetime import date
@@ -11,7 +11,12 @@ from flask import Flask, flash, jsonify, redirect, render_template, request, ses
 from werkzeug.security import check_password_hash
 
 from config import Config
-from modules.leitura import corrigir as corrigir_leitura, obter_historia_do_dia
+from modules.avaliacao_resumo import avaliar_resumo
+from modules.leitura import (
+    obter_historia_do_dia,
+    obter_pergunta as obter_pergunta_leitura,
+    resposta_correta as resposta_correta_leitura,
+)
 from modules.matematica import (
     QUESTOES as QUESTOES_MATEMATICA,
     enriquecer_resultado as enriquecer_resultado_matematica,
@@ -39,6 +44,11 @@ from database import (
     obter_resumo_diario,
     registrar_resultado_atividade,
     registrar_tentativa_adaptativa,
+    obter_ou_criar_sessao_leitura,
+    iniciar_perguntas_leitura,
+    registrar_tentativa_leitura,
+    registrar_versao_resumo,
+    obter_resultado_sessao_leitura,
     salvar_anamnese,
 )
 
@@ -654,6 +664,7 @@ def registrar_rotas(app: Flask) -> None:
             flash("Conclua a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
 
+        data_atividade = date.today().isoformat()
         anamnese = buscar_anamnese_por_aluno(
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
@@ -666,46 +677,199 @@ def registrar_rotas(app: Flask) -> None:
                 else "basico"
             ),
         )
+        codigos = [
+            pergunta["id"]
+            for pergunta in historia["perguntas"]
+        ]
+        sessao_leitura = obter_ou_criar_sessao_leitura(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+            data_atividade,
+            historia["id"],
+            historia["titulo"],
+            codigos,
+        )
 
-        if request.method == "POST":
-            resultado = corrigir_leitura(
-                historia,
-                request.form.to_dict(),
-                request.form.get("resumo", ""),
-            )
-
-            if not resultado["resumo_valido"]:
-                flash(
-                    "Escreva um resumo com pelo menos 15 palavras.",
-                    "erro",
-                )
-                return render_template(
-                    "atividade_leitura.html",
-                    aluno=aluno,
-                    historia=historia,
-                    resumo=request.form.get("resumo", ""),
-                ), 400
-
-            registrar_resultado_atividade(
+        if sessao_leitura["fase"] == "concluida":
+            resultado = obter_resultado_sessao_leitura(
                 app.config["DATABASE_PATH"],
-                int(aluno["id"]),
-                date.today().isoformat(),
-                "leitura",
-                resultado,
-                historia["titulo"],
+                int(sessao_leitura["id"]),
             )
-
+            for detalhe in resultado["detalhes"]:
+                pergunta = obter_pergunta_leitura(historia, detalhe["id"])
+                if pergunta:
+                    detalhe.update(
+                        {
+                            "enunciado": pergunta["enunciado"],
+                            "correta": pergunta["correta"],
+                            "explicacao": pergunta["explicacao"],
+                        }
+                    )
             return render_template(
                 "resultado_atividade.html",
                 materia="Leitura",
                 resultado=resultado,
+                leitura=True,
+            )
+
+        if request.method == "POST":
+            acao = request.form.get("acao", "").strip()
+
+            if acao == "iniciar_perguntas":
+                iniciar_perguntas_leitura(
+                    app.config["DATABASE_PATH"],
+                    int(sessao_leitura["id"]),
+                )
+                return redirect(url_for("atividade_leitura"))
+
+            if acao == "responder":
+                codigo = request.form.get("pergunta_codigo", "").strip()
+                resposta = request.form.get("resposta", "").strip()
+                pergunta = obter_pergunta_leitura(historia, codigo)
+
+                if not pergunta or not resposta:
+                    flash("Escolha uma resposta para continuar.", "erro")
+                    return redirect(url_for("atividade_leitura"))
+
+                tentativa = registrar_tentativa_leitura(
+                    app.config["DATABASE_PATH"],
+                    int(sessao_leitura["id"]),
+                    codigo,
+                    resposta,
+                    resposta_correta_leitura(pergunta, resposta),
+                )
+
+                dica = None
+                if tentativa["dica_nivel"]:
+                    dica = pergunta["dicas"][tentativa["dica_nivel"] - 1]
+
+                session["feedback_leitura"] = {
+                    "acertou": tentativa["correta"],
+                    "tentativa": tentativa["numero_tentativa"],
+                    "pontos": tentativa["pontos"],
+                    "dica": dica,
+                    "resposta_revelada": tentativa["resposta_revelada"],
+                    "resposta_correta": (
+                        pergunta["correta"]
+                        if tentativa["resposta_revelada"]
+                        else None
+                    ),
+                    "explicacao": (
+                        pergunta["explicacao"]
+                        if tentativa["resposta_revelada"]
+                        else None
+                    ),
+                    "pagina_evidencia": pergunta["pagina_evidencia"],
+                    "perguntas_concluidas": tentativa["perguntas_concluidas"],
+                }
+                return redirect(
+                    url_for(
+                        "atividade_leitura",
+                        retorno="1",
+                    )
+                )
+
+            if acao == "avaliar_resumo":
+                resumo = request.form.get("resumo", "").strip()
+                avaliacao = avaliar_resumo(historia, resumo)
+                versao = registrar_versao_resumo(
+                    app.config["DATABASE_PATH"],
+                    int(sessao_leitura["id"]),
+                    resumo,
+                    avaliacao,
+                )
+
+                if avaliacao["status"] == "concluido":
+                    resultado = obter_resultado_sessao_leitura(
+                        app.config["DATABASE_PATH"],
+                        int(sessao_leitura["id"]),
+                    )
+                    for detalhe in resultado["detalhes"]:
+                        pergunta = obter_pergunta_leitura(
+                            historia,
+                            detalhe["id"],
+                        )
+                        if pergunta:
+                            detalhe.update(
+                                {
+                                    "enunciado": pergunta["enunciado"],
+                                    "correta": pergunta["correta"],
+                                    "explicacao": pergunta["explicacao"],
+                                }
+                            )
+
+                    registrar_resultado_atividade(
+                        app.config["DATABASE_PATH"],
+                        int(aluno["id"]),
+                        data_atividade,
+                        "leitura",
+                        resultado,
+                        historia["titulo"],
+                    )
+
+                    return render_template(
+                        "resultado_atividade.html",
+                        materia="Leitura",
+                        resultado=resultado,
+                        leitura=True,
+                        avaliacao_resumo=versao,
+                    )
+
+                return render_template(
+                    "atividade_leitura.html",
+                    aluno=aluno,
+                    historia=historia,
+                    sessao=sessao_leitura,
+                    fase="resumo",
+                    resumo=resumo,
+                    avaliacao_resumo=versao,
+                    feedback=None,
+                    pergunta=None,
+                ), 400
+
+        sessao_leitura = obter_ou_criar_sessao_leitura(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+            data_atividade,
+            historia["id"],
+            historia["titulo"],
+            codigos,
+        )
+
+        feedback = None
+        if request.args.get("retorno") == "1":
+            feedback = session.pop("feedback_leitura", None)
+
+        if feedback:
+            return render_template(
+                "atividade_leitura.html",
+                aluno=aluno,
+                historia=historia,
+                sessao=sessao_leitura,
+                fase="feedback",
+                feedback=feedback,
+                pergunta=None,
+                resumo="",
+                avaliacao_resumo=None,
+            )
+
+        pergunta = None
+        if sessao_leitura["fase"] == "perguntas":
+            pergunta = obter_pergunta_leitura(
+                historia,
+                sessao_leitura["pergunta_atual"],
             )
 
         return render_template(
             "atividade_leitura.html",
             aluno=aluno,
             historia=historia,
+            sessao=sessao_leitura,
+            fase=sessao_leitura["fase"],
+            pergunta=pergunta,
+            feedback=None,
             resumo="",
+            avaliacao_resumo=None,
         )
 
     @app.get("/pwa-instalar")

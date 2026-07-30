@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 15:29 -03:00
-# Motivo da alteração: registrar sessões adaptativas, tentativas, dicas progressivas e resultados por questão.
+# Data e hora do último recode: 30/07/2026 17:19 -03:00
+# Motivo da alteração: registrar sessões adaptativas de Leitura e versões avaliadas do resumo.
 
 import json
 import random
@@ -166,6 +166,68 @@ CREATE INDEX IF NOT EXISTS idx_tentativas_adaptativas_sessao
 """
 
 
+LEITURA_ADAPTATIVA_SCHEMA = """
+CREATE TABLE IF NOT EXISTS sessoes_leitura (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    aluno_id INTEGER NOT NULL,
+    data_atividade TEXT NOT NULL,
+    historia_id TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    fase TEXT NOT NULL DEFAULT 'leitura'
+        CHECK (fase IN ('leitura', 'perguntas', 'resumo', 'concluida')),
+    fila_json TEXT NOT NULL DEFAULT '[]',
+    pontos_perguntas INTEGER NOT NULL DEFAULT 0,
+    acertos_perguntas INTEGER NOT NULL DEFAULT 0,
+    total_perguntas INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TEXT,
+    concluida_em TEXT,
+    UNIQUE (aluno_id, data_atividade),
+    FOREIGN KEY (aluno_id) REFERENCES alunos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tentativas_leitura (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sessao_id INTEGER NOT NULL,
+    pergunta_codigo TEXT NOT NULL,
+    numero_tentativa INTEGER NOT NULL,
+    resposta TEXT NOT NULL,
+    correta INTEGER NOT NULL DEFAULT 0 CHECK (correta IN (0, 1)),
+    dica_nivel INTEGER NOT NULL DEFAULT 0 CHECK (dica_nivel BETWEEN 0 AND 3),
+    resposta_revelada INTEGER NOT NULL DEFAULT 0 CHECK (resposta_revelada IN (0, 1)),
+    pontos INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (sessao_id, pergunta_codigo, numero_tentativa),
+    FOREIGN KEY (sessao_id) REFERENCES sessoes_leitura(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS versoes_resumo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sessao_id INTEGER NOT NULL,
+    numero_versao INTEGER NOT NULL,
+    resumo TEXT NOT NULL,
+    total_palavras INTEGER NOT NULL DEFAULT 0,
+    pontuacao INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL
+        CHECK (status IN ('refazer', 'complementar', 'concluido')),
+    criterios_json TEXT NOT NULL,
+    retorno_json TEXT NOT NULL,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (sessao_id, numero_versao),
+    FOREIGN KEY (sessao_id) REFERENCES sessoes_leitura(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessoes_leitura_aluno_data
+    ON sessoes_leitura (aluno_id, data_atividade);
+
+CREATE INDEX IF NOT EXISTS idx_tentativas_leitura_sessao
+    ON tentativas_leitura (sessao_id, pergunta_codigo);
+
+CREATE INDEX IF NOT EXISTS idx_versoes_resumo_sessao
+    ON versoes_resumo (sessao_id, numero_versao);
+"""
+
+
 def conectar(caminho_banco: str) -> sqlite3.Connection:
     Path(caminho_banco).parent.mkdir(parents=True, exist_ok=True)
     conexao = sqlite3.connect(caminho_banco)
@@ -177,6 +239,7 @@ def conectar(caminho_banco: str) -> sqlite3.Connection:
 def inicializar_banco(caminho_banco: str) -> None:
     with conectar(caminho_banco) as conexao:
         conexao.executescript(SCHEMA)
+        conexao.executescript(LEITURA_ADAPTATIVA_SCHEMA)
         _criar_dados_demonstracao(conexao)
 
 
@@ -1108,3 +1171,358 @@ def finalizar_sessao_adaptativa(
         resultado,
     )
     return resultado
+
+
+def obter_ou_criar_sessao_leitura(
+    caminho_banco: str,
+    aluno_id: int,
+    data_atividade: str,
+    historia_id: str,
+    titulo: str,
+    codigos_perguntas: list[str],
+) -> dict[str, Any]:
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT *
+            FROM sessoes_leitura
+            WHERE aluno_id = ? AND data_atividade = ?
+            """,
+            (aluno_id, data_atividade),
+        ).fetchone()
+
+        if not registro:
+            fila = list(codigos_perguntas)
+            random.shuffle(fila)
+            cursor = conexao.execute(
+                """
+                INSERT INTO sessoes_leitura (
+                    aluno_id,
+                    data_atividade,
+                    historia_id,
+                    titulo,
+                    fase,
+                    fila_json,
+                    total_perguntas
+                )
+                VALUES (?, ?, ?, ?, 'leitura', ?, ?)
+                """,
+                (
+                    aluno_id,
+                    data_atividade,
+                    historia_id,
+                    titulo,
+                    json.dumps(fila),
+                    len(codigos_perguntas),
+                ),
+            )
+            sessao_id = int(cursor.lastrowid)
+            fase = "leitura"
+            pontos = 0
+            acertos = 0
+        else:
+            sessao_id = int(registro["id"])
+            fila = json.loads(registro["fila_json"])
+            fase = registro["fase"]
+            pontos = int(registro["pontos_perguntas"])
+            acertos = int(registro["acertos_perguntas"])
+
+        return {
+            "id": sessao_id,
+            "fase": fase,
+            "fila": fila,
+            "pergunta_atual": fila[0] if fila else None,
+            "pontos_perguntas": pontos,
+            "acertos_perguntas": acertos,
+            "total_perguntas": len(codigos_perguntas),
+        }
+
+
+def iniciar_perguntas_leitura(
+    caminho_banco: str,
+    sessao_id: int,
+) -> None:
+    with conectar(caminho_banco) as conexao:
+        conexao.execute(
+            """
+            UPDATE sessoes_leitura
+            SET fase = 'perguntas',
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = ? AND fase = 'leitura'
+            """,
+            (sessao_id,),
+        )
+
+
+def registrar_tentativa_leitura(
+    caminho_banco: str,
+    sessao_id: int,
+    pergunta_codigo: str,
+    resposta: str,
+    correta: bool,
+) -> dict[str, Any]:
+    with conectar(caminho_banco) as conexao:
+        sessao = conexao.execute(
+            """
+            SELECT *
+            FROM sessoes_leitura
+            WHERE id = ?
+            """,
+            (sessao_id,),
+        ).fetchone()
+
+        if not sessao or sessao["fase"] != "perguntas":
+            raise ValueError("A etapa de perguntas não está ativa.")
+
+        fila = json.loads(sessao["fila_json"])
+        if not fila or fila[0] != pergunta_codigo:
+            raise ValueError("A pergunta enviada não corresponde à pergunta atual.")
+
+        total_anterior = conexao.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM tentativas_leitura
+            WHERE sessao_id = ? AND pergunta_codigo = ?
+            """,
+            (sessao_id, pergunta_codigo),
+        ).fetchone()["total"]
+
+        numero_tentativa = int(total_anterior) + 1
+        pontos_por_tentativa = {1: 10, 2: 8, 3: 6, 4: 4, 5: 2}
+        pontos = pontos_por_tentativa.get(numero_tentativa, 0) if correta else 0
+        dica_nivel = 0
+        resposta_revelada = 0
+
+        if not correta:
+            if numero_tentativa == 2:
+                dica_nivel = 1
+            elif numero_tentativa == 3:
+                dica_nivel = 2
+            elif numero_tentativa == 4:
+                dica_nivel = 3
+            elif numero_tentativa >= 5:
+                dica_nivel = 3
+                resposta_revelada = 1
+
+        conexao.execute(
+            """
+            INSERT INTO tentativas_leitura (
+                sessao_id,
+                pergunta_codigo,
+                numero_tentativa,
+                resposta,
+                correta,
+                dica_nivel,
+                resposta_revelada,
+                pontos
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                sessao_id,
+                pergunta_codigo,
+                numero_tentativa,
+                resposta,
+                int(correta),
+                dica_nivel,
+                resposta_revelada,
+                pontos,
+            ),
+        )
+
+        fila.pop(0)
+        if not correta and numero_tentativa < 5:
+            fila.append(pergunta_codigo)
+
+        perguntas_concluidas = len(fila) == 0
+        nova_fase = "resumo" if perguntas_concluidas else "perguntas"
+
+        conexao.execute(
+            """
+            UPDATE sessoes_leitura
+            SET fila_json = ?,
+                fase = ?,
+                pontos_perguntas = pontos_perguntas + ?,
+                acertos_perguntas = acertos_perguntas + ?,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                json.dumps(fila),
+                nova_fase,
+                pontos,
+                int(correta),
+                sessao_id,
+            ),
+        )
+
+        return {
+            "numero_tentativa": numero_tentativa,
+            "correta": bool(correta),
+            "dica_nivel": dica_nivel,
+            "resposta_revelada": bool(resposta_revelada),
+            "pontos": pontos,
+            "perguntas_concluidas": perguntas_concluidas,
+        }
+
+
+def registrar_versao_resumo(
+    caminho_banco: str,
+    sessao_id: int,
+    resumo: str,
+    avaliacao: dict[str, Any],
+) -> dict[str, Any]:
+    with conectar(caminho_banco) as conexao:
+        sessao = conexao.execute(
+            "SELECT id, fase FROM sessoes_leitura WHERE id = ?",
+            (sessao_id,),
+        ).fetchone()
+
+        if not sessao or sessao["fase"] not in {"resumo", "concluida"}:
+            raise ValueError("A etapa do resumo ainda não está disponível.")
+
+        numero_versao = int(
+            conexao.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM versoes_resumo
+                WHERE sessao_id = ?
+                """,
+                (sessao_id,),
+            ).fetchone()["total"]
+        ) + 1
+
+        conexao.execute(
+            """
+            INSERT INTO versoes_resumo (
+                sessao_id,
+                numero_versao,
+                resumo,
+                total_palavras,
+                pontuacao,
+                status,
+                criterios_json,
+                retorno_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                sessao_id,
+                numero_versao,
+                resumo,
+                int(avaliacao["total_palavras"]),
+                int(avaliacao["pontuacao"]),
+                avaliacao["status"],
+                json.dumps(avaliacao["criterios"], ensure_ascii=False),
+                json.dumps(
+                    {
+                        "mensagem": avaliacao["mensagem"],
+                        "pontos_fortes": avaliacao["pontos_fortes"],
+                        "melhorar": avaliacao["melhorar"],
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+        )
+
+        if avaliacao["status"] == "concluido":
+            conexao.execute(
+                """
+                UPDATE sessoes_leitura
+                SET fase = 'concluida',
+                    atualizado_em = CURRENT_TIMESTAMP,
+                    concluida_em = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (sessao_id,),
+            )
+
+    return {
+        "numero_versao": numero_versao,
+        **avaliacao,
+    }
+
+
+def obter_resultado_sessao_leitura(
+    caminho_banco: str,
+    sessao_id: int,
+) -> dict[str, Any]:
+    with conectar(caminho_banco) as conexao:
+        sessao = conexao.execute(
+            "SELECT * FROM sessoes_leitura WHERE id = ?",
+            (sessao_id,),
+        ).fetchone()
+
+        if not sessao:
+            raise ValueError("Sessão de leitura não encontrada.")
+
+        tentativas = conexao.execute(
+            """
+            SELECT
+                pergunta_codigo,
+                MAX(numero_tentativa) AS tentativas,
+                MAX(correta) AS acertou,
+                MAX(resposta_revelada) AS resposta_revelada,
+                SUM(pontos) AS pontos
+            FROM tentativas_leitura
+            WHERE sessao_id = ?
+            GROUP BY pergunta_codigo
+            ORDER BY pergunta_codigo
+            """,
+            (sessao_id,),
+        ).fetchall()
+
+        versao = conexao.execute(
+            """
+            SELECT *
+            FROM versoes_resumo
+            WHERE sessao_id = ?
+            ORDER BY numero_versao DESC
+            LIMIT 1
+            """,
+            (sessao_id,),
+        ).fetchone()
+
+        detalhes = []
+        for tentativa in tentativas:
+            ultima = conexao.execute(
+                """
+                SELECT resposta
+                FROM tentativas_leitura
+                WHERE sessao_id = ? AND pergunta_codigo = ?
+                ORDER BY numero_tentativa DESC
+                LIMIT 1
+                """,
+                (sessao_id, tentativa["pergunta_codigo"]),
+            ).fetchone()
+            detalhes.append(
+                {
+                    "id": tentativa["pergunta_codigo"],
+                    "resposta": ultima["resposta"] if ultima else "",
+                    "acertou": bool(tentativa["acertou"]),
+                    "tentativas": int(tentativa["tentativas"]),
+                    "resposta_revelada": bool(tentativa["resposta_revelada"]),
+                    "pontos": int(tentativa["pontos"] or 0),
+                }
+            )
+
+        pontuacao_resumo = int(versao["pontuacao"]) if versao else 0
+        resumo = versao["resumo"] if versao else ""
+        pontos_resumo = pontuacao_resumo * 7
+
+        return {
+            "sessao_id": int(sessao["id"]),
+            "aluno_id": int(sessao["aluno_id"]),
+            "data_atividade": sessao["data_atividade"],
+            "titulo": sessao["titulo"],
+            "acertos": sum(1 for item in detalhes if item["acertou"]),
+            "total": int(sessao["total_perguntas"]),
+            "pontos": int(sessao["pontos_perguntas"]) + pontos_resumo,
+            "pontos_perguntas": int(sessao["pontos_perguntas"]),
+            "pontos_resumo": pontos_resumo,
+            "pontuacao_resumo": pontuacao_resumo,
+            "resumo": resumo,
+            "resumo_valido": pontuacao_resumo >= 7,
+            "detalhes": detalhes,
+        }
+
