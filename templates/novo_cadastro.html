@@ -1,0 +1,705 @@
+<!--
+Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\novo_cadastro.html
+Data e hora do último recode: 30/07/2026 14:41 -03:00
+Motivo da alteração: criar a tela pública de cadastro conjunto do responsável e do aluno.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+        name="description"
+        content="Crie sua conta no NettStudy e cadastre o primeiro aluno."
+    >
+    <title>Novo cadastro | NettStudy</title>
+
+    <link
+        rel="manifest"
+        href="{{ url_for('static', filename='manifest.json') }}"
+    >
+
+    <style>
+        :root {
+            --cor-primaria: #5b46e8;
+            --cor-primaria-escura: #4332bd;
+            --cor-secundaria: #f2efff;
+            --cor-fundo: #f7f8fc;
+            --cor-card: #ffffff;
+            --cor-texto: #25233a;
+            --cor-texto-suave: #6d6a7d;
+            --cor-borda: #dedbea;
+            --cor-erro: #a52828;
+            --cor-erro-fundo: #fff0f0;
+            --cor-sucesso: #1f7a47;
+            --cor-sucesso-fundo: #edf9f2;
+            --sombra: 0 18px 45px rgba(45, 38, 100, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            color: var(--cor-texto);
+            background:
+                radial-gradient(
+                    circle at top left,
+                    rgba(91, 70, 232, 0.12),
+                    transparent 34%
+                ),
+                var(--cor-fundo);
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .pagina {
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 28px 0 48px;
+        }
+
+        .topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .marca {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+
+        .marca-simbolo {
+            display: grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            color: #ffffff;
+            background: var(--cor-primaria);
+            font-size: 1.1rem;
+        }
+
+        .link-entrar {
+            text-decoration: none;
+            font-weight: 700;
+            color: var(--cor-primaria-escura);
+        }
+
+        .cadastro {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 330px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .card {
+            background: var(--cor-card);
+            border: 1px solid rgba(222, 219, 234, 0.85);
+            border-radius: 24px;
+            box-shadow: var(--sombra);
+        }
+
+        .formulario {
+            padding: 32px;
+        }
+
+        .cabecalho-formulario {
+            margin-bottom: 26px;
+        }
+
+        .cabecalho-formulario h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.7rem, 4vw, 2.35rem);
+            line-height: 1.15;
+        }
+
+        .cabecalho-formulario p {
+            margin: 0;
+            color: var(--cor-texto-suave);
+            line-height: 1.6;
+        }
+
+        .mensagens {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mensagem {
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+        }
+
+        .mensagem.erro {
+            color: var(--cor-erro);
+            background: var(--cor-erro-fundo);
+            border: 1px solid #f0c6c6;
+        }
+
+        .mensagem.sucesso {
+            color: var(--cor-sucesso);
+            background: var(--cor-sucesso-fundo);
+            border: 1px solid #bfe4ce;
+        }
+
+        .mensagem.aviso {
+            color: #785c11;
+            background: #fff8df;
+            border: 1px solid #eedc9a;
+        }
+
+        fieldset {
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+
+        fieldset + fieldset {
+            margin-top: 30px;
+            padding-top: 26px;
+            border-top: 1px solid var(--cor-borda);
+        }
+
+        legend {
+            width: 100%;
+            margin-bottom: 18px;
+            font-size: 1.08rem;
+            font-weight: 800;
+        }
+
+        .grade {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .campo {
+            display: grid;
+            gap: 7px;
+        }
+
+        .campo.largo {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 0.92rem;
+            font-weight: 700;
+        }
+
+        input,
+        select {
+            width: 100%;
+            min-height: 48px;
+            padding: 11px 13px;
+            border: 1px solid var(--cor-borda);
+            border-radius: 12px;
+            background: #ffffff;
+            color: var(--cor-texto);
+            font: inherit;
+            outline: none;
+            transition:
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--cor-primaria);
+            box-shadow: 0 0 0 4px rgba(91, 70, 232, 0.12);
+        }
+
+        .ajuda {
+            color: var(--cor-texto-suave);
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        .acoes {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .botao {
+            min-height: 50px;
+            padding: 12px 20px;
+            border: 0;
+            border-radius: 13px;
+            color: #ffffff;
+            background: var(--cor-primaria);
+            font: inherit;
+            font-weight: 800;
+            cursor: pointer;
+            transition:
+                background 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .botao:hover {
+            background: var(--cor-primaria-escura);
+            transform: translateY(-1px);
+        }
+
+        .voltar {
+            text-decoration: none;
+            color: var(--cor-texto-suave);
+            font-weight: 700;
+        }
+
+        .resumo {
+            position: sticky;
+            top: 24px;
+            padding: 26px;
+        }
+
+        .resumo h2 {
+            margin: 0 0 14px;
+            font-size: 1.3rem;
+        }
+
+        .resumo p {
+            margin: 0 0 18px;
+            color: var(--cor-texto-suave);
+            line-height: 1.6;
+        }
+
+        .resumo-lista {
+            display: grid;
+            gap: 14px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .resumo-item {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            gap: 10px;
+            align-items: start;
+        }
+
+        .resumo-numero {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            color: var(--cor-primaria-escura);
+            background: var(--cor-secundaria);
+            font-weight: 800;
+        }
+
+        .resumo-item strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .resumo-item span {
+            color: var(--cor-texto-suave);
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 860px) {
+            .cadastro {
+                grid-template-columns: 1fr;
+            }
+
+            .resumo {
+                position: static;
+                order: -1;
+            }
+        }
+
+        @media (max-width: 620px) {
+            .pagina {
+                width: min(100% - 20px, 1120px);
+                padding-top: 16px;
+            }
+
+            .formulario,
+            .resumo {
+                padding: 22px 18px;
+                border-radius: 18px;
+            }
+
+            .grade {
+                grid-template-columns: 1fr;
+            }
+
+            .campo.largo {
+                grid-column: auto;
+            }
+
+            .acoes {
+                align-items: stretch;
+                flex-direction: column-reverse;
+            }
+
+            .botao {
+                width: 100%;
+            }
+
+            .voltar {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="pagina">
+        <header class="topo">
+            <a class="marca" href="{{ url_for('inicio') }}">
+                <span class="marca-simbolo">NS</span>
+                <span>NettStudy</span>
+            </a>
+
+            <a class="link-entrar" href="{{ url_for('login') }}">
+                Já tenho uma conta
+            </a>
+        </header>
+
+        <div class="cadastro">
+            <section class="card formulario">
+                <div class="cabecalho-formulario">
+                    <h1>Crie a conta da família</h1>
+                    <p>
+                        Cadastre o responsável e o primeiro aluno.
+                        Depois você poderá acompanhar toda a evolução.
+                    </p>
+                </div>
+
+                {% with mensagens = get_flashed_messages(with_categories=true) %}
+                    {% if mensagens %}
+                        <div class="mensagens" role="alert">
+                            {% for categoria, mensagem in mensagens %}
+                                <div class="mensagem {{ categoria }}">
+                                    {{ mensagem }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <form method="post" action="{{ url_for('novo_cadastro') }}">
+                    <fieldset>
+                        <legend>Dados do responsável</legend>
+
+                        <div class="grade">
+                            <div class="campo largo">
+                                <label for="nome_responsavel">
+                                    Nome completo
+                                </label>
+                                <input
+                                    id="nome_responsavel"
+                                    name="nome_responsavel"
+                                    type="text"
+                                    value="{{ dados.nome_responsavel }}"
+                                    maxlength="120"
+                                    autocomplete="name"
+                                    required
+                                >
+                            </div>
+
+                            <div class="campo">
+                                <label for="email_responsavel">
+                                    E-mail
+                                </label>
+                                <input
+                                    id="email_responsavel"
+                                    name="email_responsavel"
+                                    type="email"
+                                    value="{{ dados.email_responsavel }}"
+                                    maxlength="160"
+                                    autocomplete="email"
+                                    required
+                                >
+                            </div>
+
+                            <div class="campo">
+                                <label for="telefone_responsavel">
+                                    Telefone
+                                </label>
+                                <input
+                                    id="telefone_responsavel"
+                                    name="telefone_responsavel"
+                                    type="tel"
+                                    value="{{ dados.telefone_responsavel }}"
+                                    maxlength="30"
+                                    autocomplete="tel"
+                                    placeholder="(71) 99999-9999"
+                                >
+                            </div>
+
+                            <div class="campo">
+                                <label for="senha_responsavel">
+                                    Senha
+                                </label>
+                                <input
+                                    id="senha_responsavel"
+                                    name="senha_responsavel"
+                                    type="password"
+                                    minlength="8"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                                <span class="ajuda">
+                                    Use pelo menos 8 caracteres.
+                                </span>
+                            </div>
+
+                            <div class="campo">
+                                <label for="confirmar_senha">
+                                    Confirmar senha
+                                </label>
+                                <input
+                                    id="confirmar_senha"
+                                    name="confirmar_senha"
+                                    type="password"
+                                    minlength="8"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                            </div>
+
+                            <div class="campo largo">
+                                <label for="parentesco">
+                                    Relação com o aluno
+                                </label>
+                                <select
+                                    id="parentesco"
+                                    name="parentesco"
+                                    required
+                                >
+                                    {% set parentesco_atual = dados.parentesco %}
+                                    <option
+                                        value="Pai"
+                                        {% if parentesco_atual == 'Pai' %}selected{% endif %}
+                                    >
+                                        Pai
+                                    </option>
+                                    <option
+                                        value="Mãe"
+                                        {% if parentesco_atual == 'Mãe' %}selected{% endif %}
+                                    >
+                                        Mãe
+                                    </option>
+                                    <option
+                                        value="Responsável"
+                                        {% if parentesco_atual == 'Responsável' %}selected{% endif %}
+                                    >
+                                        Responsável
+                                    </option>
+                                    <option
+                                        value="Outro"
+                                        {% if parentesco_atual == 'Outro' %}selected{% endif %}
+                                    >
+                                        Outro
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Dados do aluno</legend>
+
+                        <div class="grade">
+                            <div class="campo largo">
+                                <label for="nome_aluno">
+                                    Nome completo do aluno
+                                </label>
+                                <input
+                                    id="nome_aluno"
+                                    name="nome_aluno"
+                                    type="text"
+                                    value="{{ dados.nome_aluno }}"
+                                    maxlength="120"
+                                    autocomplete="off"
+                                    required
+                                >
+                            </div>
+
+                            <div class="campo">
+                                <label for="nome_exibicao_aluno">
+                                    Como quer ser chamado
+                                </label>
+                                <input
+                                    id="nome_exibicao_aluno"
+                                    name="nome_exibicao_aluno"
+                                    type="text"
+                                    value="{{ dados.nome_exibicao_aluno }}"
+                                    maxlength="50"
+                                    autocomplete="off"
+                                    placeholder="Ex.: João"
+                                >
+                            </div>
+
+                            <div class="campo">
+                                <label for="ano_escolar">
+                                    Ano escolar
+                                </label>
+                                <select id="ano_escolar" name="ano_escolar">
+                                    {% set ano_atual = dados.ano_escolar %}
+                                    <option value="">Selecione</option>
+                                    {% for ano in [
+                                        '1º ano',
+                                        '2º ano',
+                                        '3º ano',
+                                        '4º ano',
+                                        '5º ano',
+                                        '6º ano',
+                                        '7º ano',
+                                        '8º ano',
+                                        '9º ano'
+                                    ] %}
+                                        <option
+                                            value="{{ ano }}"
+                                            {% if ano_atual == ano %}selected{% endif %}
+                                        >
+                                            {{ ano }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="campo">
+                                <label for="usuario_aluno">
+                                    Usuário do aluno
+                                </label>
+                                <input
+                                    id="usuario_aluno"
+                                    name="usuario_aluno"
+                                    type="text"
+                                    value="{{ dados.usuario_aluno }}"
+                                    maxlength="40"
+                                    autocomplete="username"
+                                    pattern="[A-Za-z0-9._-]+"
+                                    required
+                                >
+                                <span class="ajuda">
+                                    Sem espaços. Ex.: joao.silva
+                                </span>
+                            </div>
+
+                            <div class="campo">
+                                <label for="pin_aluno">
+                                    PIN do aluno
+                                </label>
+                                <input
+                                    id="pin_aluno"
+                                    name="pin_aluno"
+                                    type="password"
+                                    inputmode="numeric"
+                                    minlength="4"
+                                    maxlength="4"
+                                    pattern="[0-9]{4}"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                                <span class="ajuda">
+                                    Exatamente 4 números.
+                                </span>
+                            </div>
+
+                            <div class="campo">
+                                <label for="confirmar_pin">
+                                    Confirmar PIN
+                                </label>
+                                <input
+                                    id="confirmar_pin"
+                                    name="confirmar_pin"
+                                    type="password"
+                                    inputmode="numeric"
+                                    minlength="4"
+                                    maxlength="4"
+                                    pattern="[0-9]{4}"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="acoes">
+                        <a class="voltar" href="{{ url_for('inicio') }}">
+                            Voltar
+                        </a>
+
+                        <button class="botao" type="submit">
+                            Criar conta e continuar
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <aside class="card resumo">
+                <h2>Como funciona</h2>
+                <p>
+                    O responsável controla a conta e o aluno usa um acesso
+                    simples para estudar.
+                </p>
+
+                <ol class="resumo-lista">
+                    <li class="resumo-item">
+                        <span class="resumo-numero">1</span>
+                        <div>
+                            <strong>Crie a conta</strong>
+                            <span>
+                                Informe os dados do responsável pela criança.
+                            </span>
+                        </div>
+                    </li>
+
+                    <li class="resumo-item">
+                        <span class="resumo-numero">2</span>
+                        <div>
+                            <strong>Cadastre o aluno</strong>
+                            <span>
+                                Defina o nome de acesso e um PIN de 4 números.
+                            </span>
+                        </div>
+                    </li>
+
+                    <li class="resumo-item">
+                        <span class="resumo-numero">3</span>
+                        <div>
+                            <strong>Acompanhe o progresso</strong>
+                            <span>
+                                Veja atividades, evolução e dificuldades.
+                            </span>
+                        </div>
+                    </li>
+                </ol>
+            </aside>
+        </div>
+    </main>
+</body>
+</html>
