@@ -1,6 +1,6 @@
 /*
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 30/07/2026 17:54 -03:00
+Data e hora do último recode: 30/07/2026 18:11 -03:00
 Motivo da alteração: adicionar o painel responsivo de confirmação do reset diário.
 */
 
@@ -379,3 +379,8 @@ a {
         width: 100%;
     }
 }
+
+
+/* Motor pedagógico */
+.texto-suave{color:var(--muted);line-height:1.6}.fase-pedagogica{display:flex;flex-direction:column;gap:6px;margin:20px 0;padding:16px 18px;border:1px solid var(--border);border-left:5px solid var(--primary);border-radius:14px;background:#fff}.fase-pedagogica span{color:var(--muted)}.perfil-resumo{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}.perfil-resumo>a{grid-column:1/-1;justify-self:start}.niveis-resumo{display:flex;flex-wrap:wrap;gap:10px}.niveis-resumo span{display:flex;flex-direction:column;gap:3px;min-width:110px;padding:10px 12px;border-radius:12px;background:var(--soft);color:var(--muted);font-size:13px}.niveis-resumo strong{color:var(--primary);font-size:16px}.perfil-cabecalho{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}.habilidades-grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.habilidade-card{padding:16px;border:1px solid var(--border);border-radius:14px;background:#fafbff}.habilidade-card>div:first-child{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.habilidade-card small{color:var(--muted)}.barra-dominio{height:9px;margin:13px 0 9px;border-radius:999px;background:#e3e6f5;overflow:hidden}.barra-dominio span{display:block;height:100%;border-radius:inherit;background:var(--primary)}.status-em_diagnostico{background:#fff7d9;color:#755a0f}.status-precisa_reforco{background:#fff0f0;color:#982d2d}.status-em_aprendizagem{background:#eef0ff;color:var(--primary)}.status-consolidada{background:#edf9f2;color:#176d40}.status-dominada{background:#dff7e9;color:#0f6b38}.grade-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.campo{display:grid;gap:7px}.campo-largo{grid-column:1/-1}.campo input,.campo select,.campo textarea{width:100%;min-height:48px;padding:11px 13px;border:1px solid var(--border);border-radius:12px;font:inherit}.campo textarea{min-height:100px}.campo small{color:var(--muted);line-height:1.4}
+@media(max-width:760px){.perfil-resumo,.perfil-cabecalho{grid-template-columns:1fr;display:grid}.habilidades-grade,.grade-form{grid-template-columns:1fr}.campo-largo{grid-column:auto}.niveis-resumo{width:100%}.niveis-resumo span{flex:1}.habilidade-card>div:first-child{flex-direction:column}.perfil-resumo>a{width:100%}}

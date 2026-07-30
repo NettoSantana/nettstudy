@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 17:54 -03:00
-# Motivo da alteração: permitir que o responsável refaça a missão do dia preservando o histórico anterior.
+# Data e hora do último recode: 30/07/2026 18:11 -03:00
+# Motivo da alteração: integrar perfil pedagógico, diagnóstico silencioso e missão diária personalizada.
 
 import os
 from datetime import date
@@ -16,6 +16,14 @@ from modules.leitura import (
     obter_historia_do_dia,
     obter_pergunta as obter_pergunta_leitura,
     resposta_correta as resposta_correta_leitura,
+)
+from modules.motor_pedagogico import (
+    garantir_perfil_pedagogico,
+    gerar_plano_missao,
+    inicializar_motor_pedagogico,
+    obter_perfil_pedagogico,
+    registrar_desempenho,
+    resumo_missao_personalizada,
 )
 from modules.matematica import (
     QUESTOES as QUESTOES_MATEMATICA,
@@ -60,6 +68,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
     inicializar_banco(app.config["DATABASE_PATH"])
+    inicializar_motor_pedagogico(app.config["DATABASE_PATH"])
     registrar_contexto(app)
     registrar_rotas(app)
     registrar_erros(app)
@@ -333,7 +342,11 @@ def registrar_rotas(app: Flask) -> None:
                 flash("Revise os campos numéricos e obrigatórios.", "erro")
                 return render_template("anamnese.html", aluno=aluno, dados=dados), 400
 
-            flash("Anamnese concluída com sucesso.", "sucesso")
+            garantir_perfil_pedagogico(
+                app.config["DATABASE_PATH"],
+                int(aluno["id"]),
+            )
+            flash("Anamnese concluída e perfil pedagógico atualizado.", "sucesso")
             return redirect(url_for("dashboard_responsavel"))
 
         return render_template("anamnese.html", aluno=aluno, dados=dados)
@@ -436,6 +449,15 @@ def registrar_rotas(app: Flask) -> None:
             else None
         )
 
+        perfil_pedagogico = (
+            garantir_perfil_pedagogico(
+                app.config["DATABASE_PATH"],
+                int(aluno["id"]),
+            )
+            if aluno and anamnese_registro
+            else None
+        )
+
         return render_template(
             "dashboard_responsavel.html",
             responsavel=responsavel,
@@ -444,6 +466,28 @@ def registrar_rotas(app: Flask) -> None:
             anamnese=anamnese_registro,
             resumo_dia=resumo_dia,
             reset_missao=reset_missao,
+            perfil_pedagogico=perfil_pedagogico,
+        )
+
+    @app.get("/responsavel/perfil-pedagogico")
+    @login_obrigatorio("responsavel")
+    def perfil_pedagogico():
+        alunos = listar_alunos_do_responsavel(
+            app.config["DATABASE_PATH"],
+            int(session["usuario_id"]),
+        )
+        if not alunos:
+            flash("Nenhum aluno vinculado.", "aviso")
+            return redirect(url_for("dashboard_responsavel"))
+        aluno = alunos[0]
+        perfil = garantir_perfil_pedagogico(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+        )
+        return render_template(
+            "perfil_pedagogico.html",
+            aluno=aluno,
+            perfil=perfil,
         )
 
     @app.post("/responsavel/refazer-missao")
@@ -524,10 +568,15 @@ def registrar_rotas(app: Flask) -> None:
             int(aluno["id"]),
             date.today().isoformat(),
         )
+        personalizacao = resumo_missao_personalizada(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+        )
+        quantidade = personalizacao["quantidade_questoes"]
         configuracao = [
-            ("Português", "portugues", "10 questões", "atividade_portugues"),
-            ("Matemática", "matematica", "10 questões", "atividade_matematica"),
-            ("Leitura", "leitura", "3 páginas, perguntas e resumo", "atividade_leitura"),
+            ("Português", "portugues", f"{quantidade} questões personalizadas", "atividade_portugues"),
+            ("Matemática", "matematica", f"{quantidade} questões personalizadas", "atividade_matematica"),
+            ("Leitura", "leitura", "História autoral, interpretação e resumo", "atividade_leitura"),
         ]
         missao = [
             {
@@ -548,6 +597,7 @@ def registrar_rotas(app: Flask) -> None:
             sequencia=resumo_dia["sequencia"],
             atividades_concluidas=resumo_dia["concluidas"],
             progresso=resumo_dia["progresso"],
+            personalizacao=personalizacao,
         )
 
     def _aluno_logado_com_anamnese() -> dict[str, Any] | None:
@@ -574,7 +624,14 @@ def registrar_rotas(app: Flask) -> None:
         texto: str | None = None,
     ):
         data_atividade = date.today().isoformat()
-        codigos = [questao["id"] for questao in questoes]
+        plano_pedagogico = gerar_plano_missao(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+            materia,
+            questoes,
+            data_atividade,
+        )
+        codigos = plano_pedagogico["codigos"]
         sessao_adaptativa = obter_ou_criar_sessao_adaptativa(
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
@@ -610,6 +667,18 @@ def registrar_rotas(app: Flask) -> None:
                 resposta,
                 validar_resposta(questao, resposta),
             )
+            registrar_desempenho(
+                app.config["DATABASE_PATH"],
+                int(aluno["id"]),
+                data_atividade,
+                materia,
+                questao,
+                tentativa["numero_tentativa"],
+                tentativa["correta"],
+                tentativa["dica_nivel"],
+                tentativa["resposta_revelada"],
+                tentativa["pontos"],
+            )
 
             dica = None
             if tentativa["dica_nivel"]:
@@ -643,6 +712,7 @@ def registrar_rotas(app: Flask) -> None:
                 feedback=feedback,
                 questao=None,
                 progresso=sessao_adaptativa["progresso"],
+                plano_pedagogico=plano_pedagogico,
             )
 
         sessao_adaptativa = obter_ou_criar_sessao_adaptativa(
@@ -673,6 +743,7 @@ def registrar_rotas(app: Flask) -> None:
             feedback=None,
             questao=questao,
             progresso=sessao_adaptativa["progresso"],
+            plano_pedagogico=plano_pedagogico,
         )
 
     @app.route("/atividade/matematica", methods=["GET", "POST"])

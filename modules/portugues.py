@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\portugues.py
-# Data e hora do último recode: 30/07/2026 15:29 -03:00
-# Motivo da alteração: adaptar Português para uma questão por vez, repetição de erros e dicas progressivas.
+# Data e hora do último recode: 30/07/2026 18:11 -03:00
+# Motivo da alteração: classificar questões por habilidade, nível e contexto para o motor pedagógico.
 
 TEXTO = "Na manhã de sábado, Lia encontrou um passarinho no quintal. Ele estava assustado e não conseguia voar. Lia chamou seu pai, colocou água em uma pequena vasilha e ficou observando de longe. Depois de descansar, o passarinho abriu as asas e voou até uma árvore."
 
@@ -16,6 +16,19 @@ QUESTOES = [
     {"id": "por-09", "enunciado": "Por que Lia observou o passarinho de longe?", "alternativas": ["Para não assustá-lo mais", "Porque estava chovendo", "Para chamar os amigos", "Porque queria ir embora"], "correta": "Para não assustá-lo mais", "dicas": ["A resposta não está escrita exatamente, mas pode ser concluída pelo cuidado de Lia.", "Pense por que alguém evita chegar perto de um animal assustado.", "Manter distância ajuda o animal a ficar mais tranquilo."], "explicacao": "Essa é a conclusão coerente com o cuidado mostrado por Lia."},
     {"id": "por-10", "enunciado": "Qual é a ideia principal do texto?", "alternativas": ["Lia cuidou de um passarinho até ele conseguir voar", "Lia plantou uma árvore", "O pai de Lia comprou uma ave", "Lia perdeu uma vasilha"], "correta": "Lia cuidou de um passarinho até ele conseguir voar", "dicas": ["A ideia principal resume o texto inteiro.", "Considere o problema, o cuidado de Lia e o final da história.", "O passarinho precisava de ajuda e depois conseguiu voar."], "explicacao": "Essa alternativa resume o começo, o cuidado e o desfecho do texto."},
 ]
+
+
+METADADOS = {
+    "por-01": ("localizacao_informacoes", 3, "animais"), "por-02": ("interpretacao", 3, "emocao"),
+    "por-03": ("localizacao_informacoes", 3, "familia"), "por-04": ("sinonimos_antonimos", 4, "vocabulario"),
+    "por-05": ("pontuacao", 4, "frase"), "por-06": ("ortografia", 3, "plural"),
+    "por-07": ("classes_palavras", 4, "verbo"), "por-08": ("ortografia", 3, "grafia"),
+    "por-09": ("interpretacao", 5, "inferencia"), "por-10": ("interpretacao", 5, "ideia_principal"),
+}
+
+for questao in QUESTOES:
+    habilidade, nivel, tema = METADADOS[questao["id"]]
+    questao.update(habilidade=habilidade, nivel=nivel, tema=tema)
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 

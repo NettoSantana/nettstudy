@@ -1,6 +1,6 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_responsavel.html
-Data e hora do último recode: 30/07/2026 17:54 -03:00
+Data e hora do último recode: 30/07/2026 18:11 -03:00
 Motivo da alteração: adicionar o recurso Refazer missão de hoje com confirmação e histórico preservado.
 -->
 <!DOCTYPE html>
@@ -58,6 +58,14 @@ Motivo da alteração: adicionar o recurso Refazer missão de hoje com confirma�
             {% endif %}
         </section>
 
+
+        {% if perfil_pedagogico %}
+            <section class="panel perfil-resumo">
+                <div><p>PERFIL PEDAGÓGICO</p><h2>{{ perfil_pedagogico.faixa_desenvolvimento }}</h2><span class="texto-suave">{% if perfil_pedagogico.fase == 'diagnostico' %}Diagnóstico silencioso: {{ perfil_pedagogico.dias_restantes_diagnostico }} dia(s) restante(s).{% else %}Trilha adaptativa ativa.{% endif %}</span></div>
+                <div class="niveis-resumo"><span>Matemática <strong>Nível {{ perfil_pedagogico.nivel_matematica }}</strong></span><span>Português <strong>Nível {{ perfil_pedagogico.nivel_portugues }}</strong></span><span>Leitura <strong>Nível {{ perfil_pedagogico.nivel_leitura }}</strong></span></div>
+                <a class="button secondary" href="{{ url_for('perfil_pedagogico') }}">Ver habilidades e evolução</a>
+            </section>
+        {% endif %}
         <section class="panel reset-panel">
             <h2>Refazer missão de hoje</h2>
             {% if reset_missao %}

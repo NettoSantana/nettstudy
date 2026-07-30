@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\matematica.py
-# Data e hora do último recode: 30/07/2026 15:29 -03:00
-# Motivo da alteração: adaptar Matemática para uma questão por vez, repetição de erros e dicas progressivas.
+# Data e hora do último recode: 30/07/2026 18:11 -03:00
+# Motivo da alteração: classificar questões por habilidade, nível e contexto para o motor pedagógico.
 
 QUESTOES = [
     {"id": "mat-01", "enunciado": "Quanto é 247 + 136?", "alternativas": ["373", "383", "393", "403"], "correta": "383", "dicas": ["Some primeiro as unidades: 7 + 6.", "Depois some as dezenas, lembrando do valor que foi para a próxima casa.", "Separe a conta em centenas, dezenas e unidades."], "explicacao": "Somando unidades, dezenas e centenas: 247 + 136 = 383."},
@@ -14,6 +14,19 @@ QUESTOES = [
     {"id": "mat-09", "enunciado": "Uma escola recebeu 96 livros para dividir igualmente entre 4 turmas. Quantos livros cada turma recebeu?", "alternativas": ["22", "24", "26", "28"], "correta": "24", "dicas": ["Dividir igualmente indica uma divisão.", "Procure um número que multiplicado por 4 resulte em 96.", "Metade de 96 é 48; metade de 48 é 24."], "explicacao": "96 ÷ 4 = 24."},
     {"id": "mat-10", "enunciado": "Um passeio custa R$ 18 por criança. Quanto custará para 7 crianças?", "alternativas": ["R$ 116", "R$ 126", "R$ 136", "R$ 146"], "correta": "R$ 126", "dicas": ["O mesmo valor será pago sete vezes.", "Calcule 18 × 7.", "Use 10 × 7 e 8 × 7, depois some os resultados."], "explicacao": "18 × 7 = 126."},
 ]
+
+
+METADADOS = {
+    "mat-01": ("adicao", 4, "numeros"), "mat-02": ("subtracao", 4, "numeros"),
+    "mat-03": ("multiplicacao", 3, "tabuada"), "mat-04": ("divisao", 4, "tabuada"),
+    "mat-05": ("problemas", 4, "material_escolar"), "mat-06": ("sequencias", 3, "raciocinio"),
+    "mat-07": ("multiplicacao", 4, "dobro"), "mat-08": ("problemas", 4, "colecao"),
+    "mat-09": ("divisao", 4, "escola"), "mat-10": ("dinheiro", 5, "passeio"),
+}
+
+for questao in QUESTOES:
+    habilidade, nivel, tema = METADADOS[questao["id"]]
+    questao.update(habilidade=habilidade, nivel=nivel, tema=tema)
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 
