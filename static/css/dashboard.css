@@ -1,6 +1,6 @@
 /* Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 29/07/2026 16:15 -03:00
-Motivo da alteração: criar a identidade visual inicial responsiva do NettStudy. */
+Data e hora do último recode: 30/07/2026 14:50 -03:00
+Motivo da alteração: apoiar cadastro, dashboards reais e anamnese responsiva do NettStudy. */
 
 :root { --primaria:#4b5bdc; --primaria-escura:#3444bd; --secundaria:#28a98b; --fundo:#f5f7ff; --texto:#20243a; --suave:#6f7691; --branco:#fff; --borda:#e2e6f2; --erro:#b42318; --sucesso:#067647; --sombra:0 18px 45px rgba(42,53,120,.12); }
 * { box-sizing:border-box; }
@@ -58,3 +58,19 @@ button,input { font:inherit; }
 .rodape-nota { color:var(--suave); font-size:.9rem; margin-top:20px; }
 @media (max-width:900px) { .hero,.grade-principal { grid-template-columns:1fr; } .layout { grid-template-columns:1fr; } .sidebar { display:none; } .grade-cards { grid-template-columns:1fr; } .conteudo { padding:22px; } }
 @media (max-width:560px) { .topbar { padding:0 16px; } .topbar-acoes span { display:none; } .hero { padding:28px 18px; } .hero-texto h1 { font-size:2.6rem; } .atividade,.cabecalho-pagina { align-items:flex-start; flex-direction:column; } }
+
+.botao-largo { width:100%; }
+.separador { display:flex; align-items:center; gap:12px; margin:20px 0; color:var(--suave); }
+.separador::before,.separador::after { content:""; height:1px; flex:1; background:var(--borda); }
+.secao-missao { margin-top:18px; }
+.vazio { text-align:center; padding:48px 24px; }
+.form-pagina { min-height:calc(100vh - 68px); padding:32px 20px 48px; }
+.form-card { width:min(900px,100%); margin:0 auto; padding:32px; background:var(--branco); border:1px solid var(--borda); border-radius:24px; box-shadow:var(--sombra); }
+.form-cabecalho h1 { margin:0 0 8px; }
+.form-cabecalho p { color:var(--suave); line-height:1.6; }
+.grade-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.campo-largo { grid-column:1/-1; }
+.campo select,.campo textarea { width:100%; border:1px solid var(--borda); border-radius:12px; padding:13px 14px; outline:none; background:#fff; color:var(--texto); }
+.campo textarea { resize:vertical; }
+.campo select:focus,.campo textarea:focus { border-color:var(--primaria); box-shadow:0 0 0 3px rgba(75,91,220,.12); }
+@media (max-width:700px) { .grade-form { grid-template-columns:1fr; } .campo-largo { grid-column:auto; } .form-card { padding:22px; } }

@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 14:40 -03:00
-# Motivo da alteração: adicionar o cadastro público de responsável e aluno em um único fluxo.
+# Data e hora do último recode: 30/07/2026 14:50 -03:00
+# Motivo da alteração: concluir cadastro, dashboards e anamnese inicial do NettStudy.
 
 import os
 from functools import wraps
@@ -12,11 +12,13 @@ from werkzeug.security import check_password_hash
 from config import Config
 from database import (
     buscar_aluno_por_usuario,
+    buscar_anamnese_por_aluno,
     buscar_responsavel_por_usuario,
     buscar_usuario_por_login,
     cadastrar_familia,
     inicializar_banco,
     listar_alunos_do_responsavel,
+    salvar_anamnese,
 )
 
 
@@ -228,12 +230,79 @@ def registrar_rotas(app: Flask) -> None:
                 "Cadastro criado com sucesso. Bem-vindo ao NettStudy!",
                 "sucesso",
             )
-            return redirect(url_for("dashboard_responsavel"))
+            return redirect(url_for("anamnese"))
 
         return render_template(
             "novo_cadastro.html",
             dados=dados,
         )
+
+    @app.route("/anamnese", methods=["GET", "POST"])
+    @login_obrigatorio("responsavel")
+    def anamnese():
+        usuario_id = int(session["usuario_id"])
+        alunos = listar_alunos_do_responsavel(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+        )
+
+        if not alunos:
+            flash("Cadastre um aluno antes de preencher a anamnese.", "aviso")
+            return redirect(url_for("dashboard_responsavel"))
+
+        aluno = alunos[0]
+        registro = buscar_anamnese_por_aluno(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+        )
+
+        dados = {
+            "idade": registro["idade"] if registro else "",
+            "ano_escolar": registro["ano_escolar"] if registro else (aluno["ano_escolar"] or ""),
+            "dificuldades": registro["dificuldades"] if registro else "",
+            "materias_preferidas": registro["materias_preferidas"] if registro else "",
+            "nivel_leitura": registro["nivel_leitura"] if registro else "",
+            "tempo_concentracao": registro["tempo_concentracao"] if registro else "",
+            "preferencia_interacao": registro["preferencia_interacao"] if registro else "texto",
+            "objetivo_principal": registro["objetivo_principal"] if registro else "",
+            "observacoes": registro["observacoes"] if registro else "",
+        }
+
+        if request.method == "POST":
+            dados = {
+                "idade": request.form.get("idade", "").strip(),
+                "ano_escolar": request.form.get("ano_escolar", "").strip(),
+                "dificuldades": request.form.get("dificuldades", "").strip(),
+                "materias_preferidas": request.form.get("materias_preferidas", "").strip(),
+                "nivel_leitura": request.form.get("nivel_leitura", "").strip(),
+                "tempo_concentracao": request.form.get("tempo_concentracao", "").strip(),
+                "preferencia_interacao": request.form.get("preferencia_interacao", "texto").strip(),
+                "objetivo_principal": request.form.get("objetivo_principal", "").strip(),
+                "observacoes": request.form.get("observacoes", "").strip(),
+            }
+
+            try:
+                salvar_anamnese(
+                    caminho_banco=app.config["DATABASE_PATH"],
+                    aluno_id=int(aluno["id"]),
+                    idade=int(dados["idade"]),
+                    ano_escolar=dados["ano_escolar"],
+                    dificuldades=dados["dificuldades"],
+                    materias_preferidas=dados["materias_preferidas"],
+                    nivel_leitura=dados["nivel_leitura"],
+                    tempo_concentracao=int(dados["tempo_concentracao"]),
+                    preferencia_interacao=dados["preferencia_interacao"],
+                    objetivo_principal=dados["objetivo_principal"],
+                    observacoes=dados["observacoes"],
+                )
+            except (ValueError, TypeError):
+                flash("Revise os campos numéricos e obrigatórios.", "erro")
+                return render_template("anamnese.html", aluno=aluno, dados=dados), 400
+
+            flash("Anamnese concluída com sucesso.", "sucesso")
+            return redirect(url_for("dashboard_responsavel"))
+
+        return render_template("anamnese.html", aluno=aluno, dados=dados)
 
     @app.get("/sair")
     def sair():
@@ -293,11 +362,21 @@ def registrar_rotas(app: Flask) -> None:
                 ],
             }
 
+        anamnese_registro = (
+            buscar_anamnese_por_aluno(
+                app.config["DATABASE_PATH"],
+                int(aluno["id"]),
+            )
+            if aluno
+            else None
+        )
+
         return render_template(
             "dashboard_responsavel.html",
             responsavel=responsavel,
             alunos=alunos,
             aluno=aluno,
+            anamnese=anamnese_registro,
         )
 
     @app.get("/aluno")
@@ -315,6 +394,19 @@ def registrar_rotas(app: Flask) -> None:
             flash(
                 "O cadastro do aluno não foi encontrado. Entre novamente.",
                 "erro",
+            )
+            return redirect(url_for("login"))
+
+        anamnese_registro = buscar_anamnese_por_aluno(
+            app.config["DATABASE_PATH"],
+            int(aluno["id"]),
+        )
+
+        if not anamnese_registro:
+            session.clear()
+            flash(
+                "O responsável precisa concluir a anamnese antes do início das atividades.",
+                "aviso",
             )
             return redirect(url_for("login"))
 
@@ -342,6 +434,8 @@ def registrar_rotas(app: Flask) -> None:
             missao=missao,
             pontos=0,
             sequencia=0,
+            atividades_concluidas=0,
+            progresso=0,
         )
 
     @app.get("/pwa-instalar")

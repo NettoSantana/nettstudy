@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 14:36 -03:00
-# Motivo da alteração: incluir o cadastro transacional do responsável, aluno e vínculo familiar.
+# Data e hora do último recode: 30/07/2026 14:50 -03:00
+# Motivo da alteração: incluir anamnese inicial e manter o cadastro transacional da família.
 
 import sqlite3
 from pathlib import Path
@@ -58,6 +58,24 @@ CREATE TABLE IF NOT EXISTS responsavel_aluno (
     criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (responsavel_id, aluno_id),
     FOREIGN KEY (responsavel_id) REFERENCES responsaveis(id) ON DELETE CASCADE,
+    FOREIGN KEY (aluno_id) REFERENCES alunos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS anamneses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    aluno_id INTEGER NOT NULL UNIQUE,
+    idade INTEGER NOT NULL CHECK (idade BETWEEN 4 AND 18),
+    ano_escolar TEXT NOT NULL,
+    dificuldades TEXT NOT NULL,
+    materias_preferidas TEXT,
+    nivel_leitura TEXT NOT NULL,
+    tempo_concentracao INTEGER NOT NULL CHECK (tempo_concentracao BETWEEN 5 AND 180),
+    preferencia_interacao TEXT NOT NULL CHECK (preferencia_interacao IN ('texto', 'voz', 'ambos')),
+    objetivo_principal TEXT NOT NULL,
+    observacoes TEXT,
+    concluida INTEGER NOT NULL DEFAULT 1 CHECK (concluida IN (0, 1)),
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TEXT,
     FOREIGN KEY (aluno_id) REFERENCES alunos(id) ON DELETE CASCADE
 );
 
@@ -558,3 +576,123 @@ def cadastrar_familia(
         raise ValueError(
             "Não foi possível concluir o cadastro. Revise os dados informados."
         ) from erro
+
+
+
+def buscar_anamnese_por_aluno(
+    caminho_banco: str,
+    aluno_id: int,
+) -> dict[str, Any] | None:
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT
+                id,
+                aluno_id,
+                idade,
+                ano_escolar,
+                dificuldades,
+                materias_preferidas,
+                nivel_leitura,
+                tempo_concentracao,
+                preferencia_interacao,
+                objetivo_principal,
+                observacoes,
+                concluida,
+                criado_em,
+                atualizado_em
+            FROM anamneses
+            WHERE aluno_id = ?
+            """,
+            (aluno_id,),
+        ).fetchone()
+
+    return dict(registro) if registro else None
+
+
+def salvar_anamnese(
+    caminho_banco: str,
+    aluno_id: int,
+    idade: int,
+    ano_escolar: str,
+    dificuldades: str,
+    materias_preferidas: str,
+    nivel_leitura: str,
+    tempo_concentracao: int,
+    preferencia_interacao: str,
+    objetivo_principal: str,
+    observacoes: str,
+) -> None:
+    ano_escolar = ano_escolar.strip()
+    dificuldades = dificuldades.strip()
+    materias_preferidas = materias_preferidas.strip()
+    nivel_leitura = nivel_leitura.strip()
+    preferencia_interacao = preferencia_interacao.strip().lower()
+    objetivo_principal = objetivo_principal.strip()
+    observacoes = observacoes.strip()
+
+    if idade < 4 or idade > 18:
+        raise ValueError("Informe uma idade entre 4 e 18 anos.")
+    if not ano_escolar:
+        raise ValueError("Informe o ano escolar.")
+    if not dificuldades:
+        raise ValueError("Informe as principais dificuldades do aluno.")
+    if nivel_leitura not in {"iniciante", "basico", "intermediario", "avancado"}:
+        raise ValueError("Selecione um nível de leitura válido.")
+    if tempo_concentracao < 5 or tempo_concentracao > 180:
+        raise ValueError("O tempo de concentração deve ficar entre 5 e 180 minutos.")
+    if preferencia_interacao not in {"texto", "voz", "ambos"}:
+        raise ValueError("Selecione uma preferência de interação válida.")
+    if not objetivo_principal:
+        raise ValueError("Informe o objetivo principal.")
+
+    with conectar(caminho_banco) as conexao:
+        aluno = conexao.execute(
+            "SELECT id FROM alunos WHERE id = ? AND ativo = 1",
+            (aluno_id,),
+        ).fetchone()
+        if not aluno:
+            raise ValueError("Aluno não encontrado.")
+
+        conexao.execute(
+            """
+            INSERT INTO anamneses (
+                aluno_id,
+                idade,
+                ano_escolar,
+                dificuldades,
+                materias_preferidas,
+                nivel_leitura,
+                tempo_concentracao,
+                preferencia_interacao,
+                objetivo_principal,
+                observacoes,
+                concluida
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ON CONFLICT(aluno_id) DO UPDATE SET
+                idade = excluded.idade,
+                ano_escolar = excluded.ano_escolar,
+                dificuldades = excluded.dificuldades,
+                materias_preferidas = excluded.materias_preferidas,
+                nivel_leitura = excluded.nivel_leitura,
+                tempo_concentracao = excluded.tempo_concentracao,
+                preferencia_interacao = excluded.preferencia_interacao,
+                objetivo_principal = excluded.objetivo_principal,
+                observacoes = excluded.observacoes,
+                concluida = 1,
+                atualizado_em = CURRENT_TIMESTAMP
+            """,
+            (
+                aluno_id,
+                idade,
+                ano_escolar,
+                dificuldades,
+                materias_preferidas or None,
+                nivel_leitura,
+                tempo_concentracao,
+                preferencia_interacao,
+                objetivo_principal,
+                observacoes or None,
+            ),
+        )
