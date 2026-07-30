@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 18:11 -03:00
-# Motivo da alteração: integrar perfil pedagógico, diagnóstico silencioso e missão diária personalizada.
+# Data e hora do último recode: 30/07/2026 18:41 -03:00
+# Motivo da alteração: integrar anamnese pedagógica em cinco etapas com resumo final.
 
 import os
 from datetime import date
@@ -12,6 +12,15 @@ from werkzeug.security import check_password_hash
 
 from config import Config
 from modules.avaliacao_resumo import avaliar_resumo
+from modules.anamnese_pedagogica import (
+    concluir as concluir_anamnese_estruturada,
+    converter_para_anamnese_legada,
+    inicializar_anamnese_pedagogica,
+    montar_resumo as montar_resumo_anamnese,
+    obter_estado as obter_estado_anamnese,
+    opcoes_template as opcoes_anamnese_template,
+    salvar_etapa as salvar_etapa_anamnese,
+)
 from modules.leitura import (
     obter_historia_do_dia,
     obter_pergunta as obter_pergunta_leitura,
@@ -69,6 +78,7 @@ def create_app() -> Flask:
     app.config.from_object(Config)
     inicializar_banco(app.config["DATABASE_PATH"])
     inicializar_motor_pedagogico(app.config["DATABASE_PATH"])
+    inicializar_anamnese_pedagogica(app.config["DATABASE_PATH"])
     registrar_contexto(app)
     registrar_rotas(app)
     registrar_erros(app)
@@ -284,72 +294,59 @@ def registrar_rotas(app: Flask) -> None:
     @login_obrigatorio("responsavel")
     def anamnese():
         usuario_id = int(session["usuario_id"])
-        alunos = listar_alunos_do_responsavel(
-            app.config["DATABASE_PATH"],
-            usuario_id,
-        )
-
+        alunos = listar_alunos_do_responsavel(app.config["DATABASE_PATH"], usuario_id)
         if not alunos:
             flash("Cadastre um aluno antes de preencher a anamnese.", "aviso")
             return redirect(url_for("dashboard_responsavel"))
 
         aluno = alunos[0]
-        registro = buscar_anamnese_por_aluno(
-            app.config["DATABASE_PATH"],
-            int(aluno["id"]),
-        )
+        aluno_id = int(aluno["id"])
+        estado = obter_estado_anamnese(app.config["DATABASE_PATH"], aluno_id)
+        respostas = estado["respostas"]
+        etapa = request.args.get("etapa", type=int) or int(estado.get("etapa_atual") or 1)
+        etapa = max(1, min(6, etapa))
 
-        dados = {
-            "idade": registro["idade"] if registro else "",
-            "ano_escolar": registro["ano_escolar"] if registro else (aluno["ano_escolar"] or ""),
-            "dificuldades": registro["dificuldades"] if registro else "",
-            "materias_preferidas": registro["materias_preferidas"] if registro else "",
-            "nivel_leitura": registro["nivel_leitura"] if registro else "",
-            "tempo_concentracao": registro["tempo_concentracao"] if registro else "",
-            "preferencia_interacao": registro["preferencia_interacao"] if registro else "texto",
-            "objetivo_principal": registro["objetivo_principal"] if registro else "",
-            "observacoes": registro["observacoes"] if registro else "",
-        }
+        if not respostas:
+            registro = buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], aluno_id)
+            if registro:
+                respostas.update({"idade": str(registro["idade"]), "ano_escolar": registro["ano_escolar"]})
 
         if request.method == "POST":
-            dados = {
-                "idade": request.form.get("idade", "").strip(),
-                "ano_escolar": request.form.get("ano_escolar", "").strip(),
-                "dificuldades": request.form.get("dificuldades", "").strip(),
-                "materias_preferidas": request.form.get("materias_preferidas", "").strip(),
-                "nivel_leitura": request.form.get("nivel_leitura", "").strip(),
-                "tempo_concentracao": request.form.get("tempo_concentracao", "").strip(),
-                "preferencia_interacao": request.form.get("preferencia_interacao", "texto").strip(),
-                "objetivo_principal": request.form.get("objetivo_principal", "").strip(),
-                "observacoes": request.form.get("observacoes", "").strip(),
-            }
-
+            etapa_post = request.form.get("etapa", type=int) or etapa
+            acao = request.form.get("acao", "continuar")
             try:
-                salvar_anamnese(
-                    caminho_banco=app.config["DATABASE_PATH"],
-                    aluno_id=int(aluno["id"]),
-                    idade=int(dados["idade"]),
-                    ano_escolar=dados["ano_escolar"],
-                    dificuldades=dados["dificuldades"],
-                    materias_preferidas=dados["materias_preferidas"],
-                    nivel_leitura=dados["nivel_leitura"],
-                    tempo_concentracao=int(dados["tempo_concentracao"]),
-                    preferencia_interacao=dados["preferencia_interacao"],
-                    objetivo_principal=dados["objetivo_principal"],
-                    observacoes=dados["observacoes"],
-                )
-            except (ValueError, TypeError):
-                flash("Revise os campos numéricos e obrigatórios.", "erro")
-                return render_template("anamnese.html", aluno=aluno, dados=dados), 400
+                if etapa_post <= 5:
+                    salvar_etapa_anamnese(
+                        app.config["DATABASE_PATH"], aluno_id, etapa_post, request.form
+                    )
+                    return redirect(url_for("anamnese", etapa=min(6, etapa_post + 1)))
 
-            garantir_perfil_pedagogico(
-                app.config["DATABASE_PATH"],
-                int(aluno["id"]),
-            )
-            flash("Anamnese concluída e perfil pedagógico atualizado.", "sucesso")
-            return redirect(url_for("dashboard_responsavel"))
+                if acao == "confirmar":
+                    estado = obter_estado_anamnese(app.config["DATABASE_PATH"], aluno_id)
+                    respostas = estado["respostas"]
+                    resumo = montar_resumo_anamnese(respostas, aluno["nome_exibicao"])
+                    legado = converter_para_anamnese_legada(respostas)
+                    salvar_anamnese(
+                        caminho_banco=app.config["DATABASE_PATH"], aluno_id=aluno_id,
+                        **legado,
+                    )
+                    concluir_anamnese_estruturada(
+                        app.config["DATABASE_PATH"], aluno_id, resumo
+                    )
+                    garantir_perfil_pedagogico(app.config["DATABASE_PATH"], aluno_id)
+                    flash("Anamnese concluída e perfil pedagógico atualizado.", "sucesso")
+                    return redirect(url_for("dashboard_responsavel"))
+            except (ValueError, TypeError) as erro:
+                flash(str(erro), "erro")
+                etapa = etapa_post
 
-        return render_template("anamnese.html", aluno=aluno, dados=dados)
+        estado = obter_estado_anamnese(app.config["DATABASE_PATH"], aluno_id)
+        respostas = {**respostas, **estado["respostas"]}
+        resumo = montar_resumo_anamnese(respostas, aluno["nome_exibicao"]) if etapa == 6 else None
+        return render_template(
+            "anamnese.html", aluno=aluno, respostas=respostas, etapa=etapa,
+            resumo=resumo, opcoes=opcoes_anamnese_template(),
+        )
 
     @app.get("/sair")
     def sair():

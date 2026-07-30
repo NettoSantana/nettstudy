@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\motor_pedagogico.py
-# Data e hora do último recode: 30/07/2026 18:11 -03:00
-# Motivo da alteração: criar perfil pedagógico, diagnóstico silencioso, domínio por habilidade e missão diária personalizada.
+# Data e hora do último recode: 30/07/2026 18:41 -03:00
+# Motivo da alteração: incorporar a anamnese estruturada à hipótese inicial sem sobrescrever desempenho real.
 
 import json
 import random
@@ -241,9 +241,15 @@ def garantir_perfil_pedagogico(caminho_banco: str, aluno_id: int) -> dict[str, A
                 )))
                 conexao.execute(
                     """
-                    INSERT OR IGNORE INTO dominio_habilidades (
+                    INSERT INTO dominio_habilidades (
                         aluno_id, materia, habilidade, nivel, dominio, status
                     ) VALUES (?, ?, ?, ?, ?, 'em_diagnostico')
+                    ON CONFLICT(aluno_id, materia, habilidade) DO UPDATE SET
+                        nivel = excluded.nivel,
+                        dominio = excluded.dominio,
+                        status = 'em_diagnostico',
+                        atualizado_em = CURRENT_TIMESTAMP
+                    WHERE dominio_habilidades.total_tentativas = 0
                     """,
                     (aluno_id, materia, habilidade, niveis[materia], dominio),
                 )
