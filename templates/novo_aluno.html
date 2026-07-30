@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\novo_aluno.html
-Data e hora do último recode: 30/07/2026 19:53 -03:00
-Motivo da alteração: impedir preenchimento automático do navegador nos campos de usuário e PIN e definir Filho(a) como parentesco padrão.
+Data e hora do último recode: 30/07/2026 19:58 -03:00
+Motivo da alteração: melhorar os rótulos do cadastro e transformar parentesco em caixa suspensa.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -60,7 +60,7 @@ Motivo da alteração: impedir preenchimento automático do navegador nos campos
 
                 <div class="grade-form">
                     <div class="campo campo-largo">
-                        <label for="nome_aluno">Nome completo</label>
+                        <label for="nome_aluno">Nome completo do aluno</label>
                         <input
                             id="nome_aluno"
                             name="nome_aluno"
@@ -102,13 +102,21 @@ Motivo da alteração: impedir preenchimento automático do navegador nos campos
 
                     <div class="campo">
                         <label for="parentesco">Parentesco</label>
-                        <input
+                        <select
                             id="parentesco"
                             name="parentesco"
-                            value="{{ dados.parentesco or 'Filho(a)' }}"
-                            autocomplete="off"
                             required
                         >
+                            <option value="">Selecione</option>
+                            {% for opcao in ['Filho(a)','Enteado(a)','Sobrinho(a)','Neto(a)','Irmão(ã)','Outro'] %}
+                                <option
+                                    value="{{ opcao }}"
+                                    {% if (dados.parentesco or 'Filho(a)') == opcao %}selected{% endif %}
+                                >
+                                    {{ opcao }}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <div class="campo">
