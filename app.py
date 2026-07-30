@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 14:33 -03:00
-# Motivo da alteração: ligar os dashboards às tabelas reais de responsáveis, alunos e vínculos.
+# Data e hora do último recode: 30/07/2026 14:40 -03:00
+# Motivo da alteração: adicionar o cadastro público de responsável e aluno em um único fluxo.
 
 import os
 from functools import wraps
@@ -14,6 +14,7 @@ from database import (
     buscar_aluno_por_usuario,
     buscar_responsavel_por_usuario,
     buscar_usuario_por_login,
+    cadastrar_familia,
     inicializar_banco,
     listar_alunos_do_responsavel,
 )
@@ -100,6 +101,139 @@ def registrar_rotas(app: Flask) -> None:
             return redirect(url_for(destino))
 
         return render_template("login.html")
+
+    @app.route("/novo-cadastro", methods=["GET", "POST"])
+    def novo_cadastro():
+        if session.get("usuario_id"):
+            destino = (
+                "dashboard_responsavel"
+                if session.get("perfil") == "responsavel"
+                else "dashboard_aluno"
+            )
+            return redirect(url_for(destino))
+
+        dados = {
+            "nome_responsavel": "",
+            "email_responsavel": "",
+            "telefone_responsavel": "",
+            "parentesco": "Responsável",
+            "nome_aluno": "",
+            "nome_exibicao_aluno": "",
+            "ano_escolar": "",
+            "usuario_aluno": "",
+        }
+
+        if request.method == "POST":
+            dados = {
+                "nome_responsavel": request.form.get(
+                    "nome_responsavel",
+                    "",
+                ).strip(),
+                "email_responsavel": request.form.get(
+                    "email_responsavel",
+                    "",
+                ).strip().lower(),
+                "telefone_responsavel": request.form.get(
+                    "telefone_responsavel",
+                    "",
+                ).strip(),
+                "parentesco": request.form.get(
+                    "parentesco",
+                    "Responsável",
+                ).strip(),
+                "nome_aluno": request.form.get(
+                    "nome_aluno",
+                    "",
+                ).strip(),
+                "nome_exibicao_aluno": request.form.get(
+                    "nome_exibicao_aluno",
+                    "",
+                ).strip(),
+                "ano_escolar": request.form.get(
+                    "ano_escolar",
+                    "",
+                ).strip(),
+                "usuario_aluno": request.form.get(
+                    "usuario_aluno",
+                    "",
+                ).strip().lower(),
+            }
+
+            senha_responsavel = request.form.get(
+                "senha_responsavel",
+                "",
+            )
+            confirmar_senha = request.form.get(
+                "confirmar_senha",
+                "",
+            )
+            pin_aluno = request.form.get(
+                "pin_aluno",
+                "",
+            ).strip()
+            confirmar_pin = request.form.get(
+                "confirmar_pin",
+                "",
+            ).strip()
+
+            if senha_responsavel != confirmar_senha:
+                flash(
+                    "A confirmação da senha do responsável não confere.",
+                    "erro",
+                )
+                return render_template(
+                    "novo_cadastro.html",
+                    dados=dados,
+                ), 400
+
+            if pin_aluno != confirmar_pin:
+                flash(
+                    "A confirmação do PIN do aluno não confere.",
+                    "erro",
+                )
+                return render_template(
+                    "novo_cadastro.html",
+                    dados=dados,
+                ), 400
+
+            try:
+                cadastro = cadastrar_familia(
+                    caminho_banco=app.config["DATABASE_PATH"],
+                    nome_responsavel=dados["nome_responsavel"],
+                    email_responsavel=dados["email_responsavel"],
+                    senha_responsavel=senha_responsavel,
+                    telefone_responsavel=dados["telefone_responsavel"],
+                    nome_aluno=dados["nome_aluno"],
+                    nome_exibicao_aluno=dados["nome_exibicao_aluno"],
+                    ano_escolar=dados["ano_escolar"],
+                    usuario_aluno=dados["usuario_aluno"],
+                    pin_aluno=pin_aluno,
+                    parentesco=dados["parentesco"],
+                )
+            except ValueError as erro:
+                flash(str(erro), "erro")
+                return render_template(
+                    "novo_cadastro.html",
+                    dados=dados,
+                ), 400
+
+            session.clear()
+            session.update(
+                usuario_id=cadastro["usuario_responsavel_id"],
+                nome=dados["nome_responsavel"],
+                perfil="responsavel",
+            )
+
+            flash(
+                "Cadastro criado com sucesso. Bem-vindo ao NettStudy!",
+                "sucesso",
+            )
+            return redirect(url_for("dashboard_responsavel"))
+
+        return render_template(
+            "novo_cadastro.html",
+            dados=dados,
+        )
 
     @app.get("/sair")
     def sair():
