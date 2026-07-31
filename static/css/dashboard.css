@@ -1,7 +1,7 @@
 /*
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 30/07/2026 21:48 -03:00
-Motivo da alteração: aplicar a logo e o mascote oficiais na página inicial e nos cabeçalhos compartilhados.
+Data e hora do último recode: 30/07/2026 22:11 -03:00
+Motivo da alteração: ampliar a logo no cabeçalho sem alterar os demais elementos visuais.
 */
 
 :root {
@@ -40,7 +40,7 @@ a {
 }
 
 .topbar {
-    min-height: 76px;
+    min-height: 88px;
     background: var(--white);
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -646,9 +646,9 @@ a {
 
 .marca-logo img {
     display: block;
-    width: auto;
-    height: 48px;
-    max-width: min(250px, 42vw);
+    width: min(270px, 36vw);
+    height: auto;
+    max-height: 64px;
     object-fit: contain;
     object-position: left center;
 }
@@ -740,8 +740,9 @@ a {
 
 @media (max-width: 700px) {
     .marca-logo img {
-        height: 40px;
-        max-width: 190px;
+        width: min(220px, 48vw);
+        height: auto;
+        max-height: 54px;
     }
 
     .hero-apresentacao {
@@ -764,8 +765,9 @@ a {
     }
 
     .marca-logo img {
-        height: 36px;
-        max-width: 154px;
+        width: min(180px, 46vw);
+        height: auto;
+        max-height: 46px;
     }
 
     .topbar-acoes .botao {
