@@ -1,7 +1,7 @@
 /*
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 30/07/2026 20:56 -03:00
-Motivo da alteração: estilizar missão única, relatórios pedagógicos e simulação de cinco dias.
+Data e hora do último recode: 30/07/2026 21:48 -03:00
+Motivo da alteração: aplicar a logo e o mascote oficiais na página inicial e nos cabeçalhos compartilhados.
 */
 
 :root {
@@ -636,6 +636,153 @@ a {
 
     .missao-botao {
         width: 100%;
+    }
+}
+
+/* Identidade visual oficial */
+.marca-logo {
+    min-width: 0;
+}
+
+.marca-logo img {
+    display: block;
+    width: auto;
+    height: 48px;
+    max-width: min(250px, 42vw);
+    object-fit: contain;
+    object-position: left center;
+}
+
+.hero-identidade {
+    grid-template-columns:
+        minmax(0, 1.08fr)
+        minmax(360px, 0.92fr);
+}
+
+.hero-apresentacao {
+    position: relative;
+    min-height: 620px;
+    display: grid;
+    align-items: end;
+}
+
+.mascote-palco {
+    position: absolute;
+    inset: -20px 0 150px;
+    display: grid;
+    place-items: end center;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.mascote-brilho {
+    position: absolute;
+    width: min(430px, 90%);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            circle,
+            rgba(74, 126, 255, 0.25),
+            rgba(78, 92, 230, 0.08) 52%,
+            transparent 72%
+        );
+    filter: blur(4px);
+}
+
+.mascote-home {
+    position: relative;
+    z-index: 1;
+    width: min(540px, 112%);
+    max-height: 560px;
+    object-fit: contain;
+    object-position: bottom center;
+    filter: drop-shadow(0 22px 28px rgba(30, 43, 90, 0.14));
+}
+
+.missao-home {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 440px);
+    justify-self: center;
+    margin: 0;
+    backdrop-filter: blur(12px);
+}
+
+.missao-home .etiqueta {
+    margin-bottom: 7px;
+}
+
+.missao-home h2 {
+    margin-top: 0;
+}
+
+.missao-home .mini-item {
+    display: grid;
+    gap: 3px;
+}
+
+.missao-home .mini-item span {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+@media (max-width: 900px) {
+    .hero-identidade {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-apresentacao {
+        width: min(100%, 620px);
+        min-height: 610px;
+    }
+}
+
+@media (max-width: 700px) {
+    .marca-logo img {
+        height: 40px;
+        max-width: 190px;
+    }
+
+    .hero-apresentacao {
+        min-height: 520px;
+    }
+
+    .mascote-palco {
+        inset: -10px 0 150px;
+    }
+
+    .mascote-home {
+        width: min(440px, 112%);
+        max-height: 455px;
+    }
+}
+
+@media (max-width: 460px) {
+    .topbar {
+        gap: 10px;
+    }
+
+    .marca-logo img {
+        height: 36px;
+        max-width: 154px;
+    }
+
+    .topbar-acoes .botao {
+        min-height: 42px;
+        padding: 9px 13px;
+    }
+
+    .hero-apresentacao {
+        min-height: 470px;
+    }
+
+    .mascote-palco {
+        inset: 0 -24px 155px;
+    }
+
+    .mascote-home {
+        max-height: 400px;
     }
 }
 

@@ -1,11 +1,36 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\partials\topbar.html
-Data e hora do último recode: 29/07/2026 16:15 -03:00
-Motivo da alteração: criar o cabeçalho compartilhado do NettStudy.
+Data e hora do último recode: 30/07/2026 21:48 -03:00
+Motivo da alteração: aplicar a logo oficial do NettStudy no cabeçalho compartilhado.
 -->
 <header class="topbar">
-  <a class="marca" href="{{ url_for('inicio') }}"><span class="marca-simbolo">N</span><span>NettStudy</span></a>
-  <div class="topbar-acoes">
-    {% if usuario_logado %}<span>{{ usuario_logado }}</span><a class="botao botao-secundario" href="{{ url_for('sair') }}">Sair</a>{% else %}<a class="botao botao-primario" href="{{ url_for('login') }}">Entrar</a>{% endif %}
-  </div>
+    <a
+        class="marca marca-logo"
+        href="{{ url_for('inicio') }}"
+        aria-label="NettStudy - Página inicial"
+    >
+        <img
+            src="{{ url_for('static', filename='img/nettstudy-logo.png') }}"
+            alt="NettStudy"
+        >
+    </a>
+
+    <div class="topbar-acoes">
+        {% if usuario_logado %}
+            <span>{{ usuario_logado }}</span>
+            <a
+                class="botao botao-secundario"
+                href="{{ url_for('sair') }}"
+            >
+                Sair
+            </a>
+        {% else %}
+            <a
+                class="botao botao-primario"
+                href="{{ url_for('login') }}"
+            >
+                Entrar
+            </a>
+        {% endif %}
+    </div>
 </header>
