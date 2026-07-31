@@ -1,12 +1,92 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\leitura.py
-# Data e hora do último recode: 30/07/2026 20:56 -03:00
-# Motivo da alteração: classificar histórias e perguntas por nível, habilidade e interesse para o motor pedagógico.
+# Data e hora do último recode: 30/07/2026 21:17 -03:00
+# Motivo da alteração: adicionar histórias de nível 1 e unificar a regra do resumo por nível.
 
 from datetime import date
 from typing import Any
 
 
 HISTORIAS = [
+    {
+        "id": "ini-01", "colecao": "Primeiras leituras", "tema": "Animais",
+        "titulo": "Bia e o gato", "nivel": "iniciante",
+        "vocabulario": ["gato", "leite", "feliz"],
+        "paginas": [
+            "Bia viu um gato no jardim.",
+            "Ela colocou leite em um pote.",
+            "O gato bebeu e ficou feliz.",
+        ],
+        "perguntas": [
+            {"id":"ini-01-q1","enunciado":"Quem Bia viu?","alternativas":["Um gato","Um peixe","Um pato","Um cão"],"correta":"Um gato"},
+            {"id":"ini-01-q2","enunciado":"O que Bia colocou no pote?","alternativas":["Água","Leite","Suco","Areia"],"correta":"Leite"},
+            {"id":"ini-01-q3","enunciado":"Como o gato ficou?","alternativas":["Triste","Bravo","Feliz","Com sono"],"correta":"Feliz"},
+        ],
+        "reflexao": "Como você cuidaria de um animal?",
+    },
+    {
+        "id": "ini-02", "colecao": "Primeiras leituras", "tema": "Escola",
+        "titulo": "O lápis de Leo", "nivel": "iniciante",
+        "vocabulario": ["lápis", "azul", "desenho"],
+        "paginas": [
+            "Leo ganhou um lápis azul.",
+            "Ele desenhou uma casa.",
+            "Depois, mostrou o desenho à mãe.",
+        ],
+        "perguntas": [
+            {"id":"ini-02-q1","enunciado":"Qual era a cor do lápis?","alternativas":["Azul","Verde","Amarelo","Roxo"],"correta":"Azul"},
+            {"id":"ini-02-q2","enunciado":"O que Leo desenhou?","alternativas":["Uma bola","Uma casa","Um gato","Uma flor"],"correta":"Uma casa"},
+            {"id":"ini-02-q3","enunciado":"Para quem Leo mostrou o desenho?","alternativas":["Para a mãe","Para o pai","Para a professora","Para o amigo"],"correta":"Para a mãe"},
+        ],
+        "reflexao": "O que você gosta de desenhar?",
+    },
+    {
+        "id": "ini-03", "colecao": "Primeiras leituras", "tema": "Natureza",
+        "titulo": "A flor amarela", "nivel": "iniciante",
+        "vocabulario": ["flor", "amarela", "água"],
+        "paginas": [
+            "Uma flor amarela nasceu no vaso.",
+            "Luna colocou água na terra.",
+            "A flor abriu suas pétalas.",
+        ],
+        "perguntas": [
+            {"id":"ini-03-q1","enunciado":"Qual era a cor da flor?","alternativas":["Azul","Amarela","Branca","Roxa"],"correta":"Amarela"},
+            {"id":"ini-03-q2","enunciado":"Quem colocou água na terra?","alternativas":["Luna","Bia","Leo","Davi"],"correta":"Luna"},
+            {"id":"ini-03-q3","enunciado":"O que a flor abriu?","alternativas":["As folhas","As pétalas","A porta","As asas"],"correta":"As pétalas"},
+        ],
+        "reflexao": "O que uma planta precisa para crescer?",
+    },
+    {
+        "id": "ini-04", "colecao": "Primeiras leituras", "tema": "Rotina",
+        "titulo": "A mochila pronta", "nivel": "iniciante",
+        "vocabulario": ["mochila", "caderno", "escola"],
+        "paginas": [
+            "Nina colocou o caderno na mochila.",
+            "Depois, guardou o lápis.",
+            "A mochila ficou pronta para a escola.",
+        ],
+        "perguntas": [
+            {"id":"ini-04-q1","enunciado":"O que Nina colocou na mochila?","alternativas":["O caderno","O prato","A bola","O sapato"],"correta":"O caderno"},
+            {"id":"ini-04-q2","enunciado":"O que ela guardou depois?","alternativas":["O lápis","O livro","A régua","O lanche"],"correta":"O lápis"},
+            {"id":"ini-04-q3","enunciado":"Para onde Nina iria?","alternativas":["Para a escola","Para a praia","Para o mercado","Para o parque"],"correta":"Para a escola"},
+        ],
+        "reflexao": "O que você coloca na mochila?",
+    },
+    {
+        "id": "ini-05", "colecao": "Primeiras leituras", "tema": "Amizade",
+        "titulo": "A bola de Rui", "nivel": "iniciante",
+        "vocabulario": ["bola", "amigo", "brincar"],
+        "paginas": [
+            "Rui levou uma bola ao parque.",
+            "Ele chamou seu amigo Caio.",
+            "Os dois brincaram juntos.",
+        ],
+        "perguntas": [
+            {"id":"ini-05-q1","enunciado":"O que Rui levou?","alternativas":["Uma bola","Um livro","Um carrinho","Uma pipa"],"correta":"Uma bola"},
+            {"id":"ini-05-q2","enunciado":"Quem Rui chamou?","alternativas":["Caio","Leo","Davi","Beto"],"correta":"Caio"},
+            {"id":"ini-05-q3","enunciado":"O que os dois fizeram?","alternativas":["Dormiram","Brincaram","Estudaram","Comeram"],"correta":"Brincaram"},
+        ],
+        "reflexao": "Do que você gosta de brincar com seus amigos?",
+    },
     {
         "id": "emo-01",
         "colecao": "Emoções",
@@ -295,7 +375,7 @@ HISTORIAS = [
 ]
 
 
-NIVEL_NUMERICO = {"basico": 2, "intermediario": 4}
+NIVEL_NUMERICO = {"iniciante": 1, "basico": 2, "intermediario": 4}
 
 HABILIDADES_PERGUNTAS = (
     "localizacao_informacoes",
@@ -462,6 +542,7 @@ def corrigir(
     historia: dict[str, Any],
     respostas: dict[str, str],
     resumo: str,
+    nivel_aluno: int = 3,
 ) -> dict[str, Any]:
     detalhes = []
     acertos = 0
@@ -480,7 +561,9 @@ def corrigir(
 
     resumo_limpo = resumo.strip()
     total_palavras = len(resumo_limpo.split())
-    resumo_valido = total_palavras >= 15
+    nivel_aluno = max(1, min(5, int(nivel_aluno or 3)))
+    minimo_palavras = {1: 5, 2: 8, 3: 12, 4: 15, 5: 18}[nivel_aluno]
+    resumo_valido = total_palavras >= minimo_palavras
     pontos = acertos * 20 + (40 if resumo_valido else 0)
 
     return {
@@ -491,6 +574,8 @@ def corrigir(
         "resumo": resumo_limpo,
         "resumo_valido": resumo_valido,
         "total_palavras": total_palavras,
+        "minimo_palavras": minimo_palavras,
+        "nivel_aluno": nivel_aluno,
         "historia_id": historia["id"],
         "titulo": historia["titulo"],
         "colecao": historia["colecao"],

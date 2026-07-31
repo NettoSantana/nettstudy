@@ -1,5 +1,5 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\scripts\validar_ciclo_pedagogico.py
-# Data e hora do último recode: 30/07/2026 20:56 -03:00
+# Data e hora do último recode: 30/07/2026 21:17 -03:00
 # Motivo da alteração: validar quantidade, níveis e capacidade de cinco dias sem repetição.
 
 from modules.leitura import HISTORIAS
@@ -72,3 +72,14 @@ if __name__ == "__main__":
     print(f"Matemática: {len(QUESTOES_MATEMATICA)} questões")
     print(f"Português: {len(QUESTOES_PORTUGUES)} questões")
     print(f"Leitura: {len(HISTORIAS)} histórias")
+
+# Validações de coerência entre enunciado e apoio
+from modules.portugues import QUESTOES as QUESTOES_PORTUGUES, QUESTOES_COM_TEXTO
+from modules.leitura import HISTORIAS, NIVEL_NUMERICO
+
+assert all(q.get("usa_texto") == (q["id"] in QUESTOES_COM_TEXTO) for q in QUESTOES_PORTUGUES)
+assert not next(q for q in QUESTOES_PORTUGUES if q["id"] == "por-115")["usa_texto"]
+assert next(q for q in QUESTOES_PORTUGUES if q["id"] == "por-301")["usa_texto"]
+assert len([h for h in HISTORIAS if h.get("nivel") == "iniciante"]) >= 5
+assert NIVEL_NUMERICO["iniciante"] == 1
+print("Apoio de Português e Leitura nível 1: OK")

@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\avaliacao_resumo.py
-# Data e hora do último recode: 30/07/2026 20:21 -03:00
-# Motivo da alteração: ajustar a avaliação do resumo ao nível pedagógico da criança.
+# Data e hora do último recode: 30/07/2026 21:17 -03:00
+# Motivo da alteração: manter a avaliação adaptativa como regra principal do resumo por nível.
 
 import re
 import unicodedata

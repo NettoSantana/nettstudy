@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\portugues.py
-# Data e hora do último recode: 30/07/2026 20:56 -03:00
-# Motivo da alteração: ampliar níveis 1 e 2 para cinco dias sem repetição e manter progressão adaptativa.
+# Data e hora do último recode: 30/07/2026 21:17 -03:00
+# Motivo da alteração: identificar quais questões realmente dependem do texto de apoio.
 
 from typing import Any
 
@@ -71,6 +71,16 @@ QUESTOES.extend([
     _q("por-214",2,"ortografia","plural","Qual é o plural de 'gato'?",["Gatoes","Gatos","Gato","Gatas"],"Gatos",["Plural indica mais de um.","Acrescente s.","O plural é gatos."],"O plural de gato é gatos."),
     _q("por-215",2,"pontuacao","frase","Qual frase começa e termina corretamente?",["maria brinca.","Maria brinca","Maria brinca.","maria brinca"],"Maria brinca.",["Comece com letra maiúscula.","Termine com ponto final.","Maria brinca. está correta."],"A frase correta é Maria brinca."),
 ])
+
+QUESTOES_COM_TEXTO = {
+    "por-301", "por-302", "por-303", "por-304", "por-305", "por-306",
+    "por-401", "por-402", "por-403", "por-404", "por-405", "por-406",
+    "por-501", "por-502", "por-504", "por-505", "por-506",
+}
+
+for questao in QUESTOES:
+    questao["usa_texto"] = questao["id"] in QUESTOES_COM_TEXTO
+
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 
