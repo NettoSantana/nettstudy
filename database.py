@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 20:21 -03:00
-# Motivo da alteração: substituir planos pedagógicos incompatíveis ainda não iniciados sem apagar progresso real.
+# Data e hora do último recode: 30/07/2026 21:27 -03:00
+# Motivo da alteração: preservar o vínculo da sessão de Leitura e zerar uma vez os dados pedagógicos de teste.
 
 import hashlib
 import json
@@ -504,6 +504,65 @@ def _garantir_vinculos_demonstracao(conexao: sqlite3.Connection) -> None:
             ),
         )
 
+
+
+def aplicar_reset_pedagogico_unico(caminho_banco: str) -> bool:
+    """Apaga uma única vez dados de atividades, preservando contas e anamneses."""
+    chave = "reset_pedagogico_20260730_v1"
+    tabelas = [
+        "tentativas_adaptativas",
+        "tentativas_leitura",
+        "versoes_resumo",
+        "respostas_atividades",
+        "resumos_leitura",
+        "sessoes_adaptativas",
+        "sessoes_leitura",
+        "atividades_diarias",
+        "eventos_desempenho",
+        "planos_missao_diaria",
+        "dominio_habilidades",
+        "perfis_pedagogicos",
+        "resets_missao_diaria",
+    ]
+
+    with conectar(caminho_banco) as conexao:
+        conexao.execute(
+            """
+            CREATE TABLE IF NOT EXISTS migracoes_aplicadas (
+                chave TEXT PRIMARY KEY,
+                aplicada_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        aplicada = conexao.execute(
+            "SELECT 1 FROM migracoes_aplicadas WHERE chave = ?",
+            (chave,),
+        ).fetchone()
+        if aplicada:
+            return False
+
+        existentes = {
+            linha["name"]
+            for linha in conexao.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+        for tabela in tabelas:
+            if tabela in existentes:
+                conexao.execute(f"DELETE FROM {tabela}")
+
+        if "sqlite_sequence" in existentes:
+            marcas = ",".join("?" for _ in tabelas)
+            conexao.execute(
+                f"DELETE FROM sqlite_sequence WHERE name IN ({marcas})",
+                tabelas,
+            )
+
+        conexao.execute(
+            "INSERT INTO migracoes_aplicadas (chave) VALUES (?)",
+            (chave,),
+        )
+        return True
 
 def buscar_usuario_por_login(
     caminho_banco: str,
@@ -1399,6 +1458,46 @@ def obter_ou_criar_sessao_leitura(
             (aluno_id, data_atividade),
         ).fetchone()
 
+        if registro and registro["historia_id"] != historia_id:
+            tentativas = conexao.execute(
+                "SELECT COUNT(*) AS total FROM tentativas_leitura WHERE sessao_id = ?",
+                (registro["id"],),
+            ).fetchone()["total"]
+            resumos = conexao.execute(
+                "SELECT COUNT(*) AS total FROM versoes_resumo WHERE sessao_id = ?",
+                (registro["id"],),
+            ).fetchone()["total"]
+
+            if int(tentativas or 0) == 0 and int(resumos or 0) == 0:
+                fila_nova = list(codigos_perguntas)
+                random.shuffle(fila_nova)
+                conexao.execute(
+                    """
+                    UPDATE sessoes_leitura
+                    SET historia_id = ?,
+                        titulo = ?,
+                        fase = 'leitura',
+                        fila_json = ?,
+                        pontos_perguntas = 0,
+                        acertos_perguntas = 0,
+                        total_perguntas = ?,
+                        atualizado_em = CURRENT_TIMESTAMP,
+                        concluida_em = NULL
+                    WHERE id = ?
+                    """,
+                    (
+                        historia_id,
+                        titulo,
+                        json.dumps(fila_nova),
+                        len(codigos_perguntas),
+                        registro["id"],
+                    ),
+                )
+                registro = conexao.execute(
+                    "SELECT * FROM sessoes_leitura WHERE id = ?",
+                    (registro["id"],),
+                ).fetchone()
+
         if not registro:
             fila = list(codigos_perguntas)
             random.shuffle(fila)
@@ -1425,24 +1524,32 @@ def obter_ou_criar_sessao_leitura(
                 ),
             )
             sessao_id = int(cursor.lastrowid)
+            historia_sessao_id = historia_id
+            titulo_sessao = titulo
             fase = "leitura"
             pontos = 0
             acertos = 0
+            total_perguntas = len(codigos_perguntas)
         else:
             sessao_id = int(registro["id"])
+            historia_sessao_id = str(registro["historia_id"])
+            titulo_sessao = str(registro["titulo"])
             fila = json.loads(registro["fila_json"])
             fase = registro["fase"]
             pontos = int(registro["pontos_perguntas"])
             acertos = int(registro["acertos_perguntas"])
+            total_perguntas = int(registro["total_perguntas"])
 
         return {
             "id": sessao_id,
+            "historia_id": historia_sessao_id,
+            "titulo": titulo_sessao,
             "fase": fase,
             "fila": fila,
             "pergunta_atual": fila[0] if fila else None,
             "pontos_perguntas": pontos,
             "acertos_perguntas": acertos,
-            "total_perguntas": len(codigos_perguntas),
+            "total_perguntas": total_perguntas,
         }
 
 

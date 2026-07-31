@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 20:56 -03:00
-# Motivo da alteração: integrar recálculo, missão sequencial, ciclo de cinco dias, simulação e relatórios.
+# Data e hora do último recode: 30/07/2026 21:27 -03:00
+# Motivo da alteração: corrigir vínculo entre sessão e história de Leitura e aplicar reset pedagógico único.
 
 import os
 from datetime import date
@@ -25,6 +25,7 @@ from modules.anamnese_pedagogica import (
 )
 from modules.leitura import (
     obter_historia_do_dia,
+    obter_historia_por_id,
     obter_pergunta as obter_pergunta_leitura,
     resposta_correta as resposta_correta_leitura,
 )
@@ -85,6 +86,7 @@ from database import (
     redefinir_pin_aluno_por_token,
     criar_token_validacao_email,
     validar_email_por_token,
+    aplicar_reset_pedagogico_unico,
 )
 
 
@@ -94,6 +96,7 @@ def create_app() -> Flask:
     inicializar_banco(app.config["DATABASE_PATH"])
     inicializar_motor_pedagogico(app.config["DATABASE_PATH"])
     inicializar_anamnese_pedagogica(app.config["DATABASE_PATH"])
+    aplicar_reset_pedagogico_unico(app.config["DATABASE_PATH"])
     registrar_contexto(app)
     registrar_rotas(app)
     registrar_erros(app)
@@ -926,6 +929,24 @@ def registrar_rotas(app: Flask) -> None:
             historia["titulo"],
             codigos,
         )
+
+        if sessao_leitura["historia_id"] != historia["id"]:
+            historia_vinculada = obter_historia_por_id(
+                sessao_leitura["historia_id"]
+            )
+            if historia_vinculada:
+                historia = historia_vinculada
+            else:
+                app.logger.error(
+                    "História %s vinculada à sessão %s não foi encontrada.",
+                    sessao_leitura["historia_id"],
+                    sessao_leitura["id"],
+                )
+                flash(
+                    "Não foi possível carregar a leitura de hoje. Tente reiniciar a missão.",
+                    "erro",
+                )
+                return redirect(url_for("dashboard_aluno"))
 
         if sessao_leitura["fase"] == "concluida":
             resultado = obter_resultado_sessao_leitura(

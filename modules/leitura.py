@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\leitura.py
-# Data e hora do último recode: 30/07/2026 21:17 -03:00
-# Motivo da alteração: adicionar histórias de nível 1 e unificar a regra do resumo por nível.
+# Data e hora do último recode: 30/07/2026 21:27 -03:00
+# Motivo da alteração: permitir recuperar a história exata vinculada à sessão de Leitura.
 
 from datetime import date
 from typing import Any
@@ -478,6 +478,15 @@ def enriquecer_historia(historia: dict[str, Any]) -> dict[str, Any]:
     historia_enriquecida["perguntas"] = perguntas_enriquecidas
     return historia_enriquecida
 
+
+
+def obter_historia_por_id(historia_id: str) -> dict[str, Any] | None:
+    for historia in HISTORIAS:
+        if historia["id"] == historia_id:
+            historia_enriquecida = enriquecer_historia(historia)
+            historia_enriquecida["nivel_numerico"] = _nivel_historia(historia)
+            return historia_enriquecida
+    return None
 
 def obter_pergunta(historia: dict[str, Any], codigo: str) -> dict[str, Any] | None:
     for pergunta in historia["perguntas"]:
