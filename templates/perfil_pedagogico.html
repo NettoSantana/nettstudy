@@ -1,6 +1,120 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\perfil_pedagogico.html
-Data e hora do último recode: 30/07/2026 18:11 -03:00
-Motivo da alteração: apresentar níveis por matéria, domínio por habilidade e fase diagnóstica ao responsável.
+Data e hora do último recode: 30/07/2026 20:56 -03:00
+Motivo da alteração: exibir evolução, erros recorrentes, uso de dicas e simulação do ciclo de cinco dias.
 -->
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NettStudy | Perfil pedagógico</title><link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}"></head><body><header class="topbar"><a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a><span>{{ aluno.nome_exibicao }}</span><a class="button secondary" href="{{ url_for('dashboard_responsavel') }}">Voltar</a></header><main class="content"><p>PERFIL PEDAGÓGICO</p><h1>Evolução de {{ aluno.nome_exibicao }}</h1><section class="panel"><div class="perfil-cabecalho"><div><h2>{{ perfil.faixa_desenvolvimento }}</h2><p class="texto-suave">{% if perfil.fase == 'diagnostico' %}Diagnóstico silencioso em andamento: {{ perfil.dias_observados }} de {{ perfil.dias_diagnostico }} dias observados.{% else %}Diagnóstico inicial concluído. A trilha já é atualizada pelo desempenho.{% endif %}</p></div><div class="niveis-resumo"><span>Matemática <strong>Nível {{ perfil.nivel_matematica }}</strong></span><span>Português <strong>Nível {{ perfil.nivel_portugues }}</strong></span><span>Leitura <strong>Nível {{ perfil.nivel_leitura }}</strong></span></div></div></section>{% for materia, titulo in [('matematica','Matemática'),('portugues','Português'),('leitura','Leitura')] %}<section class="panel"><h2>{{ titulo }}</h2><div class="habilidades-grade">{% for habilidade in perfil.dominios[materia] %}<article class="habilidade-card"><div><strong>{{ habilidade.rotulo }}</strong><span class="status status-{{ habilidade.status }}">{{ habilidade.status_rotulo }}</span></div><div class="barra-dominio"><span style="width:{{ habilidade.dominio }}%"></span></div><small>Domínio estimado: {{ habilidade.dominio }}% · Nível {{ habilidade.nivel }}</small></article>{% endfor %}</div></section>{% endfor %}<section class="panel"><p class="texto-suave">A anamnese define apenas o ponto inicial. Acertos na primeira tentativa, erros, dicas e respostas reveladas atualizam cada habilidade separadamente.</p><a class="button secondary" href="{{ url_for('anamnese') }}">Revisar anamnese</a></section></main></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NettStudy | Perfil pedagógico</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a>
+    <span>{{ aluno.nome_exibicao }}</span>
+    <a class="button secondary" href="{{ url_for('dashboard_responsavel', aluno_id=aluno.id) }}">Voltar</a>
+</header>
+<main class="content">
+    <p>PERFIL PEDAGÓGICO</p>
+    <h1>Evolução de {{ aluno.nome_exibicao }}</h1>
+
+    <section class="panel">
+        <div class="perfil-cabecalho">
+            <div>
+                <h2>{{ perfil.faixa_desenvolvimento }}</h2>
+                <p class="texto-suave">
+                    {% if perfil.fase == 'diagnostico' %}
+                        Diagnóstico silencioso: {{ perfil.dias_observados }} de {{ perfil.dias_diagnostico }} dias observados.
+                    {% else %}
+                        Diagnóstico inicial concluído. A trilha é atualizada pelo desempenho.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="niveis-resumo">
+                <span>Matemática <strong>Nível {{ perfil.nivel_matematica }}</strong></span>
+                <span>Português <strong>Nível {{ perfil.nivel_portugues }}</strong></span>
+                <span>Leitura <strong>Nível {{ perfil.nivel_leitura }}</strong></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>Resumo dos últimos {{ relatorio.periodo_dias }} dias</h2>
+        <div class="metrics metrics-relatorio">
+            <div class="metric"><span>Dias com atividade</span><strong>{{ relatorio.dias_ativos }}</strong></div>
+            <div class="metric"><span>Pontos fortes</span><strong>{{ relatorio.fortes|length }}</strong></div>
+            <div class="metric"><span>Pontos de atenção</span><strong>{{ relatorio.atencao|length }}</strong></div>
+        </div>
+        <div class="relatorio-duplo">
+            <article>
+                <h3>Habilidades fortes</h3>
+                {% if relatorio.fortes %}
+                    {% for item in relatorio.fortes %}
+                        <p><strong>{{ item.rotulo }}</strong><br><small>{{ item.taxa_primeira }}% na primeira tentativa</small></p>
+                    {% endfor %}
+                {% else %}
+                    <p class="texto-suave">Ainda não há dados suficientes.</p>
+                {% endif %}
+            </article>
+            <article>
+                <h3>Precisa de atenção</h3>
+                {% if relatorio.atencao %}
+                    {% for item in relatorio.atencao %}
+                        <p><strong>{{ item.rotulo }}</strong><br><small>{{ item.dicas }} dica(s) · {{ item.reveladas }} resposta(s) revelada(s)</small></p>
+                    {% endfor %}
+                {% else %}
+                    <p class="texto-suave">Nenhum alerta relevante no período.</p>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+
+    {% for materia, titulo in [('matematica','Matemática'),('portugues','Português'),('leitura','Leitura')] %}
+        <section class="panel">
+            <h2>{{ titulo }}</h2>
+            <div class="habilidades-grade">
+                {% for habilidade in perfil.dominios[materia] %}
+                    <article class="habilidade-card">
+                        <div>
+                            <strong>{{ habilidade.rotulo }}</strong>
+                            <span class="status status-{{ habilidade.status }}">{{ habilidade.status_rotulo }}</span>
+                        </div>
+                        <div class="barra-dominio"><span style="width:{{ habilidade.dominio }}%"></span></div>
+                        <small>
+                            Domínio: {{ habilidade.dominio }}% · Nível {{ habilidade.nivel }} ·
+                            {{ habilidade.total_tentativas }} tentativa(s)
+                        </small>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% endfor %}
+
+    <section class="panel">
+        <h2>Simulação do ciclo de 5 dias</h2>
+        <p class="texto-suave">Previsão sem repetir questões, considerando os níveis atuais e respostas corretas.</p>
+        <div class="simulacao-dias">
+            {% for dia in simulacao %}
+                <details>
+                    <summary>Dia {{ dia.dia }}</summary>
+                    <h3>Português</h3>
+                    <ol>{% for questao in dia.portugues %}<li>{{ questao.enunciado }}</li>{% endfor %}</ol>
+                    <h3>Matemática</h3>
+                    <ol>{% for questao in dia.matematica %}<li>{{ questao.enunciado }}</li>{% endfor %}</ol>
+                </details>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="panel">
+        <p class="texto-suave">
+            A anamnese recalcula habilidades ainda não avaliadas. O desempenho real já registrado é preservado.
+        </p>
+        <a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id) }}">Revisar anamnese</a>
+    </section>
+</main>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 20:21 -03:00
-# Motivo da alteração: integrar Leitura ao motor pedagógico e aplicar nível real na história e no resumo.
+# Data e hora do último recode: 30/07/2026 20:56 -03:00
+# Motivo da alteração: integrar recálculo, missão sequencial, ciclo de cinco dias, simulação e relatórios.
 
 import os
 from datetime import date
@@ -35,6 +35,11 @@ from modules.motor_pedagogico import (
     obter_perfil_pedagogico,
     registrar_desempenho,
     resumo_missao_personalizada,
+    recalcular_perfil_por_anamnese,
+    proxima_etapa_missao,
+    obter_relatorio_pedagogico,
+    simular_ciclo_diagnostico,
+    historias_lidas_ciclo,
 )
 from modules.matematica import (
     QUESTOES as QUESTOES_MATEMATICA,
@@ -481,8 +486,8 @@ def registrar_rotas(app: Flask) -> None:
                     resumo = montar_resumo_anamnese(respostas, aluno["nome_exibicao"])
                     salvar_anamnese(caminho_banco=app.config["DATABASE_PATH"], aluno_id=int(aluno["id"]), **converter_para_anamnese_legada(respostas))
                     concluir_anamnese_estruturada(app.config["DATABASE_PATH"], int(aluno["id"]), resumo)
-                    garantir_perfil_pedagogico(app.config["DATABASE_PATH"], int(aluno["id"]))
-                    flash("Anamnese concluída e perfil pedagógico atualizado.", "sucesso")
+                    recalcular_perfil_por_anamnese(app.config["DATABASE_PATH"], int(aluno["id"]))
+                    flash("Anamnese concluída. Perfil e missões não iniciadas foram recalculados.", "sucesso")
                     return redirect(url_for("dashboard_responsavel", aluno_id=aluno["id"]))
             except (ValueError, TypeError) as erro:
                 flash(str(erro), "erro")
@@ -548,10 +553,12 @@ def registrar_rotas(app: Flask) -> None:
         anamnese_registro = buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], aluno_id) if aluno else None
         reset_missao = obter_reset_missao_dia(app.config["DATABASE_PATH"], aluno_id, date.today().isoformat()) if aluno else None
         perfil = garantir_perfil_pedagogico(app.config["DATABASE_PATH"], aluno_id) if aluno and anamnese_registro else None
+        relatorio = obter_relatorio_pedagogico(app.config["DATABASE_PATH"], aluno_id) if perfil else None
         return render_template(
             "dashboard_responsavel.html", responsavel=responsavel, alunos=alunos,
             aluno=aluno, anamnese=anamnese_registro, resumo_dia=resumo_dia,
-            reset_missao=reset_missao, perfil_pedagogico=perfil, limite_alunos=5,
+            reset_missao=reset_missao, perfil_pedagogico=perfil,
+            relatorio=relatorio, limite_alunos=5,
         )
 
     @app.route("/responsavel/alunos/novo", methods=["GET", "POST"])
@@ -600,7 +607,15 @@ def registrar_rotas(app: Flask) -> None:
             return redirect(url_for("dashboard_responsavel"))
         session["aluno_responsavel_id"] = int(aluno["id"])
         perfil = garantir_perfil_pedagogico(app.config["DATABASE_PATH"], int(aluno["id"]))
-        return render_template("perfil_pedagogico.html", aluno=aluno, perfil=perfil)
+        relatorio = obter_relatorio_pedagogico(app.config["DATABASE_PATH"], int(aluno["id"]))
+        simulacao = simular_ciclo_diagnostico(
+            app.config["DATABASE_PATH"], int(aluno["id"]),
+            QUESTOES_PORTUGUES, QUESTOES_MATEMATICA,
+        )
+        return render_template(
+            "perfil_pedagogico.html", aluno=aluno, perfil=perfil,
+            relatorio=relatorio, simulacao=simulacao,
+        )
 
     @app.post("/responsavel/refazer-missao")
     @login_obrigatorio("responsavel")
@@ -647,70 +662,49 @@ def registrar_rotas(app: Flask) -> None:
     @app.get("/aluno")
     @login_obrigatorio("aluno")
     def dashboard_aluno():
-        usuario_id = int(session["usuario_id"])
-
         aluno = buscar_aluno_por_usuario(
-            app.config["DATABASE_PATH"],
-            usuario_id,
+            app.config["DATABASE_PATH"], int(session["usuario_id"])
         )
-
         if not aluno:
             session.clear()
-            flash(
-                "O cadastro do aluno não foi encontrado. Entre novamente.",
-                "erro",
-            )
+            flash("O cadastro do aluno não foi encontrado. Entre novamente.", "erro")
             return redirect(url_for("login"))
-
-        anamnese_registro = buscar_anamnese_por_aluno(
-            app.config["DATABASE_PATH"],
-            int(aluno["id"]),
-        )
-
-        if not anamnese_registro:
+        if not buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], int(aluno["id"])):
             session.clear()
-            flash(
-                "O responsável precisa concluir a anamnese antes do início das atividades.",
-                "aviso",
-            )
+            flash("O responsável precisa concluir a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
 
         resumo_dia = obter_resumo_diario(
-            app.config["DATABASE_PATH"],
-            int(aluno["id"]),
-            date.today().isoformat(),
+            app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat()
         )
         personalizacao = resumo_missao_personalizada(
-            app.config["DATABASE_PATH"],
-            int(aluno["id"]),
+            app.config["DATABASE_PATH"], int(aluno["id"])
         )
-        quantidade = personalizacao["quantidade_questoes"]
-        configuracao = [
-            ("Português", "portugues", f"{quantidade} questões personalizadas", "atividade_portugues"),
-            ("Matemática", "matematica", f"{quantidade} questões personalizadas", "atividade_matematica"),
-            ("Leitura", "leitura", "História autoral, interpretação e resumo", "atividade_leitura"),
-        ]
-        missao = [
-            {
-                "nome": nome,
-                "chave": chave,
-                "descricao": descricao,
-                "rota": rota,
-                "concluida": chave in resumo_dia["materias"],
-            }
-            for nome, chave, descricao, rota in configuracao
-        ]
-
+        fluxo = proxima_etapa_missao(
+            app.config["DATABASE_PATH"], int(aluno["id"])
+        )
         return render_template(
-            "dashboard_aluno.html",
-            aluno=aluno,
-            missao=missao,
-            pontos=resumo_dia["pontos"],
+            "dashboard_aluno.html", aluno=aluno, pontos=resumo_dia["pontos"],
             sequencia=resumo_dia["sequencia"],
             atividades_concluidas=resumo_dia["concluidas"],
             progresso=resumo_dia["progresso"],
-            personalizacao=personalizacao,
+            personalizacao=personalizacao, fluxo=fluxo,
         )
+
+    @app.get("/missao")
+    @login_obrigatorio("aluno")
+    def iniciar_ou_continuar_missao():
+        aluno = _aluno_logado_com_anamnese()
+        if not aluno:
+            flash("Conclua a anamnese antes das atividades.", "aviso")
+            return redirect(url_for("login"))
+        fluxo = proxima_etapa_missao(
+            app.config["DATABASE_PATH"], int(aluno["id"])
+        )
+        if fluxo["concluida"]:
+            return redirect(url_for("dashboard_aluno"))
+        session["etapa_missao"] = fluxo["etapa"]
+        return redirect(url_for(fluxo["rota"]))
 
     def _aluno_logado_com_anamnese() -> dict[str, Any] | None:
         aluno = buscar_aluno_por_usuario(
@@ -916,6 +910,9 @@ def registrar_rotas(app: Flask) -> None:
             aluno_id=int(aluno["id"]),
             nivel_leitura=int(perfil_leitura["nivel_leitura"]),
             interesses=perfil_leitura.get("temas_preferidos", ""),
+            historias_excluidas=historias_lidas_ciclo(
+                app.config["DATABASE_PATH"], int(aluno["id"]), data_atividade
+            ),
         )
         codigos = [
             pergunta["id"]

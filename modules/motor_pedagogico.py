@@ -1,12 +1,12 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\motor_pedagogico.py
-# Data e hora do último recode: 30/07/2026 20:21 -03:00
-# Motivo da alteração: aplicar seleção pedagógica rígida por nível, habilidade, diagnóstico e composição real da missão.
+# Data e hora do último recode: 30/07/2026 20:56 -03:00
+# Motivo da alteração: concluir recálculo por anamnese, ciclo sem repetição, fluxo diário, simulação e relatórios pedagógicos.
 
 import json
 import random
 import re
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from database import buscar_anamnese_por_aluno, conectar
@@ -215,35 +215,388 @@ def _escolher(grupo: list[dict[str,Any]], quantidade: int, foco: str | None) -> 
     return ordenado[:quantidade]
 
 
-def gerar_plano_missao(caminho_banco: str, aluno_id: int, materia: str,
-    questoes: list[dict[str,Any]], data_atividade: str | None=None) -> dict[str,Any]:
-    data_ref=data_atividade or date.today().isoformat(); perfil=garantir_perfil_pedagogico(caminho_banco,aluno_id)
-    nivel_alvo=int(perfil[f"nivel_{materia}"]); quantidade=min(int(perfil["quantidade_questoes"]),len(questoes))
-    dominios=perfil["dominios"].get(materia,[]); foco=dominios[0]["habilidade"] if dominios else None; fase=perfil["fase"]; comp=_composicao(quantidade,nivel_alvo)
-    permitidas=[q for q in questoes if int(q.get("nivel",1))<=nivel_alvo+1]
-    revisao=[q for q in permitidas if int(q.get("nivel",1))<nivel_alvo]
-    atuais=[q for q in permitidas if int(q.get("nivel",1))==nivel_alvo]
-    desafios=[q for q in permitidas if int(q.get("nivel",1))==nivel_alvo+1]
-    selecionadas=_escolher(revisao,comp["revisao"],foco)+_escolher(atuais,comp["atual"],foco)+_escolher(desafios,comp["desafio"],foco)
-    usados={q["id"] for q in selecionadas}
-    faltam=quantidade-len(selecionadas)
-    if faltam>0:
-        fallback=[q for q in permitidas if q["id"] not in usados]
-        selecionadas+=_escolher(fallback,faltam,foco)
-    selecionadas=selecionadas[:quantidade]
-    codigos=[q["id"] for q in selecionadas]
+def _codigos_usados_ciclo(
+    caminho_banco: str,
+    aluno_id: int,
+    materia: str,
+    data_ref: str,
+    dias: int = 5,
+) -> tuple[set[str], set[str]]:
+    inicio = (date.fromisoformat(data_ref) - timedelta(days=max(1, dias - 1))).isoformat()
     with conectar(caminho_banco) as conexao:
-        existente=conexao.execute("SELECT * FROM planos_missao_diaria WHERE aluno_id=? AND data_atividade=? AND materia=?",(aluno_id,data_ref,materia)).fetchone()
+        planos = conexao.execute(
+            """SELECT codigos_json
+               FROM planos_missao_diaria
+               WHERE aluno_id = ? AND materia = ?
+                 AND data_atividade BETWEEN ? AND ?
+                 AND data_atividade <> ?""",
+            (aluno_id, materia, inicio, data_ref, data_ref),
+        ).fetchall()
+        reforco = conexao.execute(
+            """SELECT DISTINCT questao_codigo
+               FROM eventos_desempenho
+               WHERE aluno_id = ? AND materia = ?
+                 AND data_atividade BETWEEN ? AND ?
+                 AND (correta = 0 OR resposta_revelada = 1)""",
+            (aluno_id, materia, inicio, data_ref),
+        ).fetchall()
+
+    usados: set[str] = set()
+    for plano in planos:
+        try:
+            usados.update(json.loads(plano["codigos_json"]))
+        except (TypeError, json.JSONDecodeError):
+            continue
+    codigos_reforco = {str(item["questao_codigo"]) for item in reforco}
+    return usados, codigos_reforco
+
+
+def _preencher_categoria(
+    selecionadas: list[dict[str, Any]],
+    grupo: list[dict[str, Any]],
+    quantidade: int,
+    foco: str | None,
+) -> None:
+    usados = {item["id"] for item in selecionadas}
+    disponiveis = [item for item in grupo if item["id"] not in usados]
+    selecionadas.extend(_escolher(disponiveis, quantidade, foco))
+
+
+def gerar_plano_missao(
+    caminho_banco: str,
+    aluno_id: int,
+    materia: str,
+    questoes: list[dict[str, Any]],
+    data_atividade: str | None = None,
+) -> dict[str, Any]:
+    data_ref = data_atividade or date.today().isoformat()
+    perfil = garantir_perfil_pedagogico(caminho_banco, aluno_id)
+    nivel_alvo = int(perfil[f"nivel_{materia}"])
+    quantidade = min(int(perfil["quantidade_questoes"]), len(questoes))
+    dominios = perfil["dominios"].get(materia, [])
+    foco = dominios[0]["habilidade"] if dominios else None
+    fase = perfil["fase"]
+    comp = _composicao(quantidade, nivel_alvo)
+
+    usados_ciclo, reforco = _codigos_usados_ciclo(
+        caminho_banco, aluno_id, materia, data_ref
+    )
+    permitidas = [
+        item for item in questoes
+        if int(item.get("nivel", 1)) <= nivel_alvo + 1
+        and (item["id"] not in usados_ciclo or item["id"] in reforco)
+    ]
+    if len(permitidas) < quantidade:
+        permitidas = [
+            item for item in questoes
+            if int(item.get("nivel", 1)) <= nivel_alvo + 1
+        ]
+
+    revisao = [item for item in permitidas if int(item.get("nivel", 1)) < nivel_alvo]
+    atuais = [item for item in permitidas if int(item.get("nivel", 1)) == nivel_alvo]
+    desafios = [item for item in permitidas if int(item.get("nivel", 1)) == nivel_alvo + 1]
+
+    selecionadas: list[dict[str, Any]] = []
+    _preencher_categoria(selecionadas, revisao, comp["revisao"], foco)
+    _preencher_categoria(selecionadas, atuais, comp["atual"], foco)
+    _preencher_categoria(selecionadas, desafios, comp["desafio"], foco)
+
+    faltam = quantidade - len(selecionadas)
+    if faltam > 0:
+        reforcos_prioritarios = [
+            item for item in permitidas if item["id"] in reforco
+        ]
+        _preencher_categoria(selecionadas, reforcos_prioritarios, faltam, foco)
+
+    faltam = quantidade - len(selecionadas)
+    if faltam > 0:
+        _preencher_categoria(selecionadas, permitidas, faltam, foco)
+
+    selecionadas = selecionadas[:quantidade]
+    codigos = [item["id"] for item in selecionadas]
+
+    with conectar(caminho_banco) as conexao:
+        existente = conexao.execute(
+            """SELECT * FROM planos_missao_diaria
+               WHERE aluno_id = ? AND data_atividade = ? AND materia = ?""",
+            (aluno_id, data_ref, materia),
+        ).fetchone()
         if existente:
-            antigos=json.loads(existente["codigos_json"])
-            mapa={q["id"]:q for q in questoes}
-            valido=all(c in mapa and int(mapa[c].get("nivel",1))<=nivel_alvo+1 for c in antigos)
-            if valido:
-                plano=dict(existente); plano["codigos"]=antigos; plano["composicao"]=json.loads(plano.pop("composicao_json")); plano.pop("codigos_json",None); return plano
-            conexao.execute("DELETE FROM planos_missao_diaria WHERE id=?",(existente["id"],))
-        conexao.execute("""INSERT INTO planos_missao_diaria (aluno_id,data_atividade,materia,fase,nivel_alvo,quantidade_itens,foco_habilidade,codigos_json,composicao_json)
-            VALUES (?,?,?,?,?,?,?,?,?)""",(aluno_id,data_ref,materia,fase,nivel_alvo,len(codigos),foco,json.dumps(codigos),json.dumps(comp)))
-    return gerar_plano_missao(caminho_banco,aluno_id,materia,questoes,data_ref)
+            antigos = json.loads(existente["codigos_json"])
+            sessao = conexao.execute(
+                """SELECT id FROM sessoes_adaptativas
+                   WHERE aluno_id = ? AND data_atividade = ? AND materia = ?""",
+                (aluno_id, data_ref, materia),
+            ).fetchone()
+            tentativas = 0
+            if sessao:
+                tentativas = conexao.execute(
+                    """SELECT COUNT(*) total FROM tentativas_adaptativas
+                       WHERE sessao_id = ?""",
+                    (sessao["id"],),
+                ).fetchone()["total"]
+            mapa = {item["id"]: item for item in questoes}
+            valido = all(
+                codigo in mapa
+                and int(mapa[codigo].get("nivel", 1)) <= nivel_alvo + 1
+                and (codigo not in usados_ciclo or codigo in reforco)
+                for codigo in antigos
+            )
+            if int(tentativas or 0) > 0 or valido:
+                plano = dict(existente)
+                plano["codigos"] = antigos
+                plano["composicao"] = json.loads(plano.pop("composicao_json"))
+                plano.pop("codigos_json", None)
+                return plano
+            conexao.execute(
+                "DELETE FROM planos_missao_diaria WHERE id = ?",
+                (existente["id"],),
+            )
+
+        conexao.execute(
+            """INSERT INTO planos_missao_diaria (
+                   aluno_id, data_atividade, materia, fase, nivel_alvo,
+                   quantidade_itens, foco_habilidade, codigos_json,
+                   composicao_json
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                aluno_id, data_ref, materia, fase, nivel_alvo,
+                len(codigos), foco, json.dumps(codigos),
+                json.dumps(comp),
+            ),
+        )
+    return gerar_plano_missao(
+        caminho_banco, aluno_id, materia, questoes, data_ref
+    )
+
+
+def recalcular_perfil_por_anamnese(
+    caminho_banco: str,
+    aluno_id: int,
+) -> dict[str, Any]:
+    perfil = garantir_perfil_pedagogico(caminho_banco, aluno_id)
+    hoje = date.today().isoformat()
+    with conectar(caminho_banco) as conexao:
+        sessoes_ativas = conexao.execute(
+            """SELECT id, materia
+               FROM sessoes_adaptativas
+               WHERE aluno_id = ? AND data_atividade = ? AND status = 'ativa'""",
+            (aluno_id, hoje),
+        ).fetchall()
+        for sessao in sessoes_ativas:
+            total = conexao.execute(
+                "SELECT COUNT(*) total FROM tentativas_adaptativas WHERE sessao_id = ?",
+                (sessao["id"],),
+            ).fetchone()["total"]
+            if int(total or 0) == 0:
+                conexao.execute(
+                    "DELETE FROM sessoes_adaptativas WHERE id = ?",
+                    (sessao["id"],),
+                )
+                conexao.execute(
+                    """DELETE FROM planos_missao_diaria
+                       WHERE aluno_id = ? AND data_atividade = ? AND materia = ?""",
+                    (aluno_id, hoje, sessao["materia"]),
+                )
+
+        leitura = conexao.execute(
+            """SELECT id FROM sessoes_leitura
+               WHERE aluno_id = ? AND data_atividade = ?""",
+            (aluno_id, hoje),
+        ).fetchone()
+        if leitura:
+            total = conexao.execute(
+                "SELECT COUNT(*) total FROM tentativas_leitura WHERE sessao_id = ?",
+                (leitura["id"],),
+            ).fetchone()["total"]
+            if int(total or 0) == 0:
+                conexao.execute(
+                    "DELETE FROM sessoes_leitura WHERE id = ?",
+                    (leitura["id"],),
+                )
+    with conectar(caminho_banco) as conexao:
+        for materia in ("matematica", "portugues", "leitura"):
+            media = conexao.execute(
+                """SELECT ROUND(AVG(nivel)) nivel
+                   FROM dominio_habilidades
+                   WHERE aluno_id = ? AND materia = ?""",
+                (aluno_id, materia),
+            ).fetchone()["nivel"]
+            if media:
+                conexao.execute(
+                    f"""UPDATE perfis_pedagogicos
+                        SET nivel_{materia} = ?, atualizado_em = CURRENT_TIMESTAMP
+                        WHERE aluno_id = ?""",
+                    (max(1, min(5, int(media))), aluno_id),
+                )
+        conexao.execute(
+            """DELETE FROM planos_missao_diaria
+               WHERE aluno_id = ? AND data_atividade = ?
+                 AND materia NOT IN (
+                     SELECT materia FROM sessoes_adaptativas
+                     WHERE aluno_id = ? AND data_atividade = ?
+                 )""",
+            (aluno_id, hoje, aluno_id, hoje),
+        )
+    return obter_perfil_pedagogico(caminho_banco, aluno_id)
+
+
+def proxima_etapa_missao(
+    caminho_banco: str,
+    aluno_id: int,
+    data_atividade: str | None = None,
+) -> dict[str, Any]:
+    data_ref = data_atividade or date.today().isoformat()
+    ordem = [
+        ("portugues", "Português", "atividade_portugues"),
+        ("matematica", "Matemática", "atividade_matematica"),
+        ("leitura", "Leitura", "atividade_leitura"),
+    ]
+    with conectar(caminho_banco) as conexao:
+        concluidas = {
+            item["materia"]
+            for item in conexao.execute(
+                """SELECT materia FROM atividades_diarias
+                   WHERE aluno_id = ? AND data_atividade = ?
+                     AND status = 'concluida'""",
+                (aluno_id, data_ref),
+            ).fetchall()
+        }
+    for indice, (chave, nome, rota) in enumerate(ordem, start=1):
+        if chave not in concluidas:
+            return {
+                "concluida": False,
+                "chave": chave,
+                "nome": nome,
+                "rota": rota,
+                "etapa": indice,
+                "total_etapas": 3,
+                "rotulo_botao": "Iniciar atividades" if not concluidas else "Continuar atividades",
+            }
+    return {
+        "concluida": True,
+        "chave": None,
+        "nome": "Missão concluída",
+        "rota": "dashboard_aluno",
+        "etapa": 3,
+        "total_etapas": 3,
+        "rotulo_botao": "Missão concluída",
+    }
+
+
+def obter_relatorio_pedagogico(
+    caminho_banco: str,
+    aluno_id: int,
+    dias: int = 30,
+) -> dict[str, Any]:
+    inicio = (date.today() - timedelta(days=max(1, dias - 1))).isoformat()
+    with conectar(caminho_banco) as conexao:
+        linhas = conexao.execute(
+            """SELECT materia, habilidade,
+                      COUNT(*) tentativas,
+                      SUM(CASE WHEN correta = 1 AND numero_tentativa = 1 THEN 1 ELSE 0 END) acertos_primeira,
+                      SUM(CASE WHEN dica_nivel > 0 THEN 1 ELSE 0 END) dicas,
+                      SUM(CASE WHEN resposta_revelada = 1 THEN 1 ELSE 0 END) reveladas,
+                      ROUND(AVG(pontos), 1) media_pontos
+               FROM eventos_desempenho
+               WHERE aluno_id = ? AND data_atividade >= ?
+               GROUP BY materia, habilidade
+               ORDER BY materia, tentativas DESC""",
+            (aluno_id, inicio),
+        ).fetchall()
+        dias_ativos = conexao.execute(
+            """SELECT COUNT(DISTINCT data_atividade) total
+               FROM atividades_diarias
+               WHERE aluno_id = ? AND data_atividade >= ?""",
+            (aluno_id, inicio),
+        ).fetchone()["total"]
+
+    por_materia = {"portugues": [], "matematica": [], "leitura": []}
+    for linha in linhas:
+        item = dict(linha)
+        tentativas = max(1, int(item["tentativas"]))
+        item["taxa_primeira"] = round(int(item["acertos_primeira"] or 0) / tentativas * 100)
+        item["rotulo"] = ROTULOS_HABILIDADES.get(item["habilidade"], item["habilidade"])
+        por_materia.setdefault(item["materia"], []).append(item)
+
+    fortes = []
+    atencao = []
+    for materia, itens in por_materia.items():
+        for item in itens:
+            resumo = {"materia": materia, **item}
+            if item["taxa_primeira"] >= 75 and int(item["reveladas"] or 0) == 0:
+                fortes.append(resumo)
+            elif item["taxa_primeira"] < 50 or int(item["reveladas"] or 0) > 0:
+                atencao.append(resumo)
+    return {
+        "periodo_dias": dias,
+        "dias_ativos": int(dias_ativos or 0),
+        "por_materia": por_materia,
+        "fortes": fortes[:5],
+        "atencao": atencao[:5],
+    }
+
+
+def simular_ciclo_diagnostico(
+    caminho_banco: str,
+    aluno_id: int,
+    questoes_portugues: list[dict[str, Any]],
+    questoes_matematica: list[dict[str, Any]],
+    dias: int = 5,
+) -> list[dict[str, Any]]:
+    perfil = garantir_perfil_pedagogico(caminho_banco, aluno_id)
+    usados = {"portugues": set(), "matematica": set()}
+    resultado = []
+    for deslocamento in range(dias):
+        data_ref = date.today() + timedelta(days=deslocamento)
+        dia = {"dia": deslocamento + 1, "data": data_ref.isoformat()}
+        for materia, banco in (
+            ("portugues", questoes_portugues),
+            ("matematica", questoes_matematica),
+        ):
+            nivel = int(perfil[f"nivel_{materia}"])
+            comp = _composicao(min(int(perfil["quantidade_questoes"]), len(banco)), nivel)
+            candidatas = [
+                item for item in banco
+                if int(item.get("nivel", 1)) <= nivel + 1
+                and item["id"] not in usados[materia]
+            ]
+            categorias = (
+                [item for item in candidatas if int(item["nivel"]) < nivel],
+                [item for item in candidatas if int(item["nivel"]) == nivel],
+                [item for item in candidatas if int(item["nivel"]) == nivel + 1],
+            )
+            selecionadas = (
+                categorias[0][:comp["revisao"]]
+                + categorias[1][:comp["atual"]]
+                + categorias[2][:comp["desafio"]]
+            )
+            if len(selecionadas) < sum(comp.values()):
+                restantes = [item for item in candidatas if item not in selecionadas]
+                selecionadas.extend(restantes[:sum(comp.values()) - len(selecionadas)])
+            usados[materia].update(item["id"] for item in selecionadas)
+            dia[materia] = selecionadas
+        resultado.append(dia)
+    return resultado
+
+
+def historias_lidas_ciclo(
+    caminho_banco: str,
+    aluno_id: int,
+    data_atividade: str | None = None,
+    dias: int = 5,
+) -> set[str]:
+    data_ref = data_atividade or date.today().isoformat()
+    inicio = (date.fromisoformat(data_ref) - timedelta(days=max(1, dias - 1))).isoformat()
+    with conectar(caminho_banco) as conexao:
+        linhas = conexao.execute(
+            """SELECT DISTINCT historia_id
+               FROM sessoes_leitura
+               WHERE aluno_id = ? AND data_atividade BETWEEN ? AND ?
+                 AND data_atividade <> ?""",
+            (aluno_id, inicio, data_ref, data_ref),
+        ).fetchall()
+    return {str(item["historia_id"]) for item in linhas}
 
 
 def resumo_missao_personalizada(caminho_banco: str, aluno_id: int) -> dict[str,Any]:

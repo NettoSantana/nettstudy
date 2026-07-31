@@ -1,5 +1,5 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\leitura.py
-# Data e hora do último recode: 30/07/2026 20:21 -03:00
+# Data e hora do último recode: 30/07/2026 20:56 -03:00
 # Motivo da alteração: classificar histórias e perguntas por nível, habilidade e interesse para o motor pedagógico.
 
 from datetime import date
@@ -415,6 +415,7 @@ def obter_historia_do_dia(
     nivel_leitura: str | int | None = None,
     data_referencia: date | None = None,
     interesses: str | None = None,
+    historias_excluidas: set[str] | None = None,
 ) -> dict[str, Any]:
     if isinstance(nivel_leitura, int):
         nivel_alvo = max(1, min(5, nivel_leitura))
@@ -422,11 +423,19 @@ def obter_historia_do_dia(
         mapa = {"iniciante": 1, "basico": 2, "intermediario": 4, "avancado": 5}
         nivel_alvo = mapa.get((nivel_leitura or "basico").strip().lower(), 2)
 
+    excluidas = historias_excluidas or set()
     candidatas = [
         historia
         for historia in HISTORIAS
         if _nivel_historia(historia) <= nivel_alvo + 1
+        and historia["id"] not in excluidas
     ]
+    if not candidatas:
+        candidatas = [
+            historia
+            for historia in HISTORIAS
+            if _nivel_historia(historia) <= nivel_alvo + 1
+        ]
     if not candidatas:
         candidatas = [historia for historia in HISTORIAS if _nivel_historia(historia) == 2]
 

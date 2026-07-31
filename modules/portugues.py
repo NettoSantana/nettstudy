@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\portugues.py
-# Data e hora do último recode: 30/07/2026 20:21 -03:00
-# Motivo da alteração: criar banco de Português por níveis 1 a 5, habilidades e progressão compatível com o perfil pedagógico.
+# Data e hora do último recode: 30/07/2026 20:56 -03:00
+# Motivo da alteração: ampliar níveis 1 e 2 para cinco dias sem repetição e manter progressão adaptativa.
 
 from typing import Any
 
@@ -49,6 +49,28 @@ QUESTOES = [
     _q("por-505",5,"vocabulario","contexto","No texto, 'vasilha' significa:",["Um recipiente","Uma árvore","Um alimento","Uma janela"],"Um recipiente",["Observe o que foi colocado nela.","Ela recebeu água.","Vasilha é um recipiente."],"Vasilha é um recipiente usado para colocar algo."),
     _q("por-506",5,"producao_textual","titulo","Qual seria outro bom título para o texto?",["O cuidado de Lia","A escola vazia","A árvore perdida","O sábado chuvoso"],"O cuidado de Lia",["O título deve representar o assunto principal.","O texto mostra ajuda a um animal.","'O cuidado de Lia' resume o tema."],"Esse título representa o assunto central do texto."),
 ]
+
+
+QUESTOES.extend([
+    _q("por-107",1,"ortografia","alfabetizacao","Qual palavra começa com a letra M?",["Pato","Mesa","Bola","Sapo"],"Mesa",["Observe a primeira letra.","Procure a palavra iniciada por M.","Mesa começa com M."],"Mesa começa com a letra M."),
+    _q("por-108",1,"vocabulario","cores","Qual palavra indica uma cor?",["Azul","Mesa","Correr","Gato"],"Azul",["Pense nas cores.","É uma cor do céu.","Azul indica uma cor."],"Azul é uma cor."),
+    _q("por-109",1,"ortografia","silabas","Qual palavra tem uma sílaba?",["Casa","Sol","Boneca","Janela"],"Sol",["Fale devagar.","A palavra é dita de uma vez.","Sol tem uma sílaba."],"Sol possui uma sílaba."),
+    _q("por-110",1,"localizacao_informacoes","leitura_curta","Leia: 'Beto usa boné.' O que Beto usa?",["Sapato","Boné","Camisa","Relógio"],"Boné",["A resposta está na frase.","Procure a palavra depois de usa.","Beto usa boné."],"Beto usa um boné."),
+    _q("por-111",1,"formacao_frases","alfabetizacao","Qual opção apresenta uma ação completa?",["A menina corre.","Muito bonito","No jardim","E a bola"],"A menina corre.",["Procure quem faz algo.","A frase comunica uma ação.","A menina corre."],"A menina corre é uma frase completa."),
+    _q("por-112",1,"sequencia_acontecimentos","rotina","Depois de escovar os dentes à noite, o que costuma acontecer?",["Acordar","Dormir","Almoçar","Ir à escola"],"Dormir",["Pense na rotina da noite.","É o momento de descansar.","Depois, costumamos dormir."],"Depois da higiene noturna, costuma-se dormir."),
+    _q("por-113",1,"vocabulario","objetos","Qual palavra nomeia um objeto escolar?",["Lápis","Leão","Chuva","Correr"],"Lápis",["Pense no que usamos para escrever.","É levado à escola.","Lápis é um objeto escolar."],"Lápis é um objeto escolar."),
+    _q("por-114",1,"ortografia","letras","Qual palavra termina com a letra A?",["Pato","Bola","Sol","Papel"],"Bola",["Observe a última letra.","Procure a palavra terminada em A.","Bola termina com A."],"Bola termina com a letra A."),
+    _q("por-115",1,"localizacao_informacoes","leitura_curta","Leia: 'A flor é amarela.' Qual é a cor da flor?",["Azul","Verde","Amarela","Roxa"],"Amarela",["A resposta aparece na frase.","Procure como a flor é descrita.","A flor é amarela."],"A flor é amarela."),
+    _q("por-207",2,"ortografia","grafia","Qual palavra está escrita corretamente?",["janella","janela","ganela","janelaa"],"janela",["Pense no objeto da casa.","A palavra possui apenas um l.","Janela é a grafia correta."],"Janela está escrita corretamente."),
+    _q("por-208",2,"pontuacao","pergunta","Qual frase é uma pergunta corretamente pontuada?",["Você gosta de brincar.","Você gosta de brincar?","você gosta de brincar?","Você, gosta de brincar?"],"Você gosta de brincar?",["Perguntas terminam com ponto de interrogação.","Comece com maiúscula.","A segunda opção está correta."],"A pergunta correta termina com ponto de interrogação."),
+    _q("por-209",2,"localizacao_informacoes","leitura_curta","Leia: 'Rita levou o livro para a escola.' O que Rita levou?",["Uma bola","O livro","Um lanche","Uma flor"],"O livro",["A resposta está na frase.","Procure o objeto após levou.","Rita levou o livro."],"Rita levou o livro."),
+    _q("por-210",2,"sinonimos_antonimos","vocabulario","Qual é o contrário de rápido?",["Devagar","Forte","Alto","Perto"],"Devagar",["Procure o sentido oposto.","Pense em velocidade.","Devagar é o contrário de rápido."],"Devagar é o antônimo de rápido."),
+    _q("por-211",2,"formacao_frases","ordem","Organize: 'menino / o / sorriu'.",["Sorriu o menino.","O menino sorriu.","Menino o sorriu.","O sorriu menino."],"O menino sorriu.",["Comece com O.","Depois diga quem.","O menino sorriu."],"A ordem correta é O menino sorriu."),
+    _q("por-212",2,"vocabulario","contexto","Na frase 'O gelo está frio', como está o gelo?",["Quente","Frio","Macio","Doce"],"Frio",["A resposta está na frase.","Procure a característica.","O gelo está frio."],"O gelo está frio."),
+    _q("por-213",2,"sequencia_acontecimentos","rotina","Qual ação acontece antes de sair para a escola?",["Guardar o material na mochila","Voltar da escola","Jantar","Dormir à noite"],"Guardar o material na mochila",["Pense na preparação.","O material precisa estar pronto.","Primeiro guardamos o material."],"Guardar o material acontece antes de sair."),
+    _q("por-214",2,"ortografia","plural","Qual é o plural de 'gato'?",["Gatoes","Gatos","Gato","Gatas"],"Gatos",["Plural indica mais de um.","Acrescente s.","O plural é gatos."],"O plural de gato é gatos."),
+    _q("por-215",2,"pontuacao","frase","Qual frase começa e termina corretamente?",["maria brinca.","Maria brinca","Maria brinca.","maria brinca"],"Maria brinca.",["Comece com letra maiúscula.","Termine com ponto final.","Maria brinca. está correta."],"A frase correta é Maria brinca."),
+])
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 

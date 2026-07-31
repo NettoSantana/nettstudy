@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\matematica.py
-# Data e hora do último recode: 30/07/2026 20:21 -03:00
-# Motivo da alteração: criar banco de Matemática por níveis 1 a 5, habilidades e progressão compatível com o perfil pedagógico.
+# Data e hora do último recode: 30/07/2026 20:56 -03:00
+# Motivo da alteração: ampliar níveis 1 e 2 para cinco dias sem repetição e manter progressão adaptativa.
 
 from typing import Any
 
@@ -46,6 +46,28 @@ QUESTOES = [
     _q("mat-505",5,"raciocinio_logico","padroes","Qual número completa: 3, 6, 12, 24, ___?",["30","36","42","48"],"48",["Observe a relação entre os termos.","Cada número é o dobro do anterior.","24 × 2 = 48."],"A sequência dobra a cada passo."),
     _q("mat-506",5,"geometria","area","Um retângulo mede 8 cm de comprimento e 5 cm de largura. Qual é a área?",["13 cm²","26 cm²","40 cm²","80 cm²"],"40 cm²",["Área do retângulo é comprimento vezes largura.","Calcule 8 × 5.","Oito vezes cinco é quarenta."],"A área é quarenta centímetros quadrados."),
 ]
+
+
+QUESTOES.extend([
+    _q("mat-107",1,"numeros_quantidades","numeros","Qual número vem antes de 10?",["8","9","11","12"],"9",["Conte até 10.","O número anterior fica uma posição antes.","Antes de 10 vem 9."],"O número anterior a 10 é 9."),
+    _q("mat-108",1,"adicao","frutas","João tinha 4 bananas e ganhou 3. Quantas tem agora?",["5","6","7","8"],"7",["Junte as quantidades.","Calcule 4 + 3.","Quatro mais três é sete."],"João ficou com sete bananas."),
+    _q("mat-109",1,"subtracao","brinquedos","Havia 9 carrinhos. Três foram guardados. Quantos ficaram?",["5","6","7","12"],"6",["A quantidade diminuiu.","Calcule 9 - 3.","Nove menos três é seis."],"Ficaram seis carrinhos."),
+    _q("mat-110",1,"numeros_quantidades","comparacao","Qual número é menor?",["6","2","8","5"],"2",["Compare os números.","Procure o mais próximo do zero.","Dois é o menor."],"O menor número é 2."),
+    _q("mat-111",1,"sequencias","raciocinio","Complete: 1, 3, 5, ___.",["6","7","8","9"],"7",["Observe o aumento.","Aumenta de dois em dois.","5 + 2 = 7."],"O próximo número é 7."),
+    _q("mat-112",1,"geometria","formas","Qual forma é redonda e não tem lados?",["Triângulo","Quadrado","Círculo","Retângulo"],"Círculo",["Pense em uma bola desenhada.","Ela não tem lados.","O círculo é redondo."],"O círculo não possui lados."),
+    _q("mat-113",1,"adicao","animais","Há 5 pássaros na árvore e chegam mais 2. Quantos ficam?",["6","7","8","9"],"7",["Eles se juntaram.","Calcule 5 + 2.","Cinco mais dois é sete."],"Ficam sete pássaros."),
+    _q("mat-114",1,"subtracao","escola","Lia tinha 7 lápis e deu 1. Com quantos ficou?",["5","6","7","8"],"6",["Ela deu um lápis.","Calcule 7 - 1.","Sete menos um é seis."],"Lia ficou com seis lápis."),
+    _q("mat-115",1,"medidas","comparacao","Qual objeto costuma ser mais comprido?",["Borracha","Lápis","Moeda","Botão"],"Lápis",["Compare os comprimentos.","Pense nos objetos escolares.","O lápis costuma ser mais comprido."],"O lápis costuma ser o mais comprido."),
+    _q("mat-207",2,"adicao","escola","Quanto é 32 + 25?",["47","55","57","67"],"57",["Some dezenas e unidades.","30 + 20 e 2 + 5.","50 + 7 = 57."],"Trinta e dois mais vinte e cinco é 57."),
+    _q("mat-208",2,"subtracao","numeros","Quanto é 74 - 22?",["42","50","52","62"],"52",["Retire duas dezenas.","74 - 20 = 54.","54 - 2 = 52."],"Setenta e quatro menos vinte e dois é 52."),
+    _q("mat-209",2,"problemas","livros","Ana tinha 21 livros e ganhou 14. Quantos livros tem agora?",["25","35","37","45"],"35",["Ela ganhou livros.","Calcule 21 + 14.","Vinte e um mais quatorze é 35."],"Ana tem trinta e cinco livros."),
+    _q("mat-210",2,"dinheiro","compras","Você tem R$ 15 e gasta R$ 6. Quanto sobra?",["R$ 7","R$ 8","R$ 9","R$ 11"],"R$ 9",["O valor diminui.","Calcule 15 - 6.","Quinze menos seis é nove."],"Sobram nove reais."),
+    _q("mat-211",2,"medidas","tempo","Meia hora corresponde a quantos minutos?",["15","20","30","45"],"30",["Uma hora tem 60 minutos.","Meia hora é a metade.","Metade de 60 é 30."],"Meia hora tem trinta minutos."),
+    _q("mat-212",2,"sequencias","raciocinio","Complete: 5, 10, 15, ___.",["18","20","25","30"],"20",["Observe o aumento.","Aumenta de cinco em cinco.","15 + 5 = 20."],"O próximo número é 20."),
+    _q("mat-213",2,"geometria","formas","Qual forma tem quatro lados iguais?",["Círculo","Triângulo","Quadrado","Oval"],"Quadrado",["Conte os lados.","Eles possuem o mesmo tamanho.","O quadrado tem quatro lados iguais."],"O quadrado possui quatro lados iguais."),
+    _q("mat-214",2,"numeros_quantidades","valor_posicional","No número 46, quantas dezenas há?",["4","6","40","46"],"4",["Observe o algarismo das dezenas.","Ele fica à esquerda.","Em 46 há quatro dezenas."],"O número 46 possui quatro dezenas."),
+    _q("mat-215",2,"problemas","frutas","Há 28 laranjas em uma caixa e 10 são retiradas. Quantas ficam?",["8","18","20","38"],"18",["A quantidade diminui.","Calcule 28 - 10.","Vinte e oito menos dez é dezoito."],"Ficam dezoito laranjas."),
+])
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 

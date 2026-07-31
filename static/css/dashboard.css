@@ -1,7 +1,7 @@
 /*
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 30/07/2026 20:16 -03:00
-Motivo da alteração: organizar visualmente os perfis da família em cartões separados.
+Data e hora do último recode: 30/07/2026 20:56 -03:00
+Motivo da alteração: estilizar missão única, relatórios pedagógicos e simulação de cinco dias.
 */
 
 :root {
@@ -521,6 +521,121 @@ a {
 
     .alunos-grade {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Missão diária única e relatórios */
+.missao-unica {
+    display: grid;
+    gap: 18px;
+}
+
+.missao-unica h2,
+.missao-unica p {
+    margin-top: 0;
+}
+
+.missao-botao {
+    width: fit-content;
+    min-width: 220px;
+}
+
+.trilha-etapas {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.trilha-etapas span {
+    padding: 13px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    background: #fafbff;
+    text-align: center;
+    font-weight: 700;
+}
+
+.trilha-etapas span.atual {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--soft);
+}
+
+.trilha-etapas span.concluida {
+    border-color: #a9dec0;
+    color: var(--success-text);
+    background: var(--success-bg);
+}
+
+.button.bloqueado {
+    cursor: default;
+    pointer-events: none;
+}
+
+.relatorio-duplo {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.relatorio-duplo article {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: #fafbff;
+}
+
+.relatorio-duplo article h3 {
+    margin-top: 0;
+}
+
+.relatorio-duplo article p {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+}
+
+.relatorio-duplo article p:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.metrics-relatorio {
+    margin-bottom: 20px;
+}
+
+.simulacao-dias {
+    display: grid;
+    gap: 10px;
+}
+
+.simulacao-dias details {
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: #fafbff;
+}
+
+.simulacao-dias summary {
+    color: var(--primary);
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.simulacao-dias li {
+    margin: 8px 0;
+    line-height: 1.45;
+}
+
+@media (max-width: 700px) {
+    .trilha-etapas,
+    .relatorio-duplo {
+        grid-template-columns: 1fr;
+    }
+
+    .missao-botao {
+        width: 100%;
     }
 }
 
