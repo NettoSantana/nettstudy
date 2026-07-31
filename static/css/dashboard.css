@@ -1,7 +1,7 @@
 /*
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 30/07/2026 22:11 -03:00
-Motivo da alteração: ampliar a logo no cabeçalho sem alterar os demais elementos visuais.
+Data e hora do último recode: 31/07/2026 06:01 -03:00
+Motivo da alteração: estilizar o mascote e o balão de fala no dashboard do aluno.
 */
 
 :root {
@@ -788,3 +788,115 @@ a {
     }
 }
 
+
+
+/* Mascote motivacional do dashboard do aluno */
+.mascote-aluno {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    align-items: center;
+    gap: 20px;
+    margin: 14px 0 24px;
+}
+
+.mascote-aluno-imagem {
+    display: block;
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    filter: drop-shadow(0 12px 18px rgba(30, 43, 90, 0.14));
+}
+
+.mascote-aluno-balao {
+    position: relative;
+    min-height: 118px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    padding: 22px 24px;
+    border: 2px solid #cfd5fb;
+    border-radius: 22px;
+    background: var(--white);
+    box-shadow: var(--shadow);
+}
+
+.mascote-aluno-balao::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    width: 24px;
+    height: 24px;
+    border-left: 2px solid #cfd5fb;
+    border-bottom: 2px solid #cfd5fb;
+    background: var(--white);
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.mascote-aluno-nome {
+    position: relative;
+    z-index: 1;
+    color: var(--primary);
+    font-size: clamp(24px, 3vw, 34px);
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.mascote-aluno-balao p {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    color: var(--text);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.55;
+}
+
+@media (max-width: 700px) {
+    .mascote-aluno {
+        grid-template-columns: 92px minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .mascote-aluno-imagem {
+        width: 92px;
+        height: 110px;
+    }
+
+    .mascote-aluno-balao {
+        min-height: 104px;
+        padding: 17px 18px;
+        border-radius: 18px;
+    }
+
+    .mascote-aluno-nome {
+        font-size: 22px;
+    }
+
+    .mascote-aluno-balao p {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 460px) {
+    .mascote-aluno {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+
+    .mascote-aluno-imagem {
+        width: 118px;
+        height: 118px;
+    }
+
+    .mascote-aluno-balao {
+        width: 100%;
+    }
+
+    .mascote-aluno-balao::before {
+        left: 50%;
+        top: -14px;
+        transform: translateX(-50%) rotate(135deg);
+    }
+}

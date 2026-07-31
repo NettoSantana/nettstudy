@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_aluno.html
-Data e hora do último recode: 30/07/2026 20:56 -03:00
-Motivo da alteração: transformar as três matérias em uma missão diária única, sequencial e retomável.
+Data e hora do último recode: 31/07/2026 06:01 -03:00
+Motivo da alteração: inserir o mascote com balão de fala personalizado no dashboard do aluno.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -19,7 +19,28 @@ Motivo da alteração: transformar as três matérias em uma missão diária ún
 </header>
 <main class="content">
     <p>MISSÃO DE HOJE</p>
-    <h1>Olá, {{ aluno.nome_exibicao }}!</h1>
+
+    <section class="mascote-aluno">
+        <img
+            src="{{ url_for('static', filename='img/nettstudy-mascote.png') }}"
+            alt="Mascote do NettStudy"
+            class="mascote-aluno-imagem"
+        >
+        <div class="mascote-aluno-balao">
+            <span class="mascote-aluno-nome">Olá, {{ aluno.nome_exibicao }}!</span>
+            <p>
+                {% if fluxo.concluida %}
+                    Você mandou muito bem hoje! Agora é hora de descansar e voltar amanhã para uma nova missão.
+                {% elif fluxo.etapa == 1 %}
+                    Vamos começar com Português? Leia com atenção e mostre tudo o que você sabe!
+                {% elif fluxo.etapa == 2 %}
+                    Português concluído! Agora vamos encarar a Matemática. Você consegue!
+                {% else %}
+                    Falta só a Leitura! Continue firme, porque a missão de hoje está quase completa.
+                {% endif %}
+            </p>
+        </div>
+    </section>
 
     <section class="fase-pedagogica">
         <strong>
