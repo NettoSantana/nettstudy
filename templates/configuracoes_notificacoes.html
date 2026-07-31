@@ -1,0 +1,104 @@
+<!--
+Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\configuracoes_notificacoes.html
+Data e hora do último recode: 31/07/2026 06:32 -03:00
+Motivo da alteração: criar painel individual de rotina e notificações por e-mail.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NettStudy | Notificações</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a>
+    <span>{{ responsavel.nome_completo }}</span>
+    <a class="button secondary" href="{{ url_for('dashboard_responsavel', aluno_id=aluno.id) }}">Voltar</a>
+</header>
+<main class="content notificacoes-pagina">
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensagem in mensagens %}
+            <div class="flash {{ categoria }}">{{ mensagem }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="painel-cabecalho notificacoes-cabecalho">
+        <div>
+            <p>CONFIGURAÇÕES</p>
+            <h1>Notificações por e-mail</h1>
+            <span class="texto-suave">Os avisos serão enviados para {{ responsavel.email }}.</span>
+        </div>
+    </div>
+
+    <section class="panel alunos-painel">
+        <h2>Escolha a criança</h2>
+        <div class="alunos-grade">
+            {% for item in alunos %}
+                <a class="aluno-seletor {% if item.id == aluno.id %}ativo{% endif %}" href="{{ url_for('notificacoes.configuracoes_notificacoes', aluno_id=item.id) }}">
+                    <strong>{{ item.nome_exibicao }}</strong>
+                    <small>{{ item.ano_escolar or 'Ano não informado' }}</small>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <form class="panel notificacoes-form" method="post">
+        <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+        <div class="notificacao-titulo">
+            <div>
+                <p>ROTINA DE {{ aluno.nome_exibicao|upper }}</p>
+                <h2>Dias e horário das atividades</h2>
+            </div>
+            <label class="interruptor-linha">
+                <input type="checkbox" name="ativo" {% if configuracao.ativo %}checked{% endif %}>
+                <span>Notificações ativas</span>
+            </label>
+        </div>
+
+        <fieldset class="dias-configuracao">
+            <legend>Dias da semana com atividade</legend>
+            <div class="dias-grade">
+                {% for numero, nome in dias %}
+                    <label>
+                        <input type="checkbox" name="dias_semana" value="{{ numero }}" {% if numero in configuracao.dias_selecionados %}checked{% endif %}>
+                        <span>{{ nome }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <div class="configuracoes-grade">
+            <label class="campo">
+                <span>Concluir atividade até</span>
+                <input type="time" name="horario_limite" value="{{ configuracao.horario_limite }}" required>
+                <small>O atraso será verificado somente nos dias selecionados.</small>
+            </label>
+            <label class="campo">
+                <span>Dia do relatório semanal</span>
+                <select name="dia_relatorio" required>
+                    {% for numero, nome in dias %}
+                        <option value="{{ numero }}" {% if numero == configuracao.dia_relatorio %}selected{% endif %}>{{ nome }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="campo">
+                <span>Horário do relatório</span>
+                <input type="time" name="horario_relatorio" value="{{ configuracao.horario_relatorio }}" required>
+            </label>
+        </div>
+
+        <div class="notificacoes-opcoes">
+            <label><input type="checkbox" name="avisar_atraso" {% if configuracao.avisar_atraso %}checked{% endif %}><span><strong>Atividade pendente</strong><small>Enviar uma vez quando o horário limite passar e a missão estiver incompleta.</small></span></label>
+            <label><input type="checkbox" name="avisar_conclusao" {% if configuracao.avisar_conclusao %}checked{% endif %}><span><strong>Missão 100% concluída</strong><small>Avisar quando Português, Matemática e Leitura forem finalizados.</small></span></label>
+            <label><input type="checkbox" name="enviar_relatorio_semanal" {% if configuracao.enviar_relatorio_semanal %}checked{% endif %}><span><strong>Relatório semanal</strong><small>Enviar frequência, pontos e aproveitamento das atividades.</small></span></label>
+        </div>
+
+        <div class="notificacoes-acoes">
+            <button class="button" type="submit">Salvar configurações</button>
+        </div>
+    </form>
+</main>
+</body>
+</html>

@@ -1,10 +1,10 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_responsavel.html
-Data e hora do último recode: 30/07/2026 20:56 -03:00
-Motivo da alteração: consolidar perfis da família, progresso e alertas pedagógicos do aluno selecionado.
+Data e hora do último recode: 31/07/2026 06:32 -03:00
+Motivo da alteração: adicionar acesso às configurações individuais de notificações.
 -->
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NettStudy | Responsável</title><link rel="stylesheet" href="{{ url_for('static',filename='css/dashboard.css') }}"></head><body>
-<header class="topbar"><a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a><span>{{ responsavel.nome_completo if responsavel else usuario_logado }}</span><a class="button secondary" href="{{ url_for('sair') }}">Sair</a></header>
+<header class="topbar"><a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a><span>{{ responsavel.nome_completo if responsavel else usuario_logado }}</span><a class="button secondary" href="{{ url_for('notificacoes.configuracoes_notificacoes', aluno_id=aluno.id if aluno else none) }}">Notificações</a><a class="button secondary" href="{{ url_for('sair') }}">Sair</a></header>
 <main class="content">
 {% with mensagens=get_flashed_messages(with_categories=true) %}{% for categoria,mensagem in mensagens %}<div class="flash {{ categoria }}">{{ mensagem }}</div>{% endfor %}{% endwith %}
 {% if responsavel and not responsavel.email_validado_em %}<section class="aviso-validacao-email"><div><strong>Valide seu e-mail para proteger sua conta.</strong><span>Enviamos um link para {{ responsavel.email }}. Você pode continuar usando o NettStudy normalmente.</span></div><form method="post" action="{{ url_for('reenviar_validacao_email') }}"><button class="button secondary" type="submit">Reenviar e-mail</button></form></section>{% endif %}

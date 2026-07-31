@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 30/07/2026 21:27 -03:00
-# Motivo da alteração: corrigir vínculo entre sessão e história de Leitura e aplicar reset pedagógico único.
+# Data e hora do último recode: 31/07/2026 06:32 -03:00
+# Motivo da alteração: registrar painel e agendador automático de notificações do responsável.
 
 import os
 from datetime import date
@@ -28,6 +28,11 @@ from modules.leitura import (
     obter_historia_por_id,
     obter_pergunta as obter_pergunta_leitura,
     resposta_correta as resposta_correta_leitura,
+)
+from modules.notificacoes import (
+    iniciar_agendador_notificacoes,
+    inicializar_notificacoes,
+    notificacoes_bp,
 )
 from modules.motor_pedagogico import (
     garantir_perfil_pedagogico,
@@ -97,9 +102,12 @@ def create_app() -> Flask:
     inicializar_motor_pedagogico(app.config["DATABASE_PATH"])
     inicializar_anamnese_pedagogica(app.config["DATABASE_PATH"])
     aplicar_reset_pedagogico_unico(app.config["DATABASE_PATH"])
+    inicializar_notificacoes(app.config["DATABASE_PATH"])
+    app.register_blueprint(notificacoes_bp)
     registrar_contexto(app)
     registrar_rotas(app)
     registrar_erros(app)
+    iniciar_agendador_notificacoes(app)
     return app
 
 

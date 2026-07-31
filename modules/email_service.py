@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\email_service.py
-# Data e hora do último recode: 30/07/2026 20:15 -03:00
-# Motivo da alteração: enviar recuperação de acesso e validação de e-mail pelo Resend.
+# Data e hora do último recode: 31/07/2026 06:32 -03:00
+# Motivo da alteração: incluir envio de avisos e relatórios automáticos pelo Resend.
 
 import json
 from urllib.error import HTTPError, URLError
@@ -99,6 +99,45 @@ def enviar_email_validacao(
     requisicao = Request(
         "https://api.resend.com/emails", data=corpo,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "User-Agent": "NettStudy/1.0"},
+        method="POST",
+    )
+    try:
+        with urlopen(requisicao, timeout=15) as resposta:
+            if resposta.status < 200 or resposta.status >= 300:
+                raise RuntimeError(f"Resend respondeu com status {resposta.status}.")
+    except HTTPError as erro:
+        detalhe = erro.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Falha no envio pelo Resend: {detalhe}") from erro
+    except URLError as erro:
+        raise RuntimeError("Não foi possível conectar ao serviço de e-mail.") from erro
+
+
+
+def enviar_email_notificacao(
+    api_key: str,
+    remetente: str,
+    destinatario: str,
+    assunto: str,
+    html: str,
+) -> None:
+    """Envia uma notificação transacional do NettStudy pelo Resend."""
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY não configurada.")
+
+    corpo = json.dumps({
+        "from": remetente,
+        "to": [destinatario],
+        "subject": assunto,
+        "html": html,
+    }).encode("utf-8")
+    requisicao = Request(
+        "https://api.resend.com/emails",
+        data=corpo,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "NettStudy/1.0",
+        },
         method="POST",
     )
     try:

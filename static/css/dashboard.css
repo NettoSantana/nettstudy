@@ -1,7 +1,7 @@
 /*
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\static\css\dashboard.css
-Data e hora do último recode: 31/07/2026 06:01 -03:00
-Motivo da alteração: estilizar o mascote e o balão de fala no dashboard do aluno.
+Data e hora do último recode: 31/07/2026 06:32 -03:00
+Motivo da alteração: estilizar o painel responsivo de configurações de notificações.
 */
 
 :root {
@@ -899,4 +899,45 @@ a {
         top: -14px;
         transform: translateX(-50%) rotate(135deg);
     }
+}
+
+
+/* Configurações de notificações do responsável */
+.notificacoes-pagina { max-width: 980px; }
+.notificacoes-cabecalho { margin-bottom: 22px; }
+.notificacoes-cabecalho h1,
+.notificacoes-cabecalho p { margin: 0; }
+.notificacoes-cabecalho p { margin-bottom: 7px; color: var(--muted); font-size: 14px; font-weight: 800; letter-spacing: .04em; }
+.notificacoes-form { display: grid; gap: 26px; }
+.notificacao-titulo { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.notificacao-titulo p,
+.notificacao-titulo h2 { margin: 0; }
+.notificacao-titulo p { margin-bottom: 6px; color: var(--primary); font-size: 13px; font-weight: 800; letter-spacing: .04em; }
+.interruptor-linha { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 13px; background: var(--soft); color: var(--primary); font-weight: 800; cursor: pointer; }
+.interruptor-linha input { width: 20px; height: 20px; accent-color: var(--primary); }
+.dias-configuracao { margin: 0; padding: 0; border: 0; }
+.dias-configuracao legend { margin-bottom: 12px; font-weight: 800; }
+.dias-grade { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.dias-grade label { position: relative; }
+.dias-grade input { position: absolute; opacity: 0; pointer-events: none; }
+.dias-grade span { display: flex; min-height: 48px; align-items: center; justify-content: center; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: #fafbff; text-align: center; font-weight: 700; cursor: pointer; }
+.dias-grade input:checked + span { border-color: var(--primary); background: var(--soft); color: var(--primary); box-shadow: 0 0 0 2px rgba(78,92,230,.08); }
+.configuracoes-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.configuracoes-grade .campo span { font-weight: 800; }
+.configuracoes-grade .campo small { color: var(--muted); line-height: 1.4; }
+.notificacoes-opcoes { display: grid; gap: 11px; }
+.notificacoes-opcoes > label { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: start; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: #fafbff; cursor: pointer; }
+.notificacoes-opcoes input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--primary); }
+.notificacoes-opcoes span { display: grid; gap: 4px; }
+.notificacoes-opcoes small { color: var(--muted); line-height: 1.45; }
+.notificacoes-acoes { display: flex; justify-content: flex-end; padding-top: 20px; border-top: 1px solid var(--border); }
+@media (max-width: 760px) {
+    .notificacao-titulo { flex-direction: column; }
+    .interruptor-linha { width: 100%; }
+    .dias-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .configuracoes-grade { grid-template-columns: 1fr; }
+    .notificacoes-acoes .button { width: 100%; }
+}
+@media (max-width: 420px) {
+    .dias-grade { grid-template-columns: 1fr; }
 }

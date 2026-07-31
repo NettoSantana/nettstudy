@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\config.py
-# Data e hora do último recode: 30/07/2026 20:15 -03:00
-# Motivo da alteração: configurar recuperação de acesso e validação de e-mail.
+# Data e hora do último recode: 31/07/2026 06:32 -03:00
+# Motivo da alteração: configurar execução automática das notificações por e-mail.
 
 import os
 from pathlib import Path
@@ -22,6 +22,9 @@ class Config:
     RECUPERACAO_TOKEN_MINUTOS = int(os.getenv("RECUPERACAO_TOKEN_MINUTOS", "30"))
     VALIDACAO_EMAIL_HORAS = int(os.getenv("VALIDACAO_EMAIL_HORAS", "24"))
     VALIDACAO_EMAIL_REENVIO_SEGUNDOS = int(os.getenv("VALIDACAO_EMAIL_REENVIO_SEGUNDOS", "60"))
+    NOTIFICACOES_ATIVAS = os.getenv("NOTIFICACOES_ATIVAS", "1") == "1"
+    NOTIFICACOES_INTERVALO_SEGUNDOS = max(60, int(os.getenv("NOTIFICACOES_INTERVALO_SEGUNDOS", "60")))
+    NOTIFICACOES_FUSO = os.getenv("NOTIFICACOES_FUSO", "America/Bahia")
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = APP_ENV == "production"
