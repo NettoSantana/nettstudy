@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\notificacoes.py
-# Data e hora do último recode: 31/07/2026 06:32 -03:00
-# Motivo da alteração: criar configurações individuais e notificações automáticas por e-mail.
+# Data e hora do último recode: 31/07/2026 08:07 -03:00
+# Motivo da alteração: registrar falhas do agendador e executar verificação imediata das notificações.
 
 import html
 import sqlite3
@@ -318,7 +318,7 @@ def _enviar_relatorio(config: dict[str, Any], dados: dict[str, Any]) -> None:
     enviar_email_notificacao(config["api_key"], config["remetente"], config["email"], f"Relatório semanal de {nome}", _base_email("Relatório semanal", conteudo))
 
 
-def verificar_notificacoes(config_app: dict[str, Any]) -> None:
+def verificar_notificacoes(config_app: dict[str, Any], logger=None) -> None:
     try:
         fuso = ZoneInfo(config_app["NOTIFICACOES_FUSO"])
     except ZoneInfoNotFoundError:
@@ -339,6 +339,15 @@ def verificar_notificacoes(config_app: dict[str, Any]) -> None:
             """
         ).fetchall()
 
+        if logger:
+            logger.info(
+                "Verificação de notificações iniciada: %s configuração(ões) ativa(s), data=%s, hora=%s, fuso=%s.",
+                len(configuracoes),
+                data_iso,
+                hora_atual,
+                str(fuso),
+            )
+
         for registro in configuracoes:
             config = dict(registro)
             config["api_key"] = config_app["RESEND_API_KEY"]
@@ -349,13 +358,51 @@ def verificar_notificacoes(config_app: dict[str, Any]) -> None:
                 if config["avisar_conclusao"] and concluidas == 3 and not _ja_enviado(conexao, config["id"], "conclusao", data_iso):
                     _enviar_conclusao(config)
                     _registrar_envio(conexao, registro, "conclusao", data_iso)
+                    if logger:
+                        logger.info(
+                            "Notificação de conclusão enviada para aluno_id=%s, destinatário=%s, referência=%s.",
+                            config["aluno_id"],
+                            config["email"],
+                            data_iso,
+                        )
+
                 if config["avisar_atraso"] and agora.weekday() in dias and hora_atual >= config["horario_limite"] and concluidas < 3 and not _ja_enviado(conexao, config["id"], "atraso", data_iso):
                     _enviar_atraso(config)
                     _registrar_envio(conexao, registro, "atraso", data_iso)
+                    if logger:
+                        logger.info(
+                            "Notificação de atraso enviada para aluno_id=%s, destinatário=%s, referência=%s.",
+                            config["aluno_id"],
+                            config["email"],
+                            data_iso,
+                        )
+
                 if config["enviar_relatorio_semanal"] and agora.weekday() == int(config["dia_relatorio"]) and hora_atual >= config["horario_relatorio"] and not _ja_enviado(conexao, config["id"], "relatorio_semanal", semana):
                     _enviar_relatorio(config, _dados_semanais(conexao, config, agora.date()))
                     _registrar_envio(conexao, registro, "relatorio_semanal", semana)
-            except RuntimeError:
+                    if logger:
+                        logger.info(
+                            "Relatório semanal enviado para aluno_id=%s, destinatário=%s, referência=%s.",
+                            config["aluno_id"],
+                            config["email"],
+                            semana,
+                        )
+            except RuntimeError as erro:
+                if logger:
+                    logger.exception(
+                        "Falha ao enviar notificação para aluno_id=%s, destinatário=%s: %s",
+                        config["aluno_id"],
+                        config["email"],
+                        erro,
+                    )
+                continue
+            except Exception as erro:
+                if logger:
+                    logger.exception(
+                        "Erro inesperado ao processar notificações do aluno_id=%s: %s",
+                        config["aluno_id"],
+                        erro,
+                    )
                 continue
 
 
@@ -376,12 +423,27 @@ def iniciar_agendador_notificacoes(app) -> None:
         "NOTIFICACOES_INTERVALO_SEGUNDOS": app.config["NOTIFICACOES_INTERVALO_SEGUNDOS"],
     }
 
+    logger = app.logger
+
     def executar() -> None:
+        logger.info(
+            "Agendador de notificações iniciado: intervalo=%ss, fuso=%s, banco=%s.",
+            config_app["NOTIFICACOES_INTERVALO_SEGUNDOS"],
+            config_app["NOTIFICACOES_FUSO"],
+            config_app["DATABASE_PATH"],
+        )
         while True:
             try:
-                verificar_notificacoes(config_app)
-            except Exception:
-                pass
+                verificar_notificacoes(config_app, logger=logger)
+            except Exception as erro:
+                logger.exception(
+                    "Falha geral no ciclo do agendador de notificações: %s",
+                    erro,
+                )
             sleep(config_app["NOTIFICACOES_INTERVALO_SEGUNDOS"])
 
-    threading.Thread(target=executar, name="nettstudy-notificacoes", daemon=True).start()
+    threading.Thread(
+        target=executar,
+        name="nettstudy-notificacoes",
+        daemon=True,
+    ).start()
