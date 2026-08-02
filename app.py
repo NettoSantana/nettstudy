@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 31/07/2026 06:32 -03:00
-# Motivo da alteração: registrar painel e agendador automático de notificações do responsável.
+# Data e hora do último recode: 02/08/2026 13:46 -03:00
+# Motivo da alteração: integrar o consentimento parental ao cadastro seguro de cada aluno.
 
 import os
 from datetime import date
@@ -68,7 +68,7 @@ from database import (
     buscar_responsavel_por_usuario,
     buscar_usuario_por_login,
     buscar_usuario_por_id,
-    cadastrar_familia,
+    cadastrar_responsavel,
     cadastrar_aluno_para_responsavel,
     inicializar_banco,
     listar_alunos_do_responsavel,
@@ -93,6 +93,10 @@ from database import (
     validar_email_por_token,
     aplicar_reset_pedagogico_unico,
 )
+
+
+VERSAO_TERMO_CONSENTIMENTO_PARENTAL = "2026-08-02-v1"
+ORIGEM_CONSENTIMENTO_PARENTAL = "formulario_novo_aluno"
 
 
 def create_app() -> Flask:
@@ -273,11 +277,6 @@ def registrar_rotas(app: Flask) -> None:
             "nome_responsavel": "",
             "email_responsavel": "",
             "telefone_responsavel": "",
-            "parentesco": "Responsável",
-            "nome_aluno": "",
-            "nome_exibicao_aluno": "",
-            "ano_escolar": "",
-            "usuario_aluno": "",
         }
 
         if request.method == "POST":
@@ -294,26 +293,6 @@ def registrar_rotas(app: Flask) -> None:
                     "telefone_responsavel",
                     "",
                 ).strip(),
-                "parentesco": request.form.get(
-                    "parentesco",
-                    "Responsável",
-                ).strip(),
-                "nome_aluno": request.form.get(
-                    "nome_aluno",
-                    "",
-                ).strip(),
-                "nome_exibicao_aluno": request.form.get(
-                    "nome_exibicao_aluno",
-                    "",
-                ).strip(),
-                "ano_escolar": request.form.get(
-                    "ano_escolar",
-                    "",
-                ).strip(),
-                "usuario_aluno": request.form.get(
-                    "usuario_aluno",
-                    "",
-                ).strip().lower(),
             }
 
             senha_responsavel = request.form.get(
@@ -324,14 +303,6 @@ def registrar_rotas(app: Flask) -> None:
                 "confirmar_senha",
                 "",
             )
-            pin_aluno = request.form.get(
-                "pin_aluno",
-                "",
-            ).strip()
-            confirmar_pin = request.form.get(
-                "confirmar_pin",
-                "",
-            ).strip()
 
             if senha_responsavel != confirmar_senha:
                 flash(
@@ -343,29 +314,13 @@ def registrar_rotas(app: Flask) -> None:
                     dados=dados,
                 ), 400
 
-            if pin_aluno != confirmar_pin:
-                flash(
-                    "A confirmação do PIN do aluno não confere.",
-                    "erro",
-                )
-                return render_template(
-                    "novo_cadastro.html",
-                    dados=dados,
-                ), 400
-
             try:
-                cadastro = cadastrar_familia(
+                cadastro = cadastrar_responsavel(
                     caminho_banco=app.config["DATABASE_PATH"],
                     nome_responsavel=dados["nome_responsavel"],
                     email_responsavel=dados["email_responsavel"],
                     senha_responsavel=senha_responsavel,
                     telefone_responsavel=dados["telefone_responsavel"],
-                    nome_aluno=dados["nome_aluno"],
-                    nome_exibicao_aluno=dados["nome_exibicao_aluno"],
-                    ano_escolar=dados["ano_escolar"],
-                    usuario_aluno=dados["usuario_aluno"],
-                    pin_aluno=pin_aluno,
-                    parentesco=dados["parentesco"],
                 )
             except ValueError as erro:
                 flash(str(erro), "erro")
@@ -407,10 +362,10 @@ def registrar_rotas(app: Flask) -> None:
             )
 
             flash(
-                "Cadastro criado com sucesso. Bem-vindo ao NettStudy!",
+                "Conta criada. Confirme seu e-mail para cadastrar a criança.",
                 "sucesso",
             )
-            return redirect(url_for("anamnese"))
+            return redirect(url_for("dashboard_responsavel"))
 
         return render_template(
             "novo_cadastro.html",
@@ -420,10 +375,22 @@ def registrar_rotas(app: Flask) -> None:
     @app.get("/validar-email/<token>")
     def validar_email(token: str):
         if validar_email_por_token(app.config["DATABASE_PATH"], token):
-            flash("E-mail validado com sucesso.", "sucesso")
+            flash(
+                "E-mail validado. Agora você já pode cadastrar a criança.",
+                "sucesso",
+            )
+            destino = (
+                "novo_aluno"
+                if session.get("perfil") == "responsavel"
+                else "login"
+            )
         else:
             flash("Este link de validação é inválido, expirou ou já foi utilizado.", "erro")
-        destino = "dashboard_responsavel" if session.get("perfil") == "responsavel" else "login"
+            destino = (
+                "dashboard_responsavel"
+                if session.get("perfil") == "responsavel"
+                else "login"
+            )
         return redirect(url_for(destino))
 
     @app.post("/responsavel/reenviar-validacao-email")
@@ -576,6 +543,21 @@ def registrar_rotas(app: Flask) -> None:
     @login_obrigatorio("responsavel")
     def novo_aluno():
         usuario_id = int(session["usuario_id"])
+        responsavel = buscar_responsavel_por_usuario(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+        )
+        if not responsavel:
+            session.clear()
+            flash("A conta do responsável não foi encontrada.", "erro")
+            return redirect(url_for("login"))
+        if not responsavel.get("email_validado_em"):
+            flash(
+                "Confirme o e-mail do responsável antes de cadastrar a criança.",
+                "aviso",
+            )
+            return redirect(url_for("dashboard_responsavel"))
+
         alunos = listar_alunos_do_responsavel(app.config["DATABASE_PATH"], usuario_id)
         if len(alunos) >= 5:
             flash("O limite é de cinco alunos por responsável.", "aviso")
@@ -586,22 +568,52 @@ def registrar_rotas(app: Flask) -> None:
             dados = {chave: request.form.get(chave, "").strip() for chave in dados}
             pin = request.form.get("pin_aluno", "").strip()
             confirmar = request.form.get("confirmar_pin", "").strip()
+            consentimento_aceito = request.form.get(
+                "consentimento_parental",
+                "",
+            ).strip().lower() in {"1", "on", "true", "sim"}
+            declaracao_responsavel = request.form.get(
+                "declaracao_responsavel",
+                "",
+            ).strip().lower() in {"1", "on", "true", "sim"}
             if pin != confirmar:
                 flash("A confirmação do PIN não confere.", "erro")
-                return render_template("novo_aluno.html", dados=dados, total_alunos=len(alunos)), 400
+                return render_template(
+                    "novo_aluno.html",
+                    dados=dados,
+                    total_alunos=len(alunos),
+                    versao_termo_consentimento=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
+                ), 400
             try:
                 cadastro = cadastrar_aluno_para_responsavel(
                     app.config["DATABASE_PATH"], usuario_id,
                     dados["nome_aluno"], dados["nome_exibicao_aluno"], dados["ano_escolar"],
                     dados["usuario_aluno"], pin, dados["parentesco"],
+                    consentimento_aceito=consentimento_aceito,
+                    declaracao_responsavel=declaracao_responsavel,
+                    versao_termo=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
+                    origem_confirmacao=ORIGEM_CONSENTIMENTO_PARENTAL,
                 )
             except ValueError as erro:
                 flash(str(erro), "erro")
-                return render_template("novo_aluno.html", dados=dados, total_alunos=len(alunos)), 400
+                return render_template(
+                    "novo_aluno.html",
+                    dados=dados,
+                    total_alunos=len(alunos),
+                    versao_termo_consentimento=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
+                ), 400
             session["aluno_responsavel_id"] = cadastro["aluno_id"]
-            flash("Aluno adicionado. Agora preencha a anamnese individual.", "sucesso")
+            flash(
+                "Aluno adicionado com o consentimento parental registrado. Agora preencha a avaliação inicial educacional.",
+                "sucesso",
+            )
             return redirect(url_for("anamnese", aluno_id=cadastro["aluno_id"]))
-        return render_template("novo_aluno.html", dados=dados, total_alunos=len(alunos))
+        return render_template(
+            "novo_aluno.html",
+            dados=dados,
+            total_alunos=len(alunos),
+            versao_termo_consentimento=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
+        )
 
     @app.get("/responsavel/perfil-pedagogico")
     @login_obrigatorio("responsavel")
