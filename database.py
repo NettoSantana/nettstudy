@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 30/07/2026 21:27 -03:00
-# Motivo da alteração: preservar o vínculo da sessão de Leitura e zerar uma vez os dados pedagógicos de teste.
+# Data e hora do último recode: 02/08/2026 12:45 -03:00
+# Motivo da alteração: exigir e registrar consentimento parental antes de cadastrar cada aluno.
 
 import hashlib
 import json
@@ -288,6 +288,37 @@ CREATE INDEX IF NOT EXISTS idx_tokens_validacao_email_responsavel
 """
 
 
+CONSENTIMENTO_PARENTAL_SCHEMA = """
+CREATE TABLE IF NOT EXISTS consentimentos_parentais (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    responsavel_id INTEGER NOT NULL,
+    aluno_id INTEGER NOT NULL,
+    finalidade TEXT NOT NULL,
+    versao_termo TEXT NOT NULL,
+    origem_confirmacao TEXT NOT NULL,
+    metodo_verificacao TEXT NOT NULL,
+    declarou_responsabilidade INTEGER NOT NULL
+        CHECK (declarou_responsabilidade = 1),
+    consentido_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revogado_em TEXT,
+    motivo_revogacao TEXT,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (responsavel_id) REFERENCES responsaveis(id) ON DELETE CASCADE,
+    FOREIGN KEY (aluno_id) REFERENCES alunos(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_consentimentos_parentais_responsavel
+    ON consentimentos_parentais (responsavel_id, consentido_em);
+
+CREATE INDEX IF NOT EXISTS idx_consentimentos_parentais_aluno
+    ON consentimentos_parentais (aluno_id, consentido_em);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_consentimento_parental_ativo
+    ON consentimentos_parentais (aluno_id, finalidade)
+    WHERE revogado_em IS NULL;
+"""
+
+
 def conectar(caminho_banco: str) -> sqlite3.Connection:
     Path(caminho_banco).parent.mkdir(parents=True, exist_ok=True)
     conexao = sqlite3.connect(caminho_banco)
@@ -303,6 +334,7 @@ def inicializar_banco(caminho_banco: str) -> None:
         conexao.executescript(RESET_MISSAO_SCHEMA)
         conexao.executescript(RECUPERACAO_ACESSO_SCHEMA)
         conexao.executescript(VALIDACAO_EMAIL_SCHEMA)
+        conexao.executescript(CONSENTIMENTO_PARENTAL_SCHEMA)
         _migrar_validacao_email(conexao)
         _criar_dados_demonstracao(conexao)
 
@@ -369,9 +401,10 @@ def _criar_dados_demonstracao(conexao: sqlite3.Connection) -> None:
         INSERT INTO responsaveis (
             usuario_id,
             nome_completo,
-            email
+            email,
+            email_validado_em
         )
-        VALUES (?, ?, ?)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         """,
         (
             cursor_responsavel.lastrowid,
@@ -416,6 +449,15 @@ def _criar_dados_demonstracao(conexao: sqlite3.Connection) -> None:
         ),
     )
 
+    _registrar_consentimento_parental(
+        conexao=conexao,
+        responsavel_id=int(responsavel_id),
+        aluno_id=int(aluno_id),
+        versao_termo="DEMONSTRACAO",
+        origem_confirmacao="dados_demonstracao",
+        metodo_verificacao="ambiente_demonstracao",
+    )
+
 
 def _garantir_vinculos_demonstracao(conexao: sqlite3.Connection) -> None:
     usuario_responsavel = conexao.execute(
@@ -446,9 +488,10 @@ def _garantir_vinculos_demonstracao(conexao: sqlite3.Connection) -> None:
         INSERT OR IGNORE INTO responsaveis (
             usuario_id,
             nome_completo,
-            email
+            email,
+            email_validado_em
         )
-        VALUES (?, ?, ?)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         """,
         (
             usuario_responsavel["id"],
@@ -502,6 +545,14 @@ def _garantir_vinculos_demonstracao(conexao: sqlite3.Connection) -> None:
                 "Responsável",
                 1,
             ),
+        )
+        _registrar_consentimento_parental(
+            conexao=conexao,
+            responsavel_id=int(responsavel["id"]),
+            aluno_id=int(aluno["id"]),
+            versao_termo="DEMONSTRACAO",
+            origem_confirmacao="dados_demonstracao",
+            metodo_verificacao="ambiente_demonstracao",
         )
 
 
@@ -710,6 +761,76 @@ def buscar_aluno_do_responsavel(
     return dict(registro) if registro else None
 
 
+def _validar_consentimento_parental(
+    consentimento_aceito: bool,
+    declaracao_responsavel: bool,
+    versao_termo: str,
+    origem_confirmacao: str,
+) -> tuple[str, str]:
+    versao_normalizada = versao_termo.strip()
+    origem_normalizada = origem_confirmacao.strip()
+
+    if consentimento_aceito is not True:
+        raise ValueError(
+            "O consentimento parental é obrigatório para cadastrar o aluno."
+        )
+    if declaracao_responsavel is not True:
+        raise ValueError(
+            "Confirme que você é responsável legal ou possui autorização válida."
+        )
+    if not versao_normalizada:
+        raise ValueError("A versão do termo de consentimento não foi informada.")
+    if not origem_normalizada:
+        raise ValueError("A origem da confirmação do consentimento não foi informada.")
+
+    return versao_normalizada, origem_normalizada
+
+
+def _registrar_consentimento_parental(
+    conexao: sqlite3.Connection,
+    responsavel_id: int,
+    aluno_id: int,
+    versao_termo: str,
+    origem_confirmacao: str,
+    metodo_verificacao: str,
+) -> int:
+    conexao.execute(
+        """
+        INSERT OR IGNORE INTO consentimentos_parentais (
+            responsavel_id,
+            aluno_id,
+            finalidade,
+            versao_termo,
+            origem_confirmacao,
+            metodo_verificacao,
+            declarou_responsabilidade
+        )
+        VALUES (?, ?, 'tratamento_educacional_essencial', ?, ?, ?, 1)
+        """,
+        (
+            responsavel_id,
+            aluno_id,
+            versao_termo,
+            origem_confirmacao,
+            metodo_verificacao,
+        ),
+    )
+    registro = conexao.execute(
+        """
+        SELECT id
+        FROM consentimentos_parentais
+        WHERE responsavel_id = ?
+          AND aluno_id = ?
+          AND finalidade = 'tratamento_educacional_essencial'
+          AND revogado_em IS NULL
+        """,
+        (responsavel_id, aluno_id),
+    ).fetchone()
+    if not registro:
+        raise ValueError("Não foi possível registrar o consentimento parental.")
+    return int(registro["id"])
+
+
 def cadastrar_aluno_para_responsavel(
     caminho_banco: str,
     usuario_responsavel_id: int,
@@ -720,12 +841,22 @@ def cadastrar_aluno_para_responsavel(
     pin_aluno: str,
     parentesco: str = "Responsável",
     limite_alunos: int = 5,
+    consentimento_aceito: bool = False,
+    declaracao_responsavel: bool = False,
+    versao_termo: str = "",
+    origem_confirmacao: str = "",
 ) -> dict[str, int]:
     nome_aluno = nome_aluno.strip()
     nome_exibicao_aluno = nome_exibicao_aluno.strip()
     ano_escolar = ano_escolar.strip()
     usuario_aluno = usuario_aluno.strip().lower()
     parentesco = parentesco.strip() or "Responsável"
+    versao_termo, origem_confirmacao = _validar_consentimento_parental(
+        consentimento_aceito,
+        declaracao_responsavel,
+        versao_termo,
+        origem_confirmacao,
+    )
 
     if not nome_aluno:
         raise ValueError("Informe o nome do aluno.")
@@ -739,11 +870,19 @@ def cadastrar_aluno_para_responsavel(
     try:
         with conectar(caminho_banco) as conexao:
             responsavel = conexao.execute(
-                "SELECT id FROM responsaveis WHERE usuario_id = ? AND ativo = 1",
+                """
+                SELECT id, email_validado_em
+                FROM responsaveis
+                WHERE usuario_id = ? AND ativo = 1
+                """,
                 (usuario_responsavel_id,),
             ).fetchone()
             if not responsavel:
                 raise ValueError("Responsável não encontrado.")
+            if not responsavel["email_validado_em"]:
+                raise ValueError(
+                    "Confirme o e-mail do responsável antes de cadastrar um aluno."
+                )
 
             quantidade = conexao.execute(
                 """
@@ -778,9 +917,18 @@ def cadastrar_aluno_para_responsavel(
                 """,
                 (responsavel["id"], cursor_aluno.lastrowid, parentesco),
             )
+            consentimento_id = _registrar_consentimento_parental(
+                conexao=conexao,
+                responsavel_id=int(responsavel["id"]),
+                aluno_id=int(cursor_aluno.lastrowid),
+                versao_termo=versao_termo,
+                origem_confirmacao=origem_confirmacao,
+                metodo_verificacao="email_confirmado_sessao_autenticada",
+            )
             return {
                 "usuario_aluno_id": int(cursor_usuario.lastrowid),
                 "aluno_id": int(cursor_aluno.lastrowid),
+                "consentimento_id": consentimento_id,
             }
     except sqlite3.IntegrityError as erro:
         if "usuarios.identificador" in str(erro).lower():
@@ -806,27 +954,16 @@ def identificador_disponivel(
     return registro is None
 
 
-def cadastrar_familia(
+def cadastrar_responsavel(
     caminho_banco: str,
     nome_responsavel: str,
     email_responsavel: str,
     senha_responsavel: str,
     telefone_responsavel: str,
-    nome_aluno: str,
-    nome_exibicao_aluno: str,
-    ano_escolar: str,
-    usuario_aluno: str,
-    pin_aluno: str,
-    parentesco: str = "Responsável",
 ) -> dict[str, int]:
     nome_responsavel = nome_responsavel.strip()
     email_responsavel = email_responsavel.strip().lower()
     telefone_responsavel = telefone_responsavel.strip()
-    nome_aluno = nome_aluno.strip()
-    nome_exibicao_aluno = nome_exibicao_aluno.strip()
-    ano_escolar = ano_escolar.strip()
-    usuario_aluno = usuario_aluno.strip().lower()
-    parentesco = parentesco.strip() or "Responsável"
 
     if not nome_responsavel:
         raise ValueError("Informe o nome do responsável.")
@@ -836,18 +973,6 @@ def cadastrar_familia(
 
     if len(senha_responsavel) < 8:
         raise ValueError("A senha do responsável deve ter pelo menos 8 caracteres.")
-
-    if not nome_aluno:
-        raise ValueError("Informe o nome do aluno.")
-
-    if not nome_exibicao_aluno:
-        nome_exibicao_aluno = nome_aluno.split()[0]
-
-    if not usuario_aluno:
-        raise ValueError("Informe o usuário do aluno.")
-
-    if not pin_aluno.isdigit() or len(pin_aluno) != 4:
-        raise ValueError("O PIN do aluno deve conter exatamente 4 números.")
 
     try:
         with conectar(caminho_banco) as conexao:
@@ -886,74 +1011,18 @@ def cadastrar_familia(
                 ),
             )
 
-            cursor_usuario_aluno = conexao.execute(
-                """
-                INSERT INTO usuarios (
-                    nome,
-                    identificador,
-                    senha_hash,
-                    perfil
-                )
-                VALUES (?, ?, ?, 'aluno')
-                """,
-                (
-                    nome_exibicao_aluno,
-                    usuario_aluno,
-                    generate_password_hash(pin_aluno),
-                ),
-            )
-
-            cursor_aluno = conexao.execute(
-                """
-                INSERT INTO alunos (
-                    usuario_id,
-                    nome_completo,
-                    nome_exibicao,
-                    ano_escolar
-                )
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    cursor_usuario_aluno.lastrowid,
-                    nome_aluno,
-                    nome_exibicao_aluno,
-                    ano_escolar or None,
-                ),
-            )
-
-            conexao.execute(
-                """
-                INSERT INTO responsavel_aluno (
-                    responsavel_id,
-                    aluno_id,
-                    parentesco,
-                    principal
-                )
-                VALUES (?, ?, ?, 1)
-                """,
-                (
-                    cursor_responsavel.lastrowid,
-                    cursor_aluno.lastrowid,
-                    parentesco,
-                ),
-            )
-
             return {
                 "usuario_responsavel_id": int(
                     cursor_usuario_responsavel.lastrowid
                 ),
                 "responsavel_id": int(cursor_responsavel.lastrowid),
-                "usuario_aluno_id": int(cursor_usuario_aluno.lastrowid),
-                "aluno_id": int(cursor_aluno.lastrowid),
             }
 
     except sqlite3.IntegrityError as erro:
         mensagem = str(erro).lower()
 
         if "usuarios.identificador" in mensagem:
-            raise ValueError(
-                "O e-mail do responsável ou o usuário do aluno já está em uso."
-            ) from erro
+            raise ValueError("O e-mail do responsável já está em uso.") from erro
 
         if "responsaveis.email" in mensagem:
             raise ValueError(
@@ -963,6 +1032,29 @@ def cadastrar_familia(
         raise ValueError(
             "Não foi possível concluir o cadastro. Revise os dados informados."
         ) from erro
+
+
+def cadastrar_familia(
+    caminho_banco: str,
+    nome_responsavel: str,
+    email_responsavel: str,
+    senha_responsavel: str,
+    telefone_responsavel: str,
+    nome_aluno: str,
+    nome_exibicao_aluno: str,
+    ano_escolar: str,
+    usuario_aluno: str,
+    pin_aluno: str,
+    parentesco: str = "Responsável",
+) -> dict[str, int]:
+    """Compatibilidade temporária: cadastra somente a conta do responsável."""
+    return cadastrar_responsavel(
+        caminho_banco=caminho_banco,
+        nome_responsavel=nome_responsavel,
+        email_responsavel=email_responsavel,
+        senha_responsavel=senha_responsavel,
+        telefone_responsavel=telefone_responsavel,
+    )
 
 
 
