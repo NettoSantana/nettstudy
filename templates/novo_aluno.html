@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\novo_aluno.html
-Data e hora do último recode: 30/07/2026 19:58 -03:00
-Motivo da alteração: melhorar os rótulos do cadastro e transformar parentesco em caixa suspensa.
+Data e hora do último recode: 02/08/2026 18:02 -03:00
+Motivo da alteração: exigir consentimento parental específico antes da criação de cada perfil infantil.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -23,7 +23,8 @@ Motivo da alteração: melhorar os rótulos do cadastro e transformar parentesco
             <h1>Adicionar aluno</h1>
 
             <p class="texto-suave">
-                Cada filho terá usuário, PIN, anamnese, atividades e progresso próprios.
+                Cada filho terá usuário, PIN, avaliação inicial educacional,
+                atividades e progresso próprios.
                 {{ total_alunos }} de 5 perfis já utilizados.
             </p>
 
@@ -168,6 +169,95 @@ Motivo da alteração: melhorar os rótulos do cadastro e transformar parentesco
                         >
                     </div>
                 </div>
+
+                <section class="consentimento-caixa" aria-labelledby="titulo-consentimento">
+                    <div class="consentimento-cabecalho">
+                        <div>
+                            <p>AUTORIZAÇÃO PARENTAL</p>
+                            <h2 id="titulo-consentimento">
+                                Como os dados deste aluno serão utilizados
+                            </h2>
+                        </div>
+
+                        <span class="consentimento-versao">
+                            Versão {{ versao_termo_consentimento }}
+                        </span>
+                    </div>
+
+                    <div class="consentimento-informacoes">
+                        <article>
+                            <h3>Dados utilizados</h3>
+                            <p>
+                                Nome, nome de exibição, ano escolar, vínculo com o
+                                responsável, respostas, progresso e configurações
+                                educacionais.
+                            </p>
+                        </article>
+
+                        <article>
+                            <h3>Finalidade</h3>
+                            <p>
+                                Criar atividades, acompanhar o aprendizado, adaptar
+                                a dificuldade e permitir a supervisão do responsável.
+                            </p>
+                        </article>
+
+                        <article>
+                            <h3>Inteligência artificial</h3>
+                            <p>
+                                Recursos educacionais poderão usar inteligência
+                                artificial identificada como IA, com contexto mínimo
+                                e limitado ao aprendizado.
+                            </p>
+                        </article>
+
+                        <article>
+                            <h3>Armazenamento e fornecedores</h3>
+                            <p>
+                                Os dados ficam na infraestrutura do NettStudy durante
+                                a conta ativa. Hospedagem, e-mail e IA recebem somente
+                                o necessário para executar cada serviço.
+                            </p>
+                        </article>
+                    </div>
+
+                    <p class="consentimento-nota">
+                        O responsável poderá solicitar correção, exportação, revogação
+                        ou exclusão. Sem esta autorização, o perfil infantil não será
+                        criado. Após o encerramento, dados pedagógicos serão eliminados
+                        ou anonimizados conforme os prazos de retenção aplicáveis.
+                    </p>
+
+                    <div class="consentimento-confirmacoes">
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="declaracao_responsavel"
+                                value="1"
+                                required
+                            >
+                            <span>
+                                Declaro que sou responsável legal por esta criança ou
+                                que possuo autorização válida para criar e administrar
+                                este perfil.
+                            </span>
+                        </label>
+
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="consentimento_parental"
+                                value="1"
+                                required
+                            >
+                            <span>
+                                Li as informações acima e autorizo o tratamento dos
+                                dados deste aluno para as finalidades educacionais
+                                essenciais descritas.
+                            </span>
+                        </label>
+                    </div>
+                </section>
 
                 <div class="navegacao-etapas">
                     <a
