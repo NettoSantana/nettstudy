@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_responsavel.html
-Data e hora do último recode: 31/07/2026 06:32 -03:00
-Motivo da alteração: adicionar acesso às configurações individuais de notificações.
+Data e hora do último recode: 02/08/2026 17:39 -03:00
+Motivo da alteração: substituir o termo "Anamnese" por "Avaliação inicial educacional" nos textos visíveis do painel do responsável.
 -->
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NettStudy | Responsável</title><link rel="stylesheet" href="{{ url_for('static',filename='css/dashboard.css') }}"></head><body>
 <header class="topbar"><a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a><span>{{ responsavel.nome_completo if responsavel else usuario_logado }}</span><a class="button secondary" href="{{ url_for('notificacoes.configuracoes_notificacoes', aluno_id=aluno.id if aluno else none) }}">Notificações</a><a class="button secondary" href="{{ url_for('sair') }}">Sair</a></header>
@@ -64,7 +64,7 @@ Motivo da alteração: adicionar acesso às configurações individuais de notif
 <p>PAINEL DO RESPONSÁVEL</p><h1>Progresso de {{ aluno.nome }}</h1>
 <div class="metrics"><div class="metric"><span>Sequência</span><strong>{{ aluno.sequencia }} dias</strong></div><div class="metric"><span>Pontos</span><strong>{{ aluno.pontos }}</strong></div><div class="metric"><span>Missão de hoje</span><strong>{{ aluno.progresso_dia }}%</strong></div></div>
 <section class="panel"><h2>Atividades de hoje</h2>{% for item in aluno.atividades %}<div class="activity-row"><div><strong>{{ item.nome }}</strong><small>{{ item.progresso }}% concluído</small></div><span class="status">{{ item.status }}</span></div>{% endfor %}</section>
-<section class="panel"><h2>Anamnese de {{ aluno.nome }}</h2>{% if anamnese %}<p>Concluída. O perfil inicial deste aluno está registrado.</p><a class="button secondary" href="{{ url_for('anamnese',aluno_id=aluno.id) }}">Revisar anamnese</a>{% else %}<p>Cada aluno precisa de uma anamnese própria.</p><a class="button" href="{{ url_for('anamnese',aluno_id=aluno.id) }}">Preencher anamnese</a>{% endif %}</section>
+<section class="panel"><h2>Avaliação inicial educacional de {{ aluno.nome }}</h2>{% if anamnese %}<p>Concluída. O perfil inicial deste aluno está registrado.</p><a class="button secondary" href="{{ url_for('anamnese',aluno_id=aluno.id) }}">Revisar avaliação</a>{% else %}<p>Cada aluno precisa de uma avaliação inicial educacional própria.</p><a class="button" href="{{ url_for('anamnese',aluno_id=aluno.id) }}">Preencher avaliação</a>{% endif %}</section>
 {% if perfil_pedagogico %}<section class="panel perfil-resumo"><div><p>PERFIL PEDAGÓGICO</p><h2>{{ perfil_pedagogico.faixa_desenvolvimento }}</h2><span class="texto-suave">{% if perfil_pedagogico.fase=='diagnostico' %}Diagnóstico silencioso: {{ perfil_pedagogico.dias_restantes_diagnostico }} dia(s) restante(s).{% else %}Trilha adaptativa ativa.{% endif %}</span></div><div class="niveis-resumo"><span>Matemática <strong>Nível {{ perfil_pedagogico.nivel_matematica }}</strong></span><span>Português <strong>Nível {{ perfil_pedagogico.nivel_portugues }}</strong></span><span>Leitura <strong>Nível {{ perfil_pedagogico.nivel_leitura }}</strong></span></div><a class="button secondary" href="{{ url_for('perfil_pedagogico',aluno_id=aluno.id) }}">Ver habilidades e evolução</a></section>{% endif %}
 {% if relatorio %}
 <section class="panel">
