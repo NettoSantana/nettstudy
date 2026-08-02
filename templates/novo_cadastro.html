@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\novo_cadastro.html
-Data e hora do último recode: 30/07/2026 14:41 -03:00
-Motivo da alteração: criar a tela pública de cadastro conjunto do responsável e do aluno.
+Data e hora do último recode: 02/08/2026 17:13 -03:00
+Motivo da alteração: separar o cadastro do responsável do cadastro protegido do aluno e orientar a confirmação do e-mail.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,7 +13,7 @@ Motivo da alteração: criar a tela pública de cadastro conjunto do responsáve
     >
     <meta
         name="description"
-        content="Crie sua conta no NettStudy e cadastre o primeiro aluno."
+        content="Crie a conta do responsável no NettStudy."
     >
     <title>Novo cadastro | NettStudy</title>
 
@@ -391,8 +391,9 @@ Motivo da alteração: criar a tela pública de cadastro conjunto do responsáve
                 <div class="cabecalho-formulario">
                     <h1>Crie a conta da família</h1>
                     <p>
-                        Cadastre o responsável e o primeiro aluno.
-                        Depois você poderá acompanhar toda a evolução.
+                        Primeiro cadastre o responsável e confirme o e-mail.
+                        Os dados do aluno serão solicitados somente na próxima
+                        etapa, com sua autorização.
                     </p>
                 </div>
 
@@ -489,162 +490,6 @@ Motivo da alteração: criar a tela pública de cadastro conjunto do responsáve
                                 >
                             </div>
 
-                            <div class="campo largo">
-                                <label for="parentesco">
-                                    Relação com o aluno
-                                </label>
-                                <select
-                                    id="parentesco"
-                                    name="parentesco"
-                                    required
-                                >
-                                    {% set parentesco_atual = dados.parentesco %}
-                                    <option
-                                        value="Pai"
-                                        {% if parentesco_atual == 'Pai' %}selected{% endif %}
-                                    >
-                                        Pai
-                                    </option>
-                                    <option
-                                        value="Mãe"
-                                        {% if parentesco_atual == 'Mãe' %}selected{% endif %}
-                                    >
-                                        Mãe
-                                    </option>
-                                    <option
-                                        value="Responsável"
-                                        {% if parentesco_atual == 'Responsável' %}selected{% endif %}
-                                    >
-                                        Responsável
-                                    </option>
-                                    <option
-                                        value="Outro"
-                                        {% if parentesco_atual == 'Outro' %}selected{% endif %}
-                                    >
-                                        Outro
-                                    </option>
-                                </select>
-                            </div>
-                        </div>
-                    </fieldset>
-
-                    <fieldset>
-                        <legend>Dados do aluno</legend>
-
-                        <div class="grade">
-                            <div class="campo largo">
-                                <label for="nome_aluno">
-                                    Nome completo do aluno
-                                </label>
-                                <input
-                                    id="nome_aluno"
-                                    name="nome_aluno"
-                                    type="text"
-                                    value="{{ dados.nome_aluno }}"
-                                    maxlength="120"
-                                    autocomplete="off"
-                                    required
-                                >
-                            </div>
-
-                            <div class="campo">
-                                <label for="nome_exibicao_aluno">
-                                    Como quer ser chamado
-                                </label>
-                                <input
-                                    id="nome_exibicao_aluno"
-                                    name="nome_exibicao_aluno"
-                                    type="text"
-                                    value="{{ dados.nome_exibicao_aluno }}"
-                                    maxlength="50"
-                                    autocomplete="off"
-                                    placeholder="Ex.: João"
-                                >
-                            </div>
-
-                            <div class="campo">
-                                <label for="ano_escolar">
-                                    Ano escolar
-                                </label>
-                                <select id="ano_escolar" name="ano_escolar">
-                                    {% set ano_atual = dados.ano_escolar %}
-                                    <option value="">Selecione</option>
-                                    {% for ano in [
-                                        '1º ano',
-                                        '2º ano',
-                                        '3º ano',
-                                        '4º ano',
-                                        '5º ano',
-                                        '6º ano',
-                                        '7º ano',
-                                        '8º ano',
-                                        '9º ano'
-                                    ] %}
-                                        <option
-                                            value="{{ ano }}"
-                                            {% if ano_atual == ano %}selected{% endif %}
-                                        >
-                                            {{ ano }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="campo">
-                                <label for="usuario_aluno">
-                                    Usuário do aluno
-                                </label>
-                                <input
-                                    id="usuario_aluno"
-                                    name="usuario_aluno"
-                                    type="text"
-                                    value="{{ dados.usuario_aluno }}"
-                                    maxlength="40"
-                                    autocomplete="username"
-                                    pattern="[A-Za-z0-9._-]+"
-                                    required
-                                >
-                                <span class="ajuda">
-                                    Sem espaços. Ex.: joao.silva
-                                </span>
-                            </div>
-
-                            <div class="campo">
-                                <label for="pin_aluno">
-                                    PIN do aluno
-                                </label>
-                                <input
-                                    id="pin_aluno"
-                                    name="pin_aluno"
-                                    type="password"
-                                    inputmode="numeric"
-                                    minlength="4"
-                                    maxlength="4"
-                                    pattern="[0-9]{4}"
-                                    autocomplete="new-password"
-                                    required
-                                >
-                                <span class="ajuda">
-                                    Exatamente 4 números.
-                                </span>
-                            </div>
-
-                            <div class="campo">
-                                <label for="confirmar_pin">
-                                    Confirmar PIN
-                                </label>
-                                <input
-                                    id="confirmar_pin"
-                                    name="confirmar_pin"
-                                    type="password"
-                                    inputmode="numeric"
-                                    minlength="4"
-                                    maxlength="4"
-                                    pattern="[0-9]{4}"
-                                    autocomplete="new-password"
-                                    required
-                                >
-                            </div>
                         </div>
                     </fieldset>
 
@@ -654,26 +499,26 @@ Motivo da alteração: criar a tela pública de cadastro conjunto do responsáve
                         </a>
 
                         <button class="botao" type="submit">
-                            Criar conta e continuar
+                            Criar conta e confirmar e-mail
                         </button>
                     </div>
                 </form>
             </section>
 
             <aside class="card resumo">
-                <h2>Como funciona</h2>
+                <h2>Cadastro protegido</h2>
                 <p>
-                    O responsável controla a conta e o aluno usa um acesso
-                    simples para estudar.
+                    A conta é criada primeiro para o adulto. Nenhum dado da
+                    criança é solicitado antes da confirmação do responsável.
                 </p>
 
                 <ol class="resumo-lista">
                     <li class="resumo-item">
                         <span class="resumo-numero">1</span>
                         <div>
-                            <strong>Crie a conta</strong>
+                            <strong>Cadastre o responsável</strong>
                             <span>
-                                Informe os dados do responsável pela criança.
+                                Informe apenas os dados do adulto responsável.
                             </span>
                         </div>
                     </li>
@@ -681,9 +526,10 @@ Motivo da alteração: criar a tela pública de cadastro conjunto do responsáve
                     <li class="resumo-item">
                         <span class="resumo-numero">2</span>
                         <div>
-                            <strong>Cadastre o aluno</strong>
+                            <strong>Confirme o e-mail</strong>
                             <span>
-                                Defina o nome de acesso e um PIN de 4 números.
+                                Valide o endereço informado para proteger a
+                                conta.
                             </span>
                         </div>
                     </li>
@@ -691,9 +537,10 @@ Motivo da alteração: criar a tela pública de cadastro conjunto do responsáve
                     <li class="resumo-item">
                         <span class="resumo-numero">3</span>
                         <div>
-                            <strong>Acompanhe o progresso</strong>
+                            <strong>Autorize e adicione o aluno</strong>
                             <span>
-                                Veja atividades, evolução e dificuldades.
+                                Leia o aviso, confirme sua responsabilidade e
+                                autorize o uso dos dados necessários.
                             </span>
                         </div>
                     </li>
