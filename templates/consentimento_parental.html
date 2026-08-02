@@ -1,0 +1,193 @@
+<!--
+Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\consentimento_parental.html
+Data e hora do último recode: 02/08/2026 18:02 -03:00
+Motivo da alteração: regularizar no primeiro login os perfis infantis antigos sem consentimento parental registrado.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>NettStudy | Consentimento parental</title>
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static',filename='css/dashboard.css') }}"
+    >
+</head>
+<body>
+    <header class="topbar">
+        <span class="brand">NettStudy</span>
+        <span>{{ responsavel.nome_completo }}</span>
+        <a class="button secondary" href="{{ url_for('sair') }}">
+            Sair
+        </a>
+    </header>
+
+    <main class="content consentimento-pagina">
+        {% with mensagens=get_flashed_messages(with_categories=true) %}
+            {% for categoria,mensagem in mensagens %}
+                <div class="flash {{ categoria }}">
+                    {{ mensagem }}
+                </div>
+            {% endfor %}
+        {% endwith %}
+
+        <section class="panel consentimento-card">
+            <div class="consentimento-cabecalho">
+                <div>
+                    <p>ATUALIZAÇÃO OBRIGATÓRIA DE PRIVACIDADE</p>
+                    <h1>Autorize o perfil de {{ aluno.nome_exibicao }}</h1>
+                </div>
+
+                <span class="consentimento-versao">
+                    Versão {{ versao_termo_consentimento }}
+                </span>
+            </div>
+
+            <p class="texto-suave">
+                Este perfil foi criado antes do registro individual de
+                consentimento parental. O NettStudy precisa da sua confirmação
+                antes de liberar novamente o ambiente da família.
+            </p>
+
+            <div class="consentimento-progresso">
+                <strong>{{ total_pendentes }}</strong>
+                <span>
+                    {% if total_pendentes == 1 %}
+                        perfil infantil aguardando autorização
+                    {% else %}
+                        perfis infantis aguardando autorização
+                    {% endif %}
+                </span>
+            </div>
+
+            <section class="consentimento-aluno" aria-label="Perfil em regularização">
+                <div>
+                    <span>Aluno</span>
+                    <strong>{{ aluno.nome_completo }}</strong>
+                </div>
+
+                <div>
+                    <span>Ano escolar</span>
+                    <strong>{{ aluno.ano_escolar or 'Não informado' }}</strong>
+                </div>
+
+                <div>
+                    <span>Vínculo informado</span>
+                    <strong>{{ aluno.parentesco or 'Responsável' }}</strong>
+                </div>
+            </section>
+
+            {% if not email_validado %}
+                <section class="aviso-validacao-email">
+                    <div>
+                        <strong>Confirme seu e-mail primeiro.</strong>
+                        <span>
+                            A autorização só pode ser registrada depois da
+                            confirmação de {{ responsavel.email }}.
+                        </span>
+                    </div>
+
+                    <form
+                        method="post"
+                        action="{{ url_for('reenviar_validacao_email') }}"
+                    >
+                        <button class="button secondary" type="submit">
+                            Reenviar e-mail
+                        </button>
+                    </form>
+                </section>
+            {% else %}
+                <form method="post" class="anamnese-form">
+                    <input type="hidden" name="aluno_id" value="{{ aluno.id }}">
+
+                    <div class="consentimento-informacoes">
+                        <article>
+                            <h2>Dados utilizados</h2>
+                            <p>
+                                Nome, nome de exibição, ano escolar, vínculo com o
+                                responsável, respostas, progresso e configurações
+                                educacionais.
+                            </p>
+                        </article>
+
+                        <article>
+                            <h2>Para que serão utilizados</h2>
+                            <p>
+                                Criar atividades, acompanhar o aprendizado, adaptar
+                                a dificuldade e permitir sua supervisão pelo painel
+                                do responsável.
+                            </p>
+                        </article>
+
+                        <article>
+                            <h2>Inteligência artificial</h2>
+                            <p>
+                                Recursos educacionais poderão usar inteligência
+                                artificial identificada como IA, com contexto mínimo
+                                e limitado ao aprendizado.
+                            </p>
+                        </article>
+
+                        <article>
+                            <h2>Armazenamento e fornecedores</h2>
+                            <p>
+                                Os dados ficam na infraestrutura do NettStudy durante
+                                a conta ativa. Hospedagem, e-mail e IA recebem somente
+                                o necessário para executar cada serviço.
+                            </p>
+                        </article>
+                    </div>
+
+                    <p class="consentimento-nota">
+                        Você poderá solicitar correção, exportação, revogação ou
+                        exclusão. Sem autorizar, o perfil continuará bloqueado. Após
+                        o encerramento, dados pedagógicos serão eliminados ou
+                        anonimizados conforme os prazos de retenção aplicáveis.
+                    </p>
+
+                    <div class="consentimento-confirmacoes">
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="declaracao_responsavel"
+                                value="1"
+                                required
+                            >
+                            <span>
+                                Declaro que sou responsável legal por esta criança ou
+                                que possuo autorização válida para administrar este
+                                perfil.
+                            </span>
+                        </label>
+
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="consentimento_parental"
+                                value="1"
+                                required
+                            >
+                            <span>
+                                Li as informações acima e autorizo o tratamento dos
+                                dados deste aluno para as finalidades educacionais
+                                essenciais descritas.
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="consentimento-acoes">
+                        <a class="button secondary" href="{{ url_for('sair') }}">
+                            Não autorizar e sair
+                        </a>
+
+                        <button class="button" type="submit">
+                            Autorizar este perfil
+                        </button>
+                    </div>
+                </form>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

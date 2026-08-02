@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 02/08/2026 13:46 -03:00
-# Motivo da alteração: integrar o consentimento parental ao cadastro seguro de cada aluno.
+# Data e hora do último recode: 02/08/2026 18:02 -03:00
+# Motivo da alteração: exigir consentimento parental de perfis novos e antigos antes de qualquer uso infantil.
 
 import os
 from datetime import date
@@ -70,8 +70,10 @@ from database import (
     buscar_usuario_por_id,
     cadastrar_responsavel,
     cadastrar_aluno_para_responsavel,
+    aluno_possui_consentimento_parental_ativo,
     inicializar_banco,
     listar_alunos_do_responsavel,
+    listar_alunos_sem_consentimento_parental,
     finalizar_sessao_adaptativa,
     obter_ou_criar_sessao_adaptativa,
     obter_resumo_diario,
@@ -92,11 +94,13 @@ from database import (
     criar_token_validacao_email,
     validar_email_por_token,
     aplicar_reset_pedagogico_unico,
+    registrar_consentimento_parental_para_aluno_existente,
 )
 
 
 VERSAO_TERMO_CONSENTIMENTO_PARENTAL = "2026-08-02-v1"
 ORIGEM_CONSENTIMENTO_PARENTAL = "formulario_novo_aluno"
+ORIGEM_REGULARIZACAO_CONSENTIMENTO = "primeiro_login_conta_existente"
 
 
 def create_app() -> Flask:
@@ -145,6 +149,56 @@ def registrar_contexto(app: Flask) -> None:
 
 
 def registrar_rotas(app: Flask) -> None:
+    @app.before_request
+    def exigir_consentimento_parental_ativo():
+        usuario_id = session.get("usuario_id")
+        perfil = session.get("perfil")
+        endpoint = request.endpoint or ""
+
+        if not usuario_id or endpoint == "static" or endpoint.startswith("static"):
+            return None
+
+        if perfil == "aluno":
+            if endpoint in {"sair", "health"}:
+                return None
+            if not aluno_possui_consentimento_parental_ativo(
+                app.config["DATABASE_PATH"],
+                int(usuario_id),
+            ):
+                session.clear()
+                flash(
+                    "O responsável precisa autorizar este perfil antes do acesso do aluno.",
+                    "aviso",
+                )
+                if endpoint == "login":
+                    return None
+                return redirect(url_for("login"))
+            return None
+
+        rotas_permitidas = {
+            "health",
+            "login",
+            "reenviar_validacao_email",
+            "regularizar_consentimento_parental",
+            "sair",
+            "validar_email",
+        }
+        if perfil != "responsavel" or endpoint in rotas_permitidas:
+            return None
+
+        pendentes = listar_alunos_sem_consentimento_parental(
+            app.config["DATABASE_PATH"],
+            int(usuario_id),
+        )
+        if pendentes:
+            flash(
+                "Atualize o consentimento parental para continuar usando o NettStudy.",
+                "aviso",
+            )
+            return redirect(url_for("regularizar_consentimento_parental"))
+
+        return None
+
     @app.get("/")
     def inicio():
         return render_template("portal.html")
@@ -176,6 +230,29 @@ def registrar_rotas(app: Flask) -> None:
                 nome=usuario["nome"],
                 perfil=usuario["perfil"],
             )
+
+            if usuario["perfil"] == "responsavel":
+                pendentes = listar_alunos_sem_consentimento_parental(
+                    app.config["DATABASE_PATH"],
+                    int(usuario["id"]),
+                )
+                if pendentes:
+                    flash(
+                        "Antes de continuar, revise e confirme a autorização dos perfis infantis já cadastrados.",
+                        "aviso",
+                    )
+                    return redirect(url_for("regularizar_consentimento_parental"))
+
+            if usuario["perfil"] == "aluno" and not aluno_possui_consentimento_parental_ativo(
+                app.config["DATABASE_PATH"],
+                int(usuario["id"]),
+            ):
+                session.clear()
+                flash(
+                    "O responsável precisa autorizar este perfil antes do acesso do aluno.",
+                    "aviso",
+                )
+                return redirect(url_for("login"))
 
             destino = (
                 "dashboard_responsavel"
@@ -423,6 +500,93 @@ def registrar_rotas(app: Flask) -> None:
                 app.logger.exception("Falha ao reenviar e-mail de validação.")
                 flash("Não foi possível enviar o e-mail agora. Tente novamente em instantes.", "erro")
         return redirect(url_for("dashboard_responsavel"))
+
+    @app.route("/responsavel/consentimento-parental", methods=["GET", "POST"])
+    @login_obrigatorio("responsavel")
+    def regularizar_consentimento_parental():
+        usuario_id = int(session["usuario_id"])
+        responsavel = buscar_responsavel_por_usuario(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+        )
+        if not responsavel:
+            session.clear()
+            flash("A conta do responsável não foi encontrada.", "erro")
+            return redirect(url_for("login"))
+
+        pendentes = listar_alunos_sem_consentimento_parental(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+        )
+        if not pendentes:
+            flash("Todos os perfis infantis estão autorizados.", "sucesso")
+            return redirect(url_for("dashboard_responsavel"))
+
+        aluno_id = (
+            request.form.get("aluno_id", type=int)
+            or request.args.get("aluno_id", type=int)
+            or int(pendentes[0]["id"])
+        )
+        aluno = next(
+            (
+                item
+                for item in pendentes
+                if int(item["id"]) == int(aluno_id)
+            ),
+            None,
+        )
+        if not aluno:
+            flash("Perfil infantil inválido para esta regularização.", "erro")
+            return redirect(url_for("regularizar_consentimento_parental"))
+
+        if request.method == "POST":
+            consentimento_aceito = request.form.get(
+                "consentimento_parental",
+                "",
+            ).strip().lower() in {"1", "on", "true", "sim"}
+            declaracao_responsavel = request.form.get(
+                "declaracao_responsavel",
+                "",
+            ).strip().lower() in {"1", "on", "true", "sim"}
+
+            try:
+                registrar_consentimento_parental_para_aluno_existente(
+                    caminho_banco=app.config["DATABASE_PATH"],
+                    usuario_responsavel_id=usuario_id,
+                    aluno_id=int(aluno["id"]),
+                    consentimento_aceito=consentimento_aceito,
+                    declaracao_responsavel=declaracao_responsavel,
+                    versao_termo=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
+                    origem_confirmacao=ORIGEM_REGULARIZACAO_CONSENTIMENTO,
+                )
+            except ValueError as erro:
+                flash(str(erro), "erro")
+            else:
+                restantes = listar_alunos_sem_consentimento_parental(
+                    app.config["DATABASE_PATH"],
+                    usuario_id,
+                )
+                if restantes:
+                    flash(
+                        "Autorização registrada. Confirme agora o próximo perfil infantil.",
+                        "sucesso",
+                    )
+                    return redirect(url_for("regularizar_consentimento_parental"))
+
+                flash(
+                    "Consentimentos atualizados. O acesso da família foi liberado.",
+                    "sucesso",
+                )
+                return redirect(url_for("dashboard_responsavel"))
+
+        return render_template(
+            "consentimento_parental.html",
+            responsavel=responsavel,
+            aluno=aluno,
+            total_pendentes=len(pendentes),
+            email_validado=bool(responsavel.get("email_validado_em")),
+            versao_termo_consentimento=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
+        )
 
     @app.route("/anamnese", methods=["GET", "POST"])
     @login_obrigatorio("responsavel")

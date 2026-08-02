@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 02/08/2026 12:45 -03:00
-# Motivo da alteração: exigir e registrar consentimento parental antes de cadastrar cada aluno.
+# Data e hora do último recode: 02/08/2026 18:02 -03:00
+# Motivo da alteração: regularizar perfis antigos e bloquear o uso infantil sem consentimento parental ativo.
 
 import hashlib
 import json
@@ -761,6 +761,74 @@ def buscar_aluno_do_responsavel(
     return dict(registro) if registro else None
 
 
+def listar_alunos_sem_consentimento_parental(
+    caminho_banco: str,
+    usuario_responsavel_id: int,
+) -> list[dict[str, Any]]:
+    with conectar(caminho_banco) as conexao:
+        registros = conexao.execute(
+            """
+            SELECT
+                a.id,
+                a.usuario_id,
+                a.nome_completo,
+                a.nome_exibicao,
+                a.ano_escolar,
+                ra.parentesco,
+                ra.principal
+            FROM responsaveis r
+            INNER JOIN responsavel_aluno ra
+                ON ra.responsavel_id = r.id
+            INNER JOIN alunos a
+                ON a.id = ra.aluno_id
+            LEFT JOIN consentimentos_parentais cp
+                ON cp.responsavel_id = r.id
+               AND cp.aluno_id = a.id
+               AND cp.finalidade = 'tratamento_educacional_essencial'
+               AND cp.revogado_em IS NULL
+            WHERE r.usuario_id = ?
+              AND r.ativo = 1
+              AND a.ativo = 1
+              AND cp.id IS NULL
+            ORDER BY
+                ra.principal DESC,
+                a.nome_exibicao ASC
+            """,
+            (usuario_responsavel_id,),
+        ).fetchall()
+
+    return [dict(registro) for registro in registros]
+
+
+def aluno_possui_consentimento_parental_ativo(
+    caminho_banco: str,
+    usuario_aluno_id: int,
+) -> bool:
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            """
+            SELECT cp.id
+            FROM alunos a
+            INNER JOIN responsavel_aluno ra
+                ON ra.aluno_id = a.id
+            INNER JOIN responsaveis r
+                ON r.id = ra.responsavel_id
+            INNER JOIN consentimentos_parentais cp
+                ON cp.responsavel_id = r.id
+               AND cp.aluno_id = a.id
+               AND cp.finalidade = 'tratamento_educacional_essencial'
+               AND cp.revogado_em IS NULL
+            WHERE a.usuario_id = ?
+              AND a.ativo = 1
+              AND r.ativo = 1
+            LIMIT 1
+            """,
+            (usuario_aluno_id,),
+        ).fetchone()
+
+    return registro is not None
+
+
 def _validar_consentimento_parental(
     consentimento_aceito: bool,
     declaracao_responsavel: bool,
@@ -829,6 +897,64 @@ def _registrar_consentimento_parental(
     if not registro:
         raise ValueError("Não foi possível registrar o consentimento parental.")
     return int(registro["id"])
+
+
+def registrar_consentimento_parental_para_aluno_existente(
+    caminho_banco: str,
+    usuario_responsavel_id: int,
+    aluno_id: int,
+    consentimento_aceito: bool = False,
+    declaracao_responsavel: bool = False,
+    versao_termo: str = "",
+    origem_confirmacao: str = "",
+) -> dict[str, int]:
+    versao_termo, origem_confirmacao = _validar_consentimento_parental(
+        consentimento_aceito,
+        declaracao_responsavel,
+        versao_termo,
+        origem_confirmacao,
+    )
+
+    with conectar(caminho_banco) as conexao:
+        vinculo = conexao.execute(
+            """
+            SELECT
+                r.id AS responsavel_id,
+                r.email_validado_em,
+                a.id AS aluno_id
+            FROM responsaveis r
+            INNER JOIN responsavel_aluno ra
+                ON ra.responsavel_id = r.id
+            INNER JOIN alunos a
+                ON a.id = ra.aluno_id
+            WHERE r.usuario_id = ?
+              AND a.id = ?
+              AND r.ativo = 1
+              AND a.ativo = 1
+            """,
+            (usuario_responsavel_id, aluno_id),
+        ).fetchone()
+
+        if not vinculo:
+            raise ValueError("Aluno não encontrado para esta conta.")
+        if not vinculo["email_validado_em"]:
+            raise ValueError(
+                "Confirme o e-mail do responsável antes de autorizar o perfil infantil."
+            )
+
+        consentimento_id = _registrar_consentimento_parental(
+            conexao=conexao,
+            responsavel_id=int(vinculo["responsavel_id"]),
+            aluno_id=int(vinculo["aluno_id"]),
+            versao_termo=versao_termo,
+            origem_confirmacao=origem_confirmacao,
+            metodo_verificacao="email_confirmado_sessao_autenticada",
+        )
+
+        return {
+            "aluno_id": int(vinculo["aluno_id"]),
+            "consentimento_id": consentimento_id,
+        }
 
 
 def cadastrar_aluno_para_responsavel(
