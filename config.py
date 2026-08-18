@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\config.py
-# Data e hora do último recode: 31/07/2026 06:32 -03:00
-# Motivo da alteração: configurar execução automática das notificações por e-mail.
+# Data e hora do último recode: 17/08/2026 23:49 -03:00
+# Motivo da alteração: centralizar o fuso horário global configurável, inicialmente em America/Bahia.
 
 import os
 from pathlib import Path
@@ -24,7 +24,8 @@ class Config:
     VALIDACAO_EMAIL_REENVIO_SEGUNDOS = int(os.getenv("VALIDACAO_EMAIL_REENVIO_SEGUNDOS", "60"))
     NOTIFICACOES_ATIVAS = os.getenv("NOTIFICACOES_ATIVAS", "1") == "1"
     NOTIFICACOES_INTERVALO_SEGUNDOS = max(60, int(os.getenv("NOTIFICACOES_INTERVALO_SEGUNDOS", "60")))
-    NOTIFICACOES_FUSO = os.getenv("NOTIFICACOES_FUSO", "America/Bahia")
+    APP_FUSO = os.getenv("APP_FUSO", os.getenv("NOTIFICACOES_FUSO", "America/Bahia"))
+    NOTIFICACOES_FUSO = APP_FUSO
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = APP_ENV == "production"
