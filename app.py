@@ -1,11 +1,12 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 02/08/2026 18:02 -03:00
-# Motivo da alteração: exigir consentimento parental de perfis novos e antigos antes de qualquer uso infantil.
+# Data e hora do último recode: 17/08/2026 22:54 -03:00
+# Motivo da alteração: padronizar a data do sistema no fuso America/Bahia para sincronizar atividades e notificações.
 
 import os
-from datetime import date
+from datetime import datetime
 from functools import wraps
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
@@ -101,6 +102,11 @@ from database import (
 VERSAO_TERMO_CONSENTIMENTO_PARENTAL = "2026-08-02-v1"
 ORIGEM_CONSENTIMENTO_PARENTAL = "formulario_novo_aluno"
 ORIGEM_REGULARIZACAO_CONSENTIMENTO = "primeiro_login_conta_existente"
+FUSO_HORARIO_APP = ZoneInfo("America/Bahia")
+
+
+def data_atual_app() -> str:
+    return datetime.now(FUSO_HORARIO_APP).date().isoformat()
 
 
 def create_app() -> Flask:
@@ -671,7 +677,7 @@ def registrar_rotas(app: Flask) -> None:
 
         aluno = None
         if aluno_registrado:
-            resumo_dia = obter_resumo_diario(app.config["DATABASE_PATH"], aluno_id, date.today().isoformat())
+            resumo_dia = obter_resumo_diario(app.config["DATABASE_PATH"], aluno_id, data_atual_app())
             atividades = []
             for nome in ("Português", "Matemática", "Leitura"):
                 chave = nome.lower().replace("á", "a").replace("ê", "e")
@@ -693,7 +699,7 @@ def registrar_rotas(app: Flask) -> None:
             resumo_dia = {"materias": {}, "concluidas": 0, "progresso": 0, "pontos": 0, "sequencia": 0}
 
         anamnese_registro = buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], aluno_id) if aluno else None
-        reset_missao = obter_reset_missao_dia(app.config["DATABASE_PATH"], aluno_id, date.today().isoformat()) if aluno else None
+        reset_missao = obter_reset_missao_dia(app.config["DATABASE_PATH"], aluno_id, data_atual_app()) if aluno else None
         perfil = garantir_perfil_pedagogico(app.config["DATABASE_PATH"], aluno_id) if aluno and anamnese_registro else None
         relatorio = obter_relatorio_pedagogico(app.config["DATABASE_PATH"], aluno_id) if perfil else None
         return render_template(
@@ -833,7 +839,7 @@ def registrar_rotas(app: Flask) -> None:
                 app.config["DATABASE_PATH"],
                 int(session["usuario_id"]),
                 aluno_id,
-                date.today().isoformat(),
+                data_atual_app(),
                 motivo,
             )
         except ValueError as erro:
@@ -862,7 +868,7 @@ def registrar_rotas(app: Flask) -> None:
             return redirect(url_for("login"))
 
         resumo_dia = obter_resumo_diario(
-            app.config["DATABASE_PATH"], int(aluno["id"]), date.today().isoformat()
+            app.config["DATABASE_PATH"], int(aluno["id"]), data_atual_app()
         )
         personalizacao = resumo_missao_personalizada(
             app.config["DATABASE_PATH"], int(aluno["id"])
@@ -916,7 +922,7 @@ def registrar_rotas(app: Flask) -> None:
         template: str,
         texto: str | None = None,
     ):
-        data_atividade = date.today().isoformat()
+        data_atividade = data_atual_app()
         plano_pedagogico = gerar_plano_missao(
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
@@ -1084,7 +1090,7 @@ def registrar_rotas(app: Flask) -> None:
             flash("Conclua a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
 
-        data_atividade = date.today().isoformat()
+        data_atividade = data_atual_app()
         anamnese = buscar_anamnese_por_aluno(
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
