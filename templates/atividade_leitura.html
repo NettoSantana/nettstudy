@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\atividade_leitura.html
-Data e hora do último recode: 17/08/2026 23:41 -03:00
-Motivo da alteração: permitir consultar a história durante as perguntas sem perder a resposta selecionada.
+Data e hora do último recode: 22/08/2026 00:59 -03:00
+Motivo da alteração: manter a história disponível durante as perguntas e até o envio final do resumo.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -158,6 +158,20 @@ Motivo da alteração: permitir consultar a história durante as perguntas sem p
             <div class="hint">
                 <strong>Para pensar:</strong> {{ historia.reflexao }}
             </div>
+
+            <details class="consulta-historia">
+                <summary>Consultar história</summary>
+                <div class="consulta-conteudo">
+                    <h2>{{ historia.titulo }}</h2>
+                    <p class="muted">Você pode reler a história antes de enviar o resumo.</p>
+                    {% for pagina in historia.paginas %}
+                        <div class="consulta-pagina">
+                            <p class="muted">Página {{ loop.index }} de {{ historia.paginas|length }}</p>
+                            <p class="pagina-texto">{{ pagina }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </details>
         </section>
 
         {% if avaliacao_resumo %}
