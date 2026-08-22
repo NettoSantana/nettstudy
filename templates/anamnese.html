@@ -1,14 +1,14 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\anamnese.html
-Data e hora do último recode: 30/07/2026 20:05 -03:00
-Motivo da alteração: vincular cada anamnese ao aluno selecionado pelo responsável.
+Data e hora do último recode: 22/08/2026 02:31 -03:00
+Motivo da alteração: apresentar a avaliação inicial com habilidades e matérias adequadas à faixa etária.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>NettStudy | Anamnese</title>
+    <title>NettStudy | Avaliação inicial</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
 <body>
@@ -16,16 +16,16 @@ Motivo da alteração: vincular cada anamnese ao aluno selecionado pelo respons�
 <main class="content anamnese-pagina">
 <section class="panel anamnese-card">
     <header class="anamnese-cabecalho">
-        <div><p class="etiqueta">PERFIL INICIAL</p><h1>Anamnese de {{ aluno.nome_exibicao }}</h1></div>
+        <div><p class="etiqueta">PERFIL INICIAL</p><h1>Avaliação inicial de {{ aluno.nome_exibicao }}</h1></div>
         <strong>Etapa {{ etapa if etapa <= 5 else 5 }} de 5</strong>
     </header>
     <div class="progresso-etapas"><span style="width: {{ 100 if etapa == 6 else etapa * 20 }}%"></span></div>
-    <p class="texto-suave">As respostas formam uma hipótese inicial. O desempenho real dos primeiros cinco dias confirmará ou corrigirá cada habilidade.</p>
+    <p class="texto-suave">A idade define a forma de apresentação e as matérias. Suas respostas sugerem o nível de partida, que será confirmado pelo desempenho real nos primeiros cinco dias.</p>
     {% with mensagens=get_flashed_messages(with_categories=true) %}{% for categoria,mensagem in mensagens %}<div class="flash {{ categoria }}">{{ mensagem }}</div>{% endfor %}{% endwith %}
 
     {% if etapa == 1 %}
     <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="1">
-        <div class="titulo-etapa"><h2>Dados escolares</h2><p>Informações gerais para definir a referência inicial.</p></div>
+        <div class="titulo-etapa"><h2>Dados escolares</h2><p>A idade define a faixa das perguntas e o ano escolar ajuda a calcular a referência inicial.</p></div>
         <div class="grade-form">
             <div class="campo"><label>Idade</label><input name="idade" type="number" min="4" max="18" value="{{ respostas.get('idade','') }}" required></div>
             <div class="campo"><label>Ano escolar</label><select name="ano_escolar" required><option value="">Selecione</option>{% for ano in ['Educação Infantil','1º ano','2º ano','3º ano','4º ano','5º ano','6º ano','7º ano','8º ano','9º ano','Ensino Médio'] %}<option value="{{ ano }}" {% if respostas.get('ano_escolar')==ano %}selected{% endif %}>{{ ano }}</option>{% endfor %}</select></div>
@@ -38,15 +38,15 @@ Motivo da alteração: vincular cada anamnese ao aluno selecionado pelo respons�
 
     {% elif etapa == 2 %}
     <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="2">
-        <div class="titulo-etapa"><h2>Leitura e escrita</h2><p>Avalie o que a criança consegue fazer hoje.</p></div>
+        <div class="titulo-etapa"><h2>{{ opcoes.titulo_portugues }}</h2><p>{{ opcoes.descricao_portugues }} Avalie o que a criança consegue fazer hoje.</p></div>
         <div class="habilidades-anamnese">{% for chave,rotulo in opcoes.leitura_habilidades %}<div class="habilidade-linha"><strong>{{ rotulo }}</strong><div class="escala-opcoes">{% for valor,texto in opcoes.escala %}<label><input type="radio" name="{{ chave }}" value="{{ valor }}" {% if respostas.get(chave)==valor %}checked{% endif %} required><span>{{ texto }}</span></label>{% endfor %}</div></div>{% endfor %}</div>
-        <fieldset class="grupo-escolhas"><legend>Dificuldades percebidas</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.dificuldades_leitura %}<label class="escolha"><input type="checkbox" name="dificuldades_leitura" value="{{ valor }}" {% if valor in respostas.get('dificuldades_leitura',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
+        <fieldset class="grupo-escolhas"><legend>Dificuldades percebidas em Português{% if opcoes.faixa_etaria not in ['4-5', '6-8'] %} e leitura{% endif %}</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.dificuldades_leitura %}<label class="escolha"><input type="checkbox" name="dificuldades_leitura" value="{{ valor }}" {% if valor in respostas.get('dificuldades_leitura',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=1) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
     </form>
 
     {% elif etapa == 3 %}
     <form method="post" class="anamnese-form"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="3">
-        <div class="titulo-etapa"><h2>Matemática</h2><p>Avalie cada habilidade sem preocupação com diagnóstico definitivo.</p></div>
+        <div class="titulo-etapa"><h2>Matemática</h2><p>As cinco situações abaixo correspondem à faixa {{ opcoes.faixa_etaria }}. Avalie sem preocupação com diagnóstico definitivo.</p></div>
         <div class="habilidades-anamnese">{% for chave,rotulo in opcoes.matematica_habilidades %}<div class="habilidade-linha"><strong>{{ rotulo }}</strong><div class="escala-opcoes">{% for valor,texto in opcoes.escala %}<label><input type="radio" name="{{ chave }}" value="{{ valor }}" {% if respostas.get(chave)==valor %}checked{% endif %} required><span>{{ texto }}</span></label>{% endfor %}</div></div>{% endfor %}</div>
         <fieldset class="grupo-escolhas"><legend>Dificuldades percebidas</legend><div class="escolhas-grade">{% for valor,rotulo in opcoes.dificuldades_matematica %}<label class="escolha"><input type="checkbox" name="dificuldades_matematica" value="{{ valor }}" {% if valor in respostas.get('dificuldades_matematica',[]) %}checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}</div></fieldset>
         <div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=2) }}">Voltar</a><button class="button" type="submit">Continuar</button></div>
@@ -76,14 +76,14 @@ Motivo da alteração: vincular cada anamnese ao aluno selecionado pelo respons�
     </form>
 
     {% else %}
-    <div class="titulo-etapa"><h2>Resumo do perfil inicial</h2><p>Revise antes de confirmar. Você poderá voltar e corrigir qualquer etapa.</p></div>
+    <div class="titulo-etapa"><h2>Resumo da avaliação inicial</h2><p>Revise antes de confirmar. Você poderá voltar e corrigir qualquer etapa.</p></div>
     <div class="resumo-anamnese">
         <article><h3>Dados escolares</h3><p><strong>Idade:</strong> {{ resumo.escolar.idade }} anos</p><p><strong>Ano:</strong> {{ resumo.escolar.ano }}</p><p><strong>Escola:</strong> {{ resumo.escolar.escola }}</p><p><strong>Situação:</strong> {{ resumo.escolar.situacao }}</p><p><strong>Acompanhamento:</strong> {{ resumo.escolar.acompanhamentos|join(', ') }}</p></article>
-        <article><h3>Leitura e escrita</h3><strong>Pontos positivos</strong><ul>{% for item in resumo.leitura.positivos %}<li>{{ item }}</li>{% else %}<li>A confirmar durante o diagnóstico.</li>{% endfor %}</ul><strong>Pontos de atenção</strong><ul>{% for item in resumo.leitura.atencao %}<li>{{ item }}</li>{% else %}<li>Nenhum ponto informado.</li>{% endfor %}</ul></article>
+        <article><h3>{{ opcoes.titulo_portugues }}</h3><strong>Pontos positivos</strong><ul>{% for item in resumo.leitura.positivos %}<li>{{ item }}</li>{% else %}<li>A confirmar durante o diagnóstico.</li>{% endfor %}</ul><strong>Pontos de atenção</strong><ul>{% for item in resumo.leitura.atencao %}<li>{{ item }}</li>{% else %}<li>Nenhum ponto informado.</li>{% endfor %}</ul></article>
         <article><h3>Matemática</h3><strong>Pontos positivos</strong><ul>{% for item in resumo.matematica.positivos %}<li>{{ item }}</li>{% else %}<li>A confirmar durante o diagnóstico.</li>{% endfor %}</ul><strong>Pontos de atenção</strong><ul>{% for item in resumo.matematica.atencao %}<li>{{ item }}</li>{% else %}<li>Nenhum ponto informado.</li>{% endfor %}</ul></article>
         <article><h3>Atenção e aprendizagem</h3><p><strong>Concentração:</strong> {{ resumo.rotina.concentracao }}</p><p><strong>Missão inicial:</strong> {{ resumo.rotina.questoes }} questões por matéria</p><p><strong>Período:</strong> {{ resumo.rotina.periodo }}</p><p><strong>Companhia:</strong> {{ resumo.rotina.companhia }}</p><p><strong>Formas:</strong> {{ resumo.rotina.formas|join(', ') }}</p></article>
         <article><h3>Interesses</h3><p>{{ resumo.interesses|join(', ') }}</p><h3>Objetivos</h3><p>{{ resumo.objetivos|join(', ') }}</p></article>
-        <article class="plano-inicial"><h3>Plano inicial sugerido</h3><p>Fase: diagnóstico silencioso</p><p>Período de observação: 5 dias</p><p>Os níveis serão ajustados conforme acertos, tentativas e dicas.</p></article>
+        <article class="plano-inicial"><h3>Plano inicial sugerido</h3><p><strong>Faixa:</strong> {{ resumo.faixa_etaria }} anos</p><p><strong>Matérias:</strong> Português e Matemática{% if resumo.faixa_etaria not in ['4-5', '6-8'] %}, mais Leitura{% endif %}</p><p><strong>Níveis sugeridos:</strong> Português {{ resumo.niveis_iniciais.portugues }} · Matemática {{ resumo.niveis_iniciais.matematica }}{% if resumo.faixa_etaria not in ['4-5', '6-8'] %} · Leitura {{ resumo.niveis_iniciais.leitura }}{% endif %}</p><p><strong>Fase:</strong> diagnóstico silencioso por 5 dias</p><p>Os níveis serão ajustados conforme acertos, tentativas e dicas.</p></article>
     </div>
     <form method="post"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><input type="hidden" name="etapa" value="6"><input type="hidden" name="acao" value="confirmar"><div class="navegacao-etapas"><a class="button secondary" href="{{ url_for('anamnese', aluno_id=aluno.id, etapa=5) }}">Voltar e corrigir</a><button class="button" type="submit">Confirmar e criar perfil</button></div></form>
     {% endif %}

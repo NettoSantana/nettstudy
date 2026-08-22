@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\anamnese_pedagogica.py
-# Data e hora do último recode: 30/07/2026 18:41 -03:00
-# Motivo da alteração: estruturar a anamnese em cinco etapas, múltiplas escolhas e resumo final.
+# Data e hora do último recode: 22/08/2026 02:25 -03:00
+# Motivo da alteração: adaptar a avaliação inicial por faixa etária e calcular níveis iniciais por matéria.
 
 import json
 import sqlite3
@@ -80,6 +80,97 @@ MATEMATICA_HABILIDADES = [
     ('sequencias', 'Identifica sequências e padrões'),
     ('calculo_mental', 'Realiza cálculo mental'),
 ]
+
+HABILIDADES_POR_FAIXA = {
+    '4-5': {
+        'titulo_portugues': 'Português com apoio visual',
+        'descricao_portugues': 'Considere situações simples, com figuras, objetos e comandos falados.',
+        'portugues': [
+            ('pt45_nomeia_figuras', 'Nomeia animais e objetos mostrados em figuras'),
+            ('pt45_reconhece_cores', 'Reconhece e nomeia cores básicas'),
+            ('pt45_reconhece_letras', 'Reconhece algumas letras, especialmente as do próprio nome'),
+            ('pt45_som_inicial', 'Percebe quando duas palavras começam com o mesmo som'),
+            ('pt45_compreende_comando', 'Compreende um comando simples, como “marque o gato”'),
+        ],
+        'matematica': [
+            ('mat45_conta_ate_10', 'Conta objetos até 10 com apoio visual'),
+            ('mat45_numero_quantidade', 'Relaciona um número pequeno à quantidade mostrada'),
+            ('mat45_compara_quantidades', 'Percebe onde há mais ou menos objetos'),
+            ('mat45_reconhece_formas', 'Reconhece círculo, quadrado e triângulo'),
+            ('mat45_sequencia_visual', 'Completa uma sequência simples de cores ou figuras'),
+        ],
+    },
+    '6-8': {
+        'titulo_portugues': 'Português',
+        'descricao_portugues': 'Nesta faixa, leitura e escrita são trabalhadas dentro de Português.',
+        'portugues': [
+            ('pt68_le_palavras', 'Lê palavras curtas e familiares'),
+            ('pt68_le_frases', 'Lê frases curtas sem perder a sequência'),
+            ('pt68_compreende_frase', 'Entende uma informação direta em uma frase'),
+            ('pt68_escreve_palavras', 'Escreve palavras conhecidas de forma compreensível'),
+            ('pt68_organiza_frase', 'Organiza palavras para formar uma frase com sentido'),
+        ],
+        'matematica': [
+            ('mat68_numeros', 'Reconhece, ordena e compara números'),
+            ('mat68_adicao', 'Resolve adições simples, com ou sem apoio visual'),
+            ('mat68_subtracao', 'Resolve subtrações simples, com ou sem apoio visual'),
+            ('mat68_sequencias', 'Completa sequências numéricas simples'),
+            ('mat68_problemas', 'Entende e resolve um problema curto do cotidiano'),
+        ],
+    },
+    '9-11': {
+        'titulo_portugues': 'Português e leitura',
+        'descricao_portugues': 'Considere leitura, interpretação e produção de textos curtos.',
+        'portugues': [
+            ('pt911_le_texto', 'Lê um texto curto com autonomia'),
+            ('pt911_localiza_informacao', 'Localiza informações explícitas no texto'),
+            ('pt911_sequencia', 'Organiza os acontecimentos na ordem correta'),
+            ('pt911_ideia_principal', 'Identifica a ideia principal do texto'),
+            ('pt911_produz_resumo', 'Escreve um pequeno resumo com começo, meio e fim'),
+        ],
+        'matematica': [
+            ('mat911_multiplicacao', 'Resolve multiplicações adequadas ao ano escolar'),
+            ('mat911_divisao', 'Resolve divisões simples e compreende o resultado'),
+            ('mat911_problemas', 'Escolhe a operação correta em problemas escritos'),
+            ('mat911_fracoes', 'Reconhece e compara frações simples'),
+            ('mat911_medidas', 'Usa dinheiro, horas e medidas em situações práticas'),
+        ],
+    },
+    '12-13': {
+        'titulo_portugues': 'Português e leitura',
+        'descricao_portugues': 'Considere interpretação, argumentação e escrita compatíveis com a idade.',
+        'portugues': [
+            ('pt1213_interpreta_texto', 'Interpreta textos com informações explícitas e implícitas'),
+            ('pt1213_faz_inferencia', 'Deduz informações que não estão escritas diretamente'),
+            ('pt1213_argumenta', 'Defende uma opinião usando uma justificativa'),
+            ('pt1213_organiza_paragrafo', 'Organiza ideias em parágrafos coerentes'),
+            ('pt1213_revisa_texto', 'Revisa ortografia, pontuação e concordância do próprio texto'),
+        ],
+        'matematica': [
+            ('mat1213_operacoes', 'Resolve operações combinadas com autonomia'),
+            ('mat1213_porcentagem', 'Resolve situações simples com porcentagem'),
+            ('mat1213_proporcionalidade', 'Reconhece relações de proporção em problemas'),
+            ('mat1213_equacoes', 'Resolve uma equação simples com valor desconhecido'),
+            ('mat1213_logica', 'Explica o raciocínio usado em desafios matemáticos'),
+        ],
+    },
+}
+
+
+def faixa_por_idade(idade: Any) -> str:
+    idade_numero = int(idade or 0)
+    if idade_numero <= 5:
+        return '4-5'
+    if idade_numero <= 8:
+        return '6-8'
+    if idade_numero <= 11:
+        return '9-11'
+    return '12-13'
+
+
+def habilidades_por_idade(idade: Any) -> dict[str, Any]:
+    faixa = faixa_por_idade(idade)
+    return {'faixa': faixa, **HABILIDADES_POR_FAIXA[faixa]}
 
 OPCOES = {
     'tipo_escola': [('publica', 'Pública'), ('particular', 'Particular'), ('outra', 'Outra')],
@@ -169,6 +260,8 @@ OPCOES = {
 ROTULOS = {valor: rotulo for lista in OPCOES.values() for valor, rotulo in lista}
 ROTULOS.update({valor: rotulo for valor, rotulo in ESCALA})
 ROTULOS.update({chave: rotulo for chave, rotulo in LEITURA_HABILIDADES + MATEMATICA_HABILIDADES})
+for configuracao in HABILIDADES_POR_FAIXA.values():
+    ROTULOS.update({chave: rotulo for chave, rotulo in configuracao['portugues'] + configuracao['matematica']})
 
 
 def inicializar_anamnese_pedagogica(caminho_banco: str) -> None:
@@ -231,6 +324,14 @@ def _validar_exclusiva(valores: list[str], exclusiva: str, mensagem: str) -> Non
         raise ValueError(mensagem)
 
 
+def _limpar_secao(caminho_banco: str, aluno_id: int, secao: str) -> None:
+    with conectar(caminho_banco) as conexao:
+        conexao.execute(
+            "DELETE FROM anamnese_respostas WHERE aluno_id = ? AND secao = ?",
+            (aluno_id, secao),
+        )
+
+
 def salvar_etapa(caminho_banco: str, aluno_id: int, etapa: int, formulario: Any) -> None:
     _registro_base(caminho_banco, aluno_id)
     if etapa == 1:
@@ -248,26 +349,38 @@ def salvar_etapa(caminho_banco: str, aluno_id: int, etapa: int, formulario: Any)
             _gravar(caminho_banco, aluno_id, 'escolar', chave, valor, 'unica')
         _gravar(caminho_banco, aluno_id, 'escolar', 'acompanhamentos', acompanhamentos, 'multipla')
     elif etapa == 2:
-        for chave, _ in LEITURA_HABILIDADES:
+        respostas = obter_estado(caminho_banco, aluno_id)['respostas']
+        habilidades = habilidades_por_idade(respostas.get('idade'))['portugues']
+        valores = []
+        for chave, _ in habilidades:
             valor = formulario.get(chave, '').strip()
             if not valor:
-                raise ValueError('Avalie todas as habilidades de leitura e escrita.')
-            _gravar(caminho_banco, aluno_id, 'leitura_escrita', chave, valor, 'unica')
+                raise ValueError('Avalie todas as habilidades de Português apresentadas.')
+            valores.append((chave, valor))
         dificuldades = _lista_formulario(formulario, 'dificuldades_leitura')
         if not dificuldades:
             raise ValueError('Selecione ao menos uma opção em dificuldades percebidas.')
         _validar_exclusiva(dificuldades, 'nenhuma', 'Nenhuma dificuldade não pode ser marcada com outras opções.')
+        _limpar_secao(caminho_banco, aluno_id, 'leitura_escrita')
+        for chave, valor in valores:
+            _gravar(caminho_banco, aluno_id, 'leitura_escrita', chave, valor, 'unica')
         _gravar(caminho_banco, aluno_id, 'leitura_escrita', 'dificuldades_leitura', dificuldades, 'multipla')
     elif etapa == 3:
-        for chave, _ in MATEMATICA_HABILIDADES:
+        respostas = obter_estado(caminho_banco, aluno_id)['respostas']
+        habilidades = habilidades_por_idade(respostas.get('idade'))['matematica']
+        valores = []
+        for chave, _ in habilidades:
             valor = formulario.get(chave, '').strip()
             if not valor:
                 raise ValueError('Avalie todas as habilidades de Matemática.')
-            _gravar(caminho_banco, aluno_id, 'matematica', chave, valor, 'unica')
+            valores.append((chave, valor))
         dificuldades = _lista_formulario(formulario, 'dificuldades_matematica')
         if not dificuldades:
             raise ValueError('Selecione ao menos uma dificuldade de Matemática.')
         _validar_exclusiva(dificuldades, 'nenhuma', 'Nenhuma dificuldade não pode ser marcada com outras opções.')
+        _limpar_secao(caminho_banco, aluno_id, 'matematica')
+        for chave, valor in valores:
+            _gravar(caminho_banco, aluno_id, 'matematica', chave, valor, 'unica')
         _gravar(caminho_banco, aluno_id, 'matematica', 'dificuldades_matematica', dificuldades, 'multipla')
     elif etapa == 4:
         concentracao = formulario.get('concentracao', '').strip()
@@ -324,13 +437,59 @@ def _separar_habilidades(respostas: dict[str, Any], habilidades: list[tuple[str,
     return positivos, atencao
 
 
+def _habilidades_da_resposta(respostas: dict[str, Any], materia: str) -> list[tuple[str, str]]:
+    atuais = habilidades_por_idade(respostas.get('idade'))[materia]
+    if any(respostas.get(chave) for chave, _ in atuais):
+        return atuais
+    return LEITURA_HABILIDADES if materia == 'portugues' else MATEMATICA_HABILIDADES
+
+
+def _ano_numero(ano_escolar: Any) -> int:
+    texto = str(ano_escolar or '')
+    digitos = ''.join(caractere for caractere in texto if caractere.isdigit())
+    return max(1, min(5, int(digitos[:1]))) if digitos else 1
+
+
+def _nivel_por_habilidades(respostas: dict[str, Any], habilidades: list[tuple[str, str]]) -> int:
+    pontuacao = {
+        'nao_consegue': 1,
+        'muita_dificuldade': 2,
+        'alguma_dificuldade': 3,
+        'consegue_bem': 4,
+        'nao_sei': 2.5,
+    }
+    valores = [pontuacao[respostas[chave]] for chave, _ in habilidades if respostas.get(chave) in pontuacao]
+    referencia = _ano_numero(respostas.get('ano_escolar'))
+    if not valores:
+        return referencia
+    media = sum(valores) / len(valores)
+    ajuste = -1 if media < 2.5 else 1 if media >= 3.6 else 0
+    return max(1, min(5, referencia + ajuste))
+
+
+def calcular_niveis_iniciais(respostas: dict[str, Any]) -> dict[str, int]:
+    portugues = _habilidades_da_resposta(respostas, 'portugues')
+    matematica = _habilidades_da_resposta(respostas, 'matematica')
+    nivel_portugues = _nivel_por_habilidades(respostas, portugues)
+    nivel_matematica = _nivel_por_habilidades(respostas, matematica)
+    return {
+        'portugues': nivel_portugues,
+        'matematica': nivel_matematica,
+        'leitura': nivel_portugues,
+    }
+
+
 def montar_resumo(respostas: dict[str, Any], nome_aluno: str) -> dict[str, Any]:
-    leitura_ok, leitura_atencao = _separar_habilidades(respostas, LEITURA_HABILIDADES)
-    matematica_ok, matematica_atencao = _separar_habilidades(respostas, MATEMATICA_HABILIDADES)
+    portugues = _habilidades_da_resposta(respostas, 'portugues')
+    matematica = _habilidades_da_resposta(respostas, 'matematica')
+    leitura_ok, leitura_atencao = _separar_habilidades(respostas, portugues)
+    matematica_ok, matematica_atencao = _separar_habilidades(respostas, matematica)
     concentracao = int(respostas.get('concentracao') or 10)
     questoes = 6 if concentracao <= 10 else 8 if concentracao <= 15 else 10
     return {
         'nome': nome_aluno,
+        'faixa_etaria': faixa_por_idade(respostas.get('idade')),
+        'niveis_iniciais': calcular_niveis_iniciais(respostas),
         'escolar': {
             'idade': respostas.get('idade', ''), 'ano': respostas.get('ano_escolar', ''),
             'escola': ROTULOS.get(respostas.get('tipo_escola', ''), ''),
@@ -358,7 +517,7 @@ def montar_resumo(respostas: dict[str, Any], nome_aluno: str) -> dict[str, Any]:
 def converter_para_anamnese_legada(respostas: dict[str, Any]) -> dict[str, Any]:
     dificuldades = _rotulos(respostas.get('dificuldades_leitura', [])) + _rotulos(respostas.get('dificuldades_matematica', []))
     dificuldades = [item for item in dificuldades if not item.startswith('Nenhuma')]
-    leitura_valores = [respostas.get(chave) for chave, _ in LEITURA_HABILIDADES]
+    leitura_valores = [respostas.get(chave) for chave, _ in _habilidades_da_resposta(respostas, 'portugues')]
     pontuacao = {'nao_consegue': 1, 'muita_dificuldade': 2, 'alguma_dificuldade': 3, 'consegue_bem': 4, 'nao_sei': 2.5}
     media = sum(pontuacao.get(v, 2.5) for v in leitura_valores) / max(1, len(leitura_valores))
     nivel = 'iniciante' if media < 1.8 else 'basico' if media < 2.7 else 'intermediario' if media < 3.6 else 'avancado'
@@ -388,6 +547,15 @@ def concluir(caminho_banco: str, aluno_id: int, resumo: dict[str, Any]) -> None:
         )
 
 
-def opcoes_template() -> dict[str, Any]:
-    return {'escala': ESCALA, 'leitura_habilidades': LEITURA_HABILIDADES,
-            'matematica_habilidades': MATEMATICA_HABILIDADES, **OPCOES}
+def opcoes_template(respostas: dict[str, Any] | None = None) -> dict[str, Any]:
+    respostas = respostas or {}
+    habilidades = habilidades_por_idade(respostas.get('idade'))
+    return {
+        'escala': ESCALA,
+        'faixa_etaria': habilidades['faixa'],
+        'titulo_portugues': habilidades['titulo_portugues'],
+        'descricao_portugues': habilidades['descricao_portugues'],
+        'leitura_habilidades': habilidades['portugues'],
+        'matematica_habilidades': habilidades['matematica'],
+        **OPCOES,
+    }
