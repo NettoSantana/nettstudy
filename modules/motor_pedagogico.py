@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\motor_pedagogico.py
-# Data e hora do último recode: 22/08/2026 01:23 -03:00
-# Motivo da alteração: selecionar atividades por faixa etária e retirar Leitura da missão de crianças com até 8 anos, preservando o fuso global.
+# Data e hora do último recode: 22/08/2026 02:41 -03:00
+# Motivo da alteração: iniciar cada matéria no nível sugerido pela avaliação inicial por faixa etária.
 
 import json
 import random
@@ -114,7 +114,7 @@ def _faixa(idade: int) -> str:
 def obter_faixa_etaria_aluno(caminho_banco: str, aluno_id: int) -> str:
     anamnese = buscar_anamnese_por_aluno(caminho_banco, aluno_id)
     if not anamnese:
-        raise ValueError("A anamnese precisa ser concluída antes de iniciar a missão.")
+        raise ValueError("A avaliação inicial precisa ser concluída antes de iniciar a missão.")
     return _faixa(int(anamnese["idade"]))
 
 
@@ -136,14 +136,34 @@ def _nivel_leitura(valor: str | None, ano: int) -> int:
     return max(1, min(5, round((mapa.get((valor or "").lower(), ano) + ano) / 2)))
 
 
+def _niveis_da_avaliacao(caminho_banco: str, aluno_id: int, padrao: dict[str, int]) -> dict[str, int]:
+    with conectar(caminho_banco) as conexao:
+        registro = conexao.execute(
+            "SELECT resumo_json FROM anamneses_estruturadas WHERE aluno_id = ? AND concluida = 1",
+            (aluno_id,),
+        ).fetchone()
+    if not registro or not registro["resumo_json"]:
+        return padrao
+    try:
+        resumo = json.loads(registro["resumo_json"])
+        sugeridos = resumo.get("niveis_iniciais", {})
+        return {
+            materia: max(1, min(5, int(sugeridos.get(materia, nivel))))
+            for materia, nivel in padrao.items()
+        }
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return padrao
+
+
 def garantir_perfil_pedagogico(caminho_banco: str, aluno_id: int) -> dict[str, Any]:
     anamnese = buscar_anamnese_por_aluno(caminho_banco, aluno_id)
     if not anamnese:
-        raise ValueError("A anamnese precisa ser concluída antes do perfil pedagógico.")
+        raise ValueError("A avaliação inicial precisa ser concluída antes do perfil pedagógico.")
     ano = _ano_numero(anamnese["ano_escolar"])
     idade = int(anamnese["idade"])
     quantidade = _quantidade_por_concentracao(int(anamnese["tempo_concentracao"]))
-    niveis = {"matematica":ano,"portugues":ano,"leitura":_nivel_leitura(anamnese["nivel_leitura"],ano)}
+    niveis_padrao = {"matematica":ano,"portugues":ano,"leitura":_nivel_leitura(anamnese["nivel_leitura"],ano)}
+    niveis = _niveis_da_avaliacao(caminho_banco, aluno_id, niveis_padrao)
     temas = anamnese["materias_preferidas"] or anamnese["objetivo_principal"] or ""
     with conectar(caminho_banco) as conexao:
         perfil = conexao.execute("SELECT * FROM perfis_pedagogicos WHERE aluno_id = ?",(aluno_id,)).fetchone()

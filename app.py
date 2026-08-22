@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 22/08/2026 01:23 -03:00
-# Motivo da alteração: aplicar a missão por faixa etária, sem Leitura até 8 anos, e preservar o fuso global configurável.
+# Data e hora do último recode: 22/08/2026 02:36 -03:00
+# Motivo da alteração: integrar a avaliação inicial por faixa etária ao perfil e às missões adaptativas.
 
 import os
 from functools import wraps
@@ -596,7 +596,7 @@ def registrar_rotas(app: Flask) -> None:
         usuario_id = int(session["usuario_id"])
         alunos = listar_alunos_do_responsavel(app.config["DATABASE_PATH"], usuario_id)
         if not alunos:
-            flash("Cadastre um aluno antes de preencher a anamnese.", "aviso")
+            flash("Cadastre um aluno antes de preencher a avaliação inicial.", "aviso")
             return redirect(url_for("novo_aluno"))
 
         aluno_id = request.args.get("aluno_id", type=int) or request.form.get("aluno_id", type=int)
@@ -631,7 +631,7 @@ def registrar_rotas(app: Flask) -> None:
                     salvar_anamnese(caminho_banco=app.config["DATABASE_PATH"], aluno_id=int(aluno["id"]), **converter_para_anamnese_legada(respostas))
                     concluir_anamnese_estruturada(app.config["DATABASE_PATH"], int(aluno["id"]), resumo)
                     recalcular_perfil_por_anamnese(app.config["DATABASE_PATH"], int(aluno["id"]))
-                    flash("Anamnese concluída. Perfil e missões não iniciadas foram recalculados.", "sucesso")
+                    flash("Avaliação inicial concluída. Perfil e missões não iniciadas foram recalculados.", "sucesso")
                     return redirect(url_for("dashboard_responsavel", aluno_id=aluno["id"]))
             except (ValueError, TypeError) as erro:
                 flash(str(erro), "erro")
@@ -642,7 +642,7 @@ def registrar_rotas(app: Flask) -> None:
         resumo = montar_resumo_anamnese(respostas, aluno["nome_exibicao"]) if etapa == 6 else None
         return render_template(
             "anamnese.html", aluno=aluno, respostas=respostas, etapa=etapa,
-            resumo=resumo, opcoes=opcoes_anamnese_template(),
+            resumo=resumo, opcoes=opcoes_anamnese_template(respostas),
         )
 
     @app.get("/sair")
@@ -875,7 +875,7 @@ def registrar_rotas(app: Flask) -> None:
             return redirect(url_for("login"))
         if not buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], int(aluno["id"])):
             session.clear()
-            flash("O responsável precisa concluir a anamnese antes das atividades.", "aviso")
+            flash("O responsável precisa concluir a avaliação inicial antes das atividades.", "aviso")
             return redirect(url_for("login"))
 
         data_atividade = data_iso_app()
@@ -901,7 +901,7 @@ def registrar_rotas(app: Flask) -> None:
     def iniciar_ou_continuar_missao():
         aluno = _aluno_logado_com_anamnese()
         if not aluno:
-            flash("Conclua a anamnese antes das atividades.", "aviso")
+            flash("Conclua a avaliação inicial antes das atividades.", "aviso")
             return redirect(url_for("login"))
         fluxo = proxima_etapa_missao(
             app.config["DATABASE_PATH"], int(aluno["id"]), data_iso_app()
@@ -1070,7 +1070,7 @@ def registrar_rotas(app: Flask) -> None:
     def atividade_matematica():
         aluno = _aluno_logado_com_anamnese()
         if not aluno:
-            flash("Conclua a anamnese antes das atividades.", "aviso")
+            flash("Conclua a avaliação inicial antes das atividades.", "aviso")
             return redirect(url_for("login"))
         return _processar_atividade_adaptativa(
             aluno,
@@ -1088,7 +1088,7 @@ def registrar_rotas(app: Flask) -> None:
     def atividade_portugues():
         aluno = _aluno_logado_com_anamnese()
         if not aluno:
-            flash("Conclua a anamnese antes das atividades.", "aviso")
+            flash("Conclua a avaliação inicial antes das atividades.", "aviso")
             return redirect(url_for("login"))
         return _processar_atividade_adaptativa(
             aluno,
@@ -1107,7 +1107,7 @@ def registrar_rotas(app: Flask) -> None:
     def atividade_leitura():
         aluno = _aluno_logado_com_anamnese()
         if not aluno:
-            flash("Conclua a anamnese antes das atividades.", "aviso")
+            flash("Conclua a avaliação inicial antes das atividades.", "aviso")
             return redirect(url_for("login"))
 
         faixa_etaria = obter_faixa_etaria_aluno(
