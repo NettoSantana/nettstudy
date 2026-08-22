@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_responsavel.html
-Data e hora do último recode: 02/08/2026 17:39 -03:00
-Motivo da alteração: substituir o termo "Anamnese" por "Avaliação inicial educacional" nos textos visíveis do painel do responsável.
+Data e hora do último recode: 22/08/2026 01:23 -03:00
+Motivo da alteração: descrever o reset diário sem fixar uma quantidade única de matérias.
 -->
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NettStudy | Responsável</title><link rel="stylesheet" href="{{ url_for('static',filename='css/dashboard.css') }}"></head><body>
 <header class="topbar"><a class="brand" href="{{ url_for('dashboard_responsavel') }}">NettStudy</a><span>{{ responsavel.nome_completo if responsavel else usuario_logado }}</span><a class="button secondary" href="{{ url_for('notificacoes.configuracoes_notificacoes', aluno_id=aluno.id if aluno else none) }}">Notificações</a><a class="button secondary" href="{{ url_for('sair') }}">Sair</a></header>
@@ -99,5 +99,5 @@ Motivo da alteração: substituir o termo "Anamnese" por "Avaliação inicial ed
     </div>
 </section>
 {% endif %}
-<section class="panel reset-panel"><h2>Refazer missão de hoje</h2>{% if reset_missao %}<p class="reset-bloqueado">A missão de hoje já foi reiniciada. O histórico anterior continua preservado.</p>{% else %}<p>Use somente quando precisar repetir a missão deste aluno. A tentativa atual será arquivada.</p><details class="reset-details"><summary class="button secondary">Abrir confirmação</summary><form class="reset-form" method="post" action="{{ url_for('refazer_missao') }}"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><div class="reset-alerta">Isso reiniciará as três atividades de hoje somente para {{ aluno.nome }}.</div><label>Motivo opcional<input name="motivo" type="text" maxlength="200"></label><label>Senha do responsável<input name="senha" type="password" required></label><label>Digite REFAZER para confirmar<input name="confirmacao" type="text" required></label><div class="reset-acoes"><button class="button danger" type="submit">Confirmar reset do dia</button></div></form></details>{% endif %}</section>
+<section class="panel reset-panel"><h2>Refazer missão de hoje</h2>{% if reset_missao %}<p class="reset-bloqueado">A missão de hoje já foi reiniciada. O histórico anterior continua preservado.</p>{% else %}<p>Use somente quando precisar repetir a missão deste aluno. A tentativa atual será arquivada.</p><details class="reset-details"><summary class="button secondary">Abrir confirmação</summary><form class="reset-form" method="post" action="{{ url_for('refazer_missao') }}"><input type="hidden" name="aluno_id" value="{{ aluno.id }}"><div class="reset-alerta">Isso reiniciará as atividades previstas para hoje somente para {{ aluno.nome }}.</div><label>Motivo opcional<input name="motivo" type="text" maxlength="200"></label><label>Senha do responsável<input name="senha" type="password" required></label><label>Digite REFAZER para confirmar<input name="confirmacao" type="text" required></label><div class="reset-acoes"><button class="button danger" type="submit">Confirmar reset do dia</button></div></form></details>{% endif %}</section>
 {% endif %}</main></body></html>

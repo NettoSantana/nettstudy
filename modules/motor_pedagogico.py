@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\motor_pedagogico.py
-# Data e hora do último recode: 30/07/2026 20:56 -03:00
-# Motivo da alteração: concluir recálculo por anamnese, ciclo sem repetição, fluxo diário, simulação e relatórios pedagógicos.
+# Data e hora do último recode: 22/08/2026 01:23 -03:00
+# Motivo da alteração: selecionar atividades por faixa etária e retirar Leitura da missão de crianças com até 8 anos, preservando o fuso global.
 
 import json
 import random
@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from database import buscar_anamnese_por_aluno, conectar
+from modules.tempo import data_app, data_iso_app
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS perfis_pedagogicos (
@@ -78,8 +79,8 @@ CREATE TABLE IF NOT EXISTS planos_missao_diaria (
 """
 
 HABILIDADES = {
-    "matematica": ["numeros_quantidades","adicao","subtracao","multiplicacao","divisao","problemas","fracoes","medidas","dinheiro","geometria","sequencias","raciocinio_logico"],
-    "portugues": ["ortografia","pontuacao","classes_palavras","formacao_frases","vocabulario","sinonimos_antonimos","interpretacao","gramatica_aplicada","producao_textual","localizacao_informacoes","sequencia_acontecimentos"],
+    "matematica": ["numeros_quantidades","adicao_visual","adicao","subtracao","multiplicacao","divisao","problemas","fracoes","medidas","dinheiro","geometria","sequencias","raciocinio_logico","porcentagem","algebra","proporcionalidade"],
+    "portugues": ["vocabulario_visual","som_inicial","ortografia","pontuacao","classes_palavras","formacao_frases","vocabulario","sinonimos_antonimos","interpretacao","gramatica_aplicada","producao_textual","localizacao_informacoes","sequencia_acontecimentos","coesao","concordancia"],
     "leitura": ["leitura_literal","localizacao_informacoes","sequencia_acontecimentos","personagens","causa_consequencia","inferencia","ideia_principal","vocabulario_contexto","resumo","opiniao_fundamentada"],
 }
 
@@ -104,11 +105,24 @@ def _ano_numero(ano_escolar: str | None) -> int:
 
 
 def _faixa(idade: int) -> str:
-    if idade <= 7: return "Inicial"
-    if idade <= 9: return "Fundamental 1A"
-    if idade <= 11: return "Fundamental 1B"
-    if idade <= 13: return "Fundamental 2A"
-    return "Fundamental 2B"
+    if idade <= 5: return "4-5"
+    if idade <= 8: return "6-8"
+    if idade <= 11: return "9-11"
+    return "12-13"
+
+
+def obter_faixa_etaria_aluno(caminho_banco: str, aluno_id: int) -> str:
+    anamnese = buscar_anamnese_por_aluno(caminho_banco, aluno_id)
+    if not anamnese:
+        raise ValueError("A anamnese precisa ser concluída antes de iniciar a missão.")
+    return _faixa(int(anamnese["idade"]))
+
+
+def materias_missao_aluno(caminho_banco: str, aluno_id: int) -> tuple[str, ...]:
+    faixa_etaria = obter_faixa_etaria_aluno(caminho_banco, aluno_id)
+    if faixa_etaria in {"4-5", "6-8"}:
+        return ("portugues", "matematica")
+    return ("portugues", "matematica", "leitura")
 
 
 def _quantidade_por_concentracao(minutos: int) -> int:
@@ -269,10 +283,20 @@ def gerar_plano_missao(
     questoes: list[dict[str, Any]],
     data_atividade: str | None = None,
 ) -> dict[str, Any]:
-    data_ref = data_atividade or date.today().isoformat()
+    data_ref = data_atividade or data_iso_app()
     perfil = garantir_perfil_pedagogico(caminho_banco, aluno_id)
     nivel_alvo = int(perfil[f"nivel_{materia}"])
-    quantidade = min(int(perfil["quantidade_questoes"]), len(questoes))
+    faixa_etaria = perfil["faixa_desenvolvimento"]
+    questoes_faixa = [
+        item
+        for item in questoes
+        if item.get("faixa_etaria") == faixa_etaria
+    ]
+    if not questoes_faixa:
+        raise ValueError(
+            f"Nenhuma questão de {materia} disponível para a faixa {faixa_etaria}."
+        )
+    quantidade = min(int(perfil["quantidade_questoes"]), len(questoes_faixa))
     dominios = perfil["dominios"].get(materia, [])
     foco = dominios[0]["habilidade"] if dominios else None
     fase = perfil["fase"]
@@ -282,13 +306,13 @@ def gerar_plano_missao(
         caminho_banco, aluno_id, materia, data_ref
     )
     permitidas = [
-        item for item in questoes
+        item for item in questoes_faixa
         if int(item.get("nivel", 1)) <= nivel_alvo + 1
         and (item["id"] not in usados_ciclo or item["id"] in reforco)
     ]
     if len(permitidas) < quantidade:
         permitidas = [
-            item for item in questoes
+            item for item in questoes_faixa
             if int(item.get("nivel", 1)) <= nivel_alvo + 1
         ]
 
@@ -335,7 +359,7 @@ def gerar_plano_missao(
                        WHERE sessao_id = ?""",
                     (sessao["id"],),
                 ).fetchone()["total"]
-            mapa = {item["id"]: item for item in questoes}
+            mapa = {item["id"]: item for item in questoes_faixa}
             valido = all(
                 codigo in mapa
                 and int(mapa[codigo].get("nivel", 1)) <= nivel_alvo + 1
@@ -375,7 +399,7 @@ def recalcular_perfil_por_anamnese(
     aluno_id: int,
 ) -> dict[str, Any]:
     perfil = garantir_perfil_pedagogico(caminho_banco, aluno_id)
-    hoje = date.today().isoformat()
+    hoje = data_iso_app()
     with conectar(caminho_banco) as conexao:
         sessoes_ativas = conexao.execute(
             """SELECT id, materia
@@ -446,12 +470,15 @@ def proxima_etapa_missao(
     aluno_id: int,
     data_atividade: str | None = None,
 ) -> dict[str, Any]:
-    data_ref = data_atividade or date.today().isoformat()
-    ordem = [
+    data_ref = data_atividade or data_iso_app()
+    materias_permitidas = set(materias_missao_aluno(caminho_banco, aluno_id))
+    ordem_completa = [
         ("portugues", "Português", "atividade_portugues"),
         ("matematica", "Matemática", "atividade_matematica"),
         ("leitura", "Leitura", "atividade_leitura"),
     ]
+    ordem = [item for item in ordem_completa if item[0] in materias_permitidas]
+    total_etapas = len(ordem)
     with conectar(caminho_banco) as conexao:
         concluidas = {
             item["materia"]
@@ -470,7 +497,7 @@ def proxima_etapa_missao(
                 "nome": nome,
                 "rota": rota,
                 "etapa": indice,
-                "total_etapas": 3,
+                "total_etapas": total_etapas,
                 "rotulo_botao": "Iniciar atividades" if not concluidas else "Continuar atividades",
             }
     return {
@@ -478,8 +505,8 @@ def proxima_etapa_missao(
         "chave": None,
         "nome": "Missão concluída",
         "rota": "dashboard_aluno",
-        "etapa": 3,
-        "total_etapas": 3,
+        "etapa": total_etapas,
+        "total_etapas": total_etapas,
         "rotulo_botao": "Missão concluída",
     }
 
@@ -489,7 +516,7 @@ def obter_relatorio_pedagogico(
     aluno_id: int,
     dias: int = 30,
 ) -> dict[str, Any]:
-    inicio = (date.today() - timedelta(days=max(1, dias - 1))).isoformat()
+    inicio = (data_app() - timedelta(days=max(1, dias - 1))).isoformat()
     with conectar(caminho_banco) as conexao:
         linhas = conexao.execute(
             """SELECT materia, habilidade,
@@ -548,12 +575,17 @@ def simular_ciclo_diagnostico(
     usados = {"portugues": set(), "matematica": set()}
     resultado = []
     for deslocamento in range(dias):
-        data_ref = date.today() + timedelta(days=deslocamento)
+        data_ref = data_app() + timedelta(days=deslocamento)
         dia = {"dia": deslocamento + 1, "data": data_ref.isoformat()}
         for materia, banco in (
             ("portugues", questoes_portugues),
             ("matematica", questoes_matematica),
         ):
+            banco = [
+                item
+                for item in banco
+                if item.get("faixa_etaria") == perfil["faixa_desenvolvimento"]
+            ]
             nivel = int(perfil[f"nivel_{materia}"])
             comp = _composicao(min(int(perfil["quantidade_questoes"]), len(banco)), nivel)
             candidatas = [
@@ -586,7 +618,7 @@ def historias_lidas_ciclo(
     data_atividade: str | None = None,
     dias: int = 5,
 ) -> set[str]:
-    data_ref = data_atividade or date.today().isoformat()
+    data_ref = data_atividade or data_iso_app()
     inicio = (date.fromisoformat(data_ref) - timedelta(days=max(1, dias - 1))).isoformat()
     with conectar(caminho_banco) as conexao:
         linhas = conexao.execute(

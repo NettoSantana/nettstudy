@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\portugues.py
-# Data e hora do último recode: 30/07/2026 21:17 -03:00
-# Motivo da alteração: identificar quais questões realmente dependem do texto de apoio.
+# Data e hora do último recode: 22/08/2026 01:23 -03:00
+# Motivo da alteração: organizar cinco atividades de Português por faixa etária, com abordagem visual para crianças de 4 a 5 anos.
 
 from typing import Any
 
@@ -9,11 +9,13 @@ TEXTO = "Na manhã de sábado, Lia encontrou um passarinho no quintal. Ele estav
 
 
 def _q(codigo: str, nivel: int, habilidade: str, tema: str, enunciado: str,
-       alternativas: list[str], correta: str, dicas: list[str], explicacao: str) -> dict[str, Any]:
+       alternativas: list[str], correta: str, dicas: list[str], explicacao: str,
+       faixa_etaria: str | None = None, figura: str | None = None) -> dict[str, Any]:
     return {
         "id": codigo, "nivel": nivel, "habilidade": habilidade, "tema": tema,
         "enunciado": enunciado, "alternativas": alternativas, "correta": correta,
         "dicas": dicas, "explicacao": explicacao,
+        "faixa_etaria": faixa_etaria, "figura": figura,
     }
 
 
@@ -70,6 +72,101 @@ QUESTOES.extend([
     _q("por-213",2,"sequencia_acontecimentos","rotina","Qual ação acontece antes de sair para a escola?",["Guardar o material na mochila","Voltar da escola","Jantar","Dormir à noite"],"Guardar o material na mochila",["Pense na preparação.","O material precisa estar pronto.","Primeiro guardamos o material."],"Guardar o material acontece antes de sair."),
     _q("por-214",2,"ortografia","plural","Qual é o plural de 'gato'?",["Gatoes","Gatos","Gato","Gatas"],"Gatos",["Plural indica mais de um.","Acrescente s.","O plural é gatos."],"O plural de gato é gatos."),
     _q("por-215",2,"pontuacao","frase","Qual frase começa e termina corretamente?",["maria brinca.","Maria brinca","Maria brinca.","maria brinca"],"Maria brinca.",["Comece com letra maiúscula.","Termine com ponto final.","Maria brinca. está correta."],"A frase correta é Maria brinca."),
+])
+
+
+# Banco novo da metodologia por idade. As questões antigas permanecem acima para
+# que atividades iniciadas antes da atualização continuem podendo ser concluídas.
+QUESTOES.extend([
+    # 4 a 5 anos: linguagem concreta, reconhecimento visual e vocabulário oral.
+    _q("por-f45-01", 1, "vocabulario_visual", "animais", "Que bicho é este?",
+       ["Cachorro", "Gato", "Peixe", "Pássaro"], "Cachorro",
+       ["Olhe bem para o focinho e as orelhas.", "Ele pode latir.", "É um cachorro."],
+       "A figura mostra um cachorro.", "4-5", "🐶"),
+    _q("por-f45-02", 1, "vocabulario_visual", "cores", "Qual é a cor desta figura?",
+       ["Azul", "Amarelo", "Verde", "Roxo"], "Azul",
+       ["Observe a cor do círculo.", "É a cor que lembra o céu.", "A cor é azul."],
+       "O círculo é azul.", "4-5", "🔵"),
+    _q("por-f45-03", 1, "vocabulario_visual", "frutas", "Qual é o nome desta fruta?",
+       ["Banana", "Maçã", "Uva", "Laranja"], "Banana",
+       ["Observe a fruta amarela.", "Ela é comprida e tem casca.", "É uma banana."],
+       "A figura mostra uma banana.", "4-5", "🍌"),
+    _q("por-f45-04", 1, "som_inicial", "alfabetizacao", "BOLA começa com qual letra?",
+       ["B", "M", "P", "T"], "B",
+       ["Fale BOLA devagar.", "Escute o primeiro som.", "BOLA começa com B."],
+       "A palavra BOLA começa com a letra B.", "4-5", "⚽"),
+    _q("por-f45-05", 1, "vocabulario_visual", "acoes", "O que a menina está fazendo?",
+       ["Correndo", "Dormindo", "Comendo", "Sentando"], "Correndo",
+       ["Observe as pernas da menina.", "Ela está se movimentando depressa.", "Ela está correndo."],
+       "A menina está correndo.", "4-5", "🏃‍♀️"),
+
+    # 6 a 8 anos: alfabetização guiada, frases curtas e leitura dentro de Português.
+    _q("por-f68-01", 2, "ortografia", "alfabetizacao", "Qual palavra combina com a figura?",
+       ["Casa", "Cama", "Capa", "Cara"], "Casa",
+       ["Observe o lugar onde as pessoas moram.", "A palavra começa com CA.", "A resposta é casa."],
+       "A figura representa uma casa.", "6-8", "🏠"),
+    _q("por-f68-02", 2, "formacao_frases", "ordem", "Organize: 'parque / brinca / no / Bia'.",
+       ["Bia brinca no parque.", "No Bia parque brinca.", "Brinca parque no Bia.", "Parque Bia no brinca."],
+       "Bia brinca no parque.", ["Comece por Bia.", "Depois diga a ação.", "Bia brinca no parque."],
+       "A ordem correta é 'Bia brinca no parque.'.", "6-8"),
+    _q("por-f68-03", 2, "localizacao_informacoes", "leitura_guiada",
+       "Leia: 'Caio levou água para o passeio.' O que Caio levou?",
+       ["Água", "Uma bola", "Um livro", "Uma flor"], "Água",
+       ["A resposta está na frase.", "Procure a palavra depois de levou.", "Caio levou água."],
+       "Caio levou água para o passeio.", "6-8"),
+    _q("por-f68-04", 2, "pontuacao", "pergunta", "Qual frase é uma pergunta?",
+       ["Onde está meu lápis?", "Meu lápis é azul.", "Guardei o lápis.", "O lápis caiu."],
+       "Onde está meu lápis?", ["Procure o ponto de interrogação.", "A frase quer descobrir algo.",
+       "'Onde está meu lápis?' é uma pergunta."], "Perguntas terminam com ponto de interrogação.", "6-8"),
+    _q("por-f68-05", 2, "sinonimos_antonimos", "vocabulario", "Qual é o contrário de feliz?",
+       ["Triste", "Rápido", "Bonito", "Pequeno"], "Triste",
+       ["Pense em um sentimento oposto.", "É como alguém pode ficar quando algo ruim acontece.",
+       "Triste é o contrário de feliz."], "Triste é o antônimo de feliz.", "6-8"),
+
+    # 9 a 11 anos: consolidação gramatical, vocabulário e coesão.
+    _q("por-f911-01", 3, "ortografia", "grafia", "Qual palavra está escrita corretamente?",
+       ["Exceção", "Excessão", "Eceção", "Exessão"], "Exceção",
+       ["A palavra começa com EX.", "O som central é escrito com Ç.", "A grafia correta é exceção."],
+       "Exceção é a grafia correta.", "9-11"),
+    _q("por-f911-02", 3, "classes_palavras", "verbo", "Na frase 'Os alunos organizaram a feira', qual é o verbo?",
+       ["alunos", "organizaram", "feira", "os"], "organizaram",
+       ["O verbo indica a ação.", "Pergunte o que os alunos fizeram.", "A ação foi organizar."],
+       "Organizaram é o verbo da frase.", "9-11"),
+    _q("por-f911-03", 3, "pontuacao", "dialogo", "Qual opção apresenta a fala corretamente?",
+       ["Lia disse: — Vamos começar!", "Lia disse — vamos começar", "lia disse: Vamos começar.", "Lia, disse vamos começar!"],
+       "Lia disse: — Vamos começar!", ["A fala é anunciada por dois-pontos.", "O travessão marca o início da fala.",
+       "A primeira opção usa os sinais corretamente."], "Os dois-pontos anunciam e o travessão inicia a fala.", "9-11"),
+    _q("por-f911-04", 3, "coesao", "conectivos", "Complete: 'Estudou com atenção, ___ resolveu o desafio.'",
+       ["por isso", "embora", "porém", "enquanto"], "por isso",
+       ["A segunda ação é resultado da primeira.", "Procure um conectivo de consequência.", "Por isso indica consequência."],
+       "Por isso conecta a causa ao resultado.", "9-11"),
+    _q("por-f911-05", 3, "vocabulario", "contexto", "Na frase 'A equipe agiu com cautela', o que significa cautela?",
+       ["Cuidado", "Pressa", "Barulho", "Alegria"], "Cuidado",
+       ["Observe como a equipe agiu.", "Pense em evitar riscos.", "Cautela significa cuidado."],
+       "Cautela significa agir com cuidado.", "9-11"),
+
+    # 12 a 13 anos: análise linguística e argumentação em contexto.
+    _q("por-f1213-01", 5, "concordancia", "gramatica_aplicada", "Qual frase apresenta concordância correta?",
+       ["As pesquisas foram concluídas.", "As pesquisa foi concluída.", "A pesquisas foram concluída.", "As pesquisas foi concluído."],
+       "As pesquisas foram concluídas.", ["Observe o plural do sujeito.", "Verbo e adjetivo devem acompanhar o plural.",
+       "Pesquisas, foram e concluídas estão no plural."], "A primeira frase mantém a concordância no plural.", "12-13"),
+    _q("por-f1213-02", 5, "coesao", "conectivos", "Qual conectivo completa uma ideia de contraste? 'O plano era difícil, ___ a equipe não desistiu.'",
+       ["mas", "porque", "portanto", "quando"], "mas",
+       ["As duas ideias se opõem.", "Procure um conectivo adversativo.", "Mas expressa contraste."],
+       "Mas estabelece contraste entre dificuldade e persistência.", "12-13"),
+    _q("por-f1213-03", 5, "interpretacao", "argumentacao",
+       "Leia: 'A escola ampliou a biblioteca porque o número de leitores cresceu.' Qual relação aparece?",
+       ["Causa e consequência", "Comparação", "Oposição", "Enumeração"], "Causa e consequência",
+       ["Observe a palavra porque.", "O crescimento motivou uma ação.", "Há uma causa e sua consequência."],
+       "O aumento de leitores é a causa da ampliação da biblioteca.", "12-13"),
+    _q("por-f1213-04", 5, "vocabulario", "linguagem_formal", "Qual expressão é mais adequada a um texto formal?",
+       ["Os resultados demonstram avanço.", "Os resultados tão bem legais.", "Deu tudo supercerto.", "A parada melhorou muito."],
+       "Os resultados demonstram avanço.", ["Textos formais evitam gírias.", "Procure precisão e impessoalidade.",
+       "A primeira opção usa registro formal."], "A primeira frase é adequada ao registro formal.", "12-13"),
+    _q("por-f1213-05", 5, "pontuacao", "argumentacao", "Qual frase usa a vírgula corretamente?",
+       ["Se houver tempo, revisaremos o projeto.", "Se houver, tempo revisaremos o projeto.", "Se houver tempo revisaremos, o projeto.", "Se, houver tempo revisaremos o projeto."],
+       "Se houver tempo, revisaremos o projeto.", ["A oração inicial indica uma condição.", "Separe a condição da ação principal.",
+       "A vírgula vem depois de tempo."], "A vírgula separa a oração condicional antecipada.", "12-13"),
 ])
 
 QUESTOES_COM_TEXTO = {

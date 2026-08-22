@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\notificacoes.py
-# Data e hora do último recode: 31/07/2026 08:07 -03:00
-# Motivo da alteração: registrar falhas do agendador e executar verificação imediata das notificações.
+# Data e hora do último recode: 22/08/2026 01:23 -03:00
+# Motivo da alteração: alinhar notificações às matérias previstas por idade e preservar o fuso global da aplicação.
 
 import html
 import sqlite3
@@ -9,11 +9,11 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from time import sleep
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 
 from modules.email_service import enviar_email_notificacao
+from modules.tempo import NOME_FUSO_HORARIO_APP, agora_app
 
 
 notificacoes_bp = Blueprint("notificacoes", __name__)
@@ -229,14 +229,42 @@ def _registrar_envio(conexao: sqlite3.Connection, configuracao: sqlite3.Row, tip
     )
 
 
-def _total_concluidas(conexao: sqlite3.Connection, aluno_id: int, data_iso: str) -> int:
+def _materias_previstas(conexao: sqlite3.Connection, aluno_id: int) -> tuple[str, ...]:
+    anamnese = conexao.execute(
+        "SELECT idade FROM anamneses WHERE aluno_id = ?",
+        (aluno_id,),
+    ).fetchone()
+    idade = int(anamnese["idade"]) if anamnese else 9
+    if idade <= 8:
+        return ("portugues", "matematica")
+    return ("portugues", "matematica", "leitura")
+
+
+def _total_concluidas(
+    conexao: sqlite3.Connection,
+    aluno_id: int,
+    data_iso: str,
+    materias: tuple[str, ...],
+) -> int:
+    marcadores = ",".join("?" for _ in materias)
     return int(conexao.execute(
-        """
+        f"""
         SELECT COUNT(*) AS total FROM atividades_diarias
         WHERE aluno_id = ? AND data_atividade = ? AND status = 'concluida'
+          AND materia IN ({marcadores})
         """,
-        (aluno_id, data_iso),
+        (aluno_id, data_iso, *materias),
     ).fetchone()["total"])
+
+
+def _nomes_materias(materias: tuple[str, ...]) -> str:
+    nomes = {
+        "portugues": "Português",
+        "matematica": "Matemática",
+        "leitura": "Leitura",
+    }
+    rotulos = [nomes[materia] for materia in materias]
+    return " e ".join(rotulos) if len(rotulos) == 2 else ", ".join(rotulos[:-1]) + " e " + rotulos[-1]
 
 
 def _base_email(titulo: str, conteudo: str) -> str:
@@ -252,20 +280,22 @@ def _base_email(titulo: str, conteudo: str) -> str:
 
 def _enviar_atraso(config: dict[str, Any]) -> None:
     nome = html.escape(config["nome_exibicao"])
-    conteudo = f"<p>A missão de hoje de <strong>{nome}</strong> ainda não foi concluída até o horário configurado.</p><p>Português, Matemática e Leitura formam a missão completa do dia.</p>"
+    conteudo = f"<p>A missão de hoje de <strong>{nome}</strong> ainda não foi concluída até o horário configurado.</p><p>{config['nomes_materias']} formam a missão completa do dia.</p>"
     enviar_email_notificacao(config["api_key"], config["remetente"], config["email"], f"Atividade pendente de {nome}", _base_email("Atividade ainda pendente", conteudo))
 
 
 def _enviar_conclusao(config: dict[str, Any]) -> None:
     nome = html.escape(config["nome_exibicao"])
-    conteudo = f"<p><strong>{nome}</strong> concluiu 100% da missão de hoje.</p><p>As etapas de Português, Matemática e Leitura foram finalizadas.</p>"
+    conteudo = f"<p><strong>{nome}</strong> concluiu 100% da missão de hoje.</p><p>As etapas de {config['nomes_materias']} foram finalizadas.</p>"
     enviar_email_notificacao(config["api_key"], config["remetente"], config["email"], f"{nome} concluiu a missão de hoje", _base_email("Missão concluída", conteudo))
 
 
 def _dados_semanais(conexao: sqlite3.Connection, config: dict[str, Any], hoje: date) -> dict[str, Any]:
     inicio = hoje - timedelta(days=6)
+    materias = _materias_previstas(conexao, int(config["aluno_id"]))
+    marcadores = ",".join("?" for _ in materias)
     linhas = conexao.execute(
-        """
+        f"""
         SELECT data_atividade,
                COUNT(*) AS materias,
                COALESCE(SUM(pontos), 0) AS pontos,
@@ -273,9 +303,10 @@ def _dados_semanais(conexao: sqlite3.Connection, config: dict[str, Any], hoje: d
                COALESCE(SUM(total_questoes), 0) AS questoes
         FROM atividades_diarias
         WHERE aluno_id = ? AND data_atividade BETWEEN ? AND ? AND status = 'concluida'
+          AND materia IN ({marcadores})
         GROUP BY data_atividade
         """,
-        (config["aluno_id"], inicio.isoformat(), hoje.isoformat()),
+        (config["aluno_id"], inicio.isoformat(), hoje.isoformat(), *materias),
     ).fetchall()
     por_data = {item["data_atividade"]: dict(item) for item in linhas}
     dias_programados = {int(valor) for valor in config["dias_semana"].split(",") if valor}
@@ -289,7 +320,7 @@ def _dados_semanais(conexao: sqlite3.Connection, config: dict[str, Any], hoje: d
         if dia.weekday() in dias_programados:
             previstos += 1
             registro = por_data.get(dia.isoformat())
-            if registro and int(registro["materias"]) >= 3:
+            if registro and int(registro["materias"]) >= len(materias):
                 completos += 1
         registro = por_data.get(dia.isoformat())
         if registro:
@@ -319,11 +350,7 @@ def _enviar_relatorio(config: dict[str, Any], dados: dict[str, Any]) -> None:
 
 
 def verificar_notificacoes(config_app: dict[str, Any], logger=None) -> None:
-    try:
-        fuso = ZoneInfo(config_app["NOTIFICACOES_FUSO"])
-    except ZoneInfoNotFoundError:
-        fuso = ZoneInfo("UTC")
-    agora = datetime.now(fuso)
+    agora = agora_app()
     data_iso = agora.date().isoformat()
     hora_atual = agora.strftime("%H:%M")
     semana = f"{agora.isocalendar().year}-W{agora.isocalendar().week:02d}"
@@ -345,7 +372,7 @@ def verificar_notificacoes(config_app: dict[str, Any], logger=None) -> None:
                 len(configuracoes),
                 data_iso,
                 hora_atual,
-                str(fuso),
+                NOME_FUSO_HORARIO_APP,
             )
 
         for registro in configuracoes:
@@ -353,9 +380,14 @@ def verificar_notificacoes(config_app: dict[str, Any], logger=None) -> None:
             config["api_key"] = config_app["RESEND_API_KEY"]
             config["remetente"] = config_app["RESEND_FROM"]
             dias = {int(valor) for valor in config["dias_semana"].split(",") if valor}
-            concluidas = _total_concluidas(conexao, int(config["aluno_id"]), data_iso)
+            materias = _materias_previstas(conexao, int(config["aluno_id"]))
+            total_necessario = len(materias)
+            config["nomes_materias"] = _nomes_materias(materias)
+            concluidas = _total_concluidas(
+                conexao, int(config["aluno_id"]), data_iso, materias
+            )
             try:
-                if config["avisar_conclusao"] and concluidas == 3 and not _ja_enviado(conexao, config["id"], "conclusao", data_iso):
+                if config["avisar_conclusao"] and concluidas >= total_necessario and not _ja_enviado(conexao, config["id"], "conclusao", data_iso):
                     _enviar_conclusao(config)
                     _registrar_envio(conexao, registro, "conclusao", data_iso)
                     if logger:
@@ -366,7 +398,7 @@ def verificar_notificacoes(config_app: dict[str, Any], logger=None) -> None:
                             data_iso,
                         )
 
-                if config["avisar_atraso"] and agora.weekday() in dias and hora_atual >= config["horario_limite"] and concluidas < 3 and not _ja_enviado(conexao, config["id"], "atraso", data_iso):
+                if config["avisar_atraso"] and agora.weekday() in dias and hora_atual >= config["horario_limite"] and concluidas < total_necessario and not _ja_enviado(conexao, config["id"], "atraso", data_iso):
                     _enviar_atraso(config)
                     _registrar_envio(conexao, registro, "atraso", data_iso)
                     if logger:
@@ -419,7 +451,6 @@ def iniciar_agendador_notificacoes(app) -> None:
         "DATABASE_PATH": app.config["DATABASE_PATH"],
         "RESEND_API_KEY": app.config["RESEND_API_KEY"],
         "RESEND_FROM": app.config["RESEND_FROM"],
-        "NOTIFICACOES_FUSO": app.config["NOTIFICACOES_FUSO"],
         "NOTIFICACOES_INTERVALO_SEGUNDOS": app.config["NOTIFICACOES_INTERVALO_SEGUNDOS"],
     }
 
@@ -429,7 +460,7 @@ def iniciar_agendador_notificacoes(app) -> None:
         logger.info(
             "Agendador de notificações iniciado: intervalo=%ss, fuso=%s, banco=%s.",
             config_app["NOTIFICACOES_INTERVALO_SEGUNDOS"],
-            config_app["NOTIFICACOES_FUSO"],
+            NOME_FUSO_HORARIO_APP,
             config_app["DATABASE_PATH"],
         )
         while True:

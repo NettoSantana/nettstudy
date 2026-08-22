@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\configuracoes_notificacoes.html
-Data e hora do último recode: 31/07/2026 06:32 -03:00
-Motivo da alteração: criar painel individual de rotina e notificações por e-mail.
+Data e hora do último recode: 22/08/2026 01:23 -03:00
+Motivo da alteração: descrever a conclusão conforme as matérias previstas para a idade.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -91,7 +91,7 @@ Motivo da alteração: criar painel individual de rotina e notificações por e-
 
         <div class="notificacoes-opcoes">
             <label><input type="checkbox" name="avisar_atraso" {% if configuracao.avisar_atraso %}checked{% endif %}><span><strong>Atividade pendente</strong><small>Enviar uma vez quando o horário limite passar e a missão estiver incompleta.</small></span></label>
-            <label><input type="checkbox" name="avisar_conclusao" {% if configuracao.avisar_conclusao %}checked{% endif %}><span><strong>Missão 100% concluída</strong><small>Avisar quando Português, Matemática e Leitura forem finalizados.</small></span></label>
+            <label><input type="checkbox" name="avisar_conclusao" {% if configuracao.avisar_conclusao %}checked{% endif %}><span><strong>Missão 100% concluída</strong><small>Avisar quando todas as matérias previstas para a idade forem finalizadas.</small></span></label>
             <label><input type="checkbox" name="enviar_relatorio_semanal" {% if configuracao.enviar_relatorio_semanal %}checked{% endif %}><span><strong>Relatório semanal</strong><small>Enviar frequência, pontos e aproveitamento das atividades.</small></span></label>
         </div>
 
