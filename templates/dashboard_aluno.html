@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\dashboard_aluno.html
-Data e hora do último recode: 31/07/2026 06:01 -03:00
-Motivo da alteração: inserir o mascote com balão de fala personalizado no dashboard do aluno.
+Data e hora do último recode: 22/08/2026 01:23 -03:00
+Motivo da alteração: exibir duas ou três etapas conforme a faixa etária da missão.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -61,31 +61,32 @@ Motivo da alteração: inserir o mascote com balão de fala personalizado no das
 
     <div class="metrics">
         <div class="metric"><span>Pontos</span><strong>{{ pontos }}</strong></div>
-        <div class="metric"><span>Atividades</span><strong>{{ atividades_concluidas }} de 3</strong></div>
+        <div class="metric"><span>Atividades</span><strong>{{ atividades_concluidas }} de {{ fluxo.total_etapas }}</strong></div>
         <div class="metric"><span>Progresso</span><strong>{{ progresso }}%</strong></div>
     </div>
 
     <section class="panel missao-unica">
         {% if fluxo.concluida %}
             <p class="etiqueta">MISSÃO CONCLUÍDA</p>
-            <h2>Parabéns! Você concluiu as três etapas de hoje.</h2>
+            <h2>Parabéns! Você concluiu todas as {{ fluxo.total_etapas }} etapas de hoje.</h2>
             <div class="trilha-etapas">
                 <span class="concluida">1. Português</span>
                 <span class="concluida">2. Matemática</span>
-                <span class="concluida">3. Leitura</span>
+                {% if fluxo.total_etapas == 3 %}<span class="concluida">3. Leitura</span>{% endif %}
             </div>
             <span class="button secondary bloqueado">Missão concluída</span>
         {% else %}
             <p class="etiqueta">ETAPA {{ fluxo.etapa }} DE {{ fluxo.total_etapas }}</p>
             <h2>Próxima atividade: {{ fluxo.nome }}</h2>
             <p class="texto-suave">
-                Faça as atividades na ordem: Português, Matemática e Leitura.
+                Faça as atividades na ordem:
+                {{ 'Português e Matemática' if fluxo.total_etapas == 2 else 'Português, Matemática e Leitura' }}.
                 Ao terminar uma etapa, o sistema leva você para a próxima.
             </p>
             <div class="trilha-etapas">
                 <span class="{% if fluxo.etapa > 1 %}concluida{% elif fluxo.etapa == 1 %}atual{% endif %}">1. Português</span>
                 <span class="{% if fluxo.etapa > 2 %}concluida{% elif fluxo.etapa == 2 %}atual{% endif %}">2. Matemática</span>
-                <span class="{% if fluxo.etapa == 3 %}atual{% endif %}">3. Leitura</span>
+                {% if fluxo.total_etapas == 3 %}<span class="{% if fluxo.etapa == 3 %}atual{% endif %}">3. Leitura</span>{% endif %}
             </div>
             <a class="button missao-botao" href="{{ url_for('iniciar_ou_continuar_missao') }}">
                 {{ fluxo.rotulo_botao }}

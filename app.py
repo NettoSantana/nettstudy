@@ -1,12 +1,10 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 17/08/2026 22:54 -03:00
-# Motivo da alteração: padronizar a data do sistema no fuso America/Bahia para sincronizar atividades e notificações.
+# Data e hora do último recode: 22/08/2026 01:23 -03:00
+# Motivo da alteração: aplicar a missão por faixa etária, sem Leitura até 8 anos, e preservar o fuso global configurável.
 
 import os
-from datetime import datetime
 from functools import wraps
 from typing import Any, Callable
-from zoneinfo import ZoneInfo
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
@@ -47,6 +45,8 @@ from modules.motor_pedagogico import (
     obter_relatorio_pedagogico,
     simular_ciclo_diagnostico,
     historias_lidas_ciclo,
+    materias_missao_aluno,
+    obter_faixa_etaria_aluno,
 )
 from modules.matematica import (
     QUESTOES as QUESTOES_MATEMATICA,
@@ -61,6 +61,7 @@ from modules.portugues import (
     obter_questao as obter_questao_portugues,
     resposta_correta as resposta_correta_portugues,
 )
+from modules.tempo import data_iso_app
 
 from database import (
     buscar_aluno_por_usuario,
@@ -102,11 +103,6 @@ from database import (
 VERSAO_TERMO_CONSENTIMENTO_PARENTAL = "2026-08-02-v1"
 ORIGEM_CONSENTIMENTO_PARENTAL = "formulario_novo_aluno"
 ORIGEM_REGULARIZACAO_CONSENTIMENTO = "primeiro_login_conta_existente"
-FUSO_HORARIO_APP = ZoneInfo("America/Bahia")
-
-
-def data_atual_app() -> str:
-    return datetime.now(FUSO_HORARIO_APP).date().isoformat()
 
 
 def create_app() -> Flask:
@@ -676,11 +672,27 @@ def registrar_rotas(app: Flask) -> None:
             session["aluno_responsavel_id"] = aluno_id
 
         aluno = None
+        anamnese_registro = None
         if aluno_registrado:
-            resumo_dia = obter_resumo_diario(app.config["DATABASE_PATH"], aluno_id, data_atual_app())
+            anamnese_registro = buscar_anamnese_por_aluno(
+                app.config["DATABASE_PATH"], aluno_id
+            )
+            resumo_dia = obter_resumo_diario(
+                app.config["DATABASE_PATH"], aluno_id, data_iso_app()
+            )
+            materias_planejadas = (
+                materias_missao_aluno(app.config["DATABASE_PATH"], aluno_id)
+                if anamnese_registro
+                else ("portugues", "matematica", "leitura")
+            )
+            nomes_materias = {
+                "portugues": "Português",
+                "matematica": "Matemática",
+                "leitura": "Leitura",
+            }
             atividades = []
-            for nome in ("Português", "Matemática", "Leitura"):
-                chave = nome.lower().replace("á", "a").replace("ê", "e")
+            for chave in materias_planejadas:
+                nome = nomes_materias[chave]
                 concluida = bool(resumo_dia["materias"].get(chave))
                 atividades.append({"nome": nome, "status": "Concluída" if concluida else "Pendente", "progresso": 100 if concluida else 0})
             aluno = {
@@ -698,8 +710,7 @@ def registrar_rotas(app: Flask) -> None:
         else:
             resumo_dia = {"materias": {}, "concluidas": 0, "progresso": 0, "pontos": 0, "sequencia": 0}
 
-        anamnese_registro = buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], aluno_id) if aluno else None
-        reset_missao = obter_reset_missao_dia(app.config["DATABASE_PATH"], aluno_id, data_atual_app()) if aluno else None
+        reset_missao = obter_reset_missao_dia(app.config["DATABASE_PATH"], aluno_id, data_iso_app()) if aluno else None
         perfil = garantir_perfil_pedagogico(app.config["DATABASE_PATH"], aluno_id) if aluno and anamnese_registro else None
         relatorio = obter_relatorio_pedagogico(app.config["DATABASE_PATH"], aluno_id) if perfil else None
         return render_template(
@@ -839,7 +850,7 @@ def registrar_rotas(app: Flask) -> None:
                 app.config["DATABASE_PATH"],
                 int(session["usuario_id"]),
                 aluno_id,
-                data_atual_app(),
+                data_iso_app(),
                 motivo,
             )
         except ValueError as erro:
@@ -867,14 +878,15 @@ def registrar_rotas(app: Flask) -> None:
             flash("O responsável precisa concluir a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
 
+        data_atividade = data_iso_app()
         resumo_dia = obter_resumo_diario(
-            app.config["DATABASE_PATH"], int(aluno["id"]), data_atual_app()
+            app.config["DATABASE_PATH"], int(aluno["id"]), data_atividade
         )
         personalizacao = resumo_missao_personalizada(
             app.config["DATABASE_PATH"], int(aluno["id"])
         )
         fluxo = proxima_etapa_missao(
-            app.config["DATABASE_PATH"], int(aluno["id"])
+            app.config["DATABASE_PATH"], int(aluno["id"]), data_atividade
         )
         return render_template(
             "dashboard_aluno.html", aluno=aluno, pontos=resumo_dia["pontos"],
@@ -892,7 +904,7 @@ def registrar_rotas(app: Flask) -> None:
             flash("Conclua a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
         fluxo = proxima_etapa_missao(
-            app.config["DATABASE_PATH"], int(aluno["id"])
+            app.config["DATABASE_PATH"], int(aluno["id"]), data_iso_app()
         )
         if fluxo["concluida"]:
             return redirect(url_for("dashboard_aluno"))
@@ -922,7 +934,7 @@ def registrar_rotas(app: Flask) -> None:
         template: str,
         texto: str | None = None,
     ):
-        data_atividade = data_atual_app()
+        data_atividade = data_iso_app()
         plano_pedagogico = gerar_plano_missao(
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
@@ -944,11 +956,15 @@ def registrar_rotas(app: Flask) -> None:
                 app.config["DATABASE_PATH"],
                 int(sessao_adaptativa["id"]),
             )
+            fluxo = proxima_etapa_missao(
+                app.config["DATABASE_PATH"], int(aluno["id"]), data_atividade
+            )
             return render_template(
                 "resultado_atividade.html",
                 materia=nome_materia,
                 resultado=enriquecer_resultado(resultado),
                 adaptativa=True,
+                missao_concluida=fluxo["concluida"],
             )
 
         if request.method == "POST":
@@ -1026,11 +1042,15 @@ def registrar_rotas(app: Flask) -> None:
                 app.config["DATABASE_PATH"],
                 int(sessao_adaptativa["id"]),
             )
+            fluxo = proxima_etapa_missao(
+                app.config["DATABASE_PATH"], int(aluno["id"]), data_atividade
+            )
             return render_template(
                 "resultado_atividade.html",
                 materia=nome_materia,
                 resultado=enriquecer_resultado(resultado),
                 adaptativa=True,
+                missao_concluida=fluxo["concluida"],
             )
 
         questao = obter_questao(sessao_adaptativa["questao_atual"])
@@ -1090,7 +1110,17 @@ def registrar_rotas(app: Flask) -> None:
             flash("Conclua a anamnese antes das atividades.", "aviso")
             return redirect(url_for("login"))
 
-        data_atividade = data_atual_app()
+        faixa_etaria = obter_faixa_etaria_aluno(
+            app.config["DATABASE_PATH"], int(aluno["id"])
+        )
+        if faixa_etaria in {"4-5", "6-8"}:
+            flash(
+                "A missão desta faixa termina após Português e Matemática.",
+                "aviso",
+            )
+            return redirect(url_for("iniciar_ou_continuar_missao"))
+
+        data_atividade = data_iso_app()
         anamnese = buscar_anamnese_por_aluno(
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
@@ -1106,6 +1136,7 @@ def registrar_rotas(app: Flask) -> None:
             historias_excluidas=historias_lidas_ciclo(
                 app.config["DATABASE_PATH"], int(aluno["id"]), data_atividade
             ),
+            faixa_etaria=faixa_etaria,
         )
         codigos = [
             pergunta["id"]
@@ -1158,6 +1189,7 @@ def registrar_rotas(app: Flask) -> None:
                 materia="Leitura",
                 resultado=resultado,
                 leitura=True,
+                missao_concluida=True,
             )
 
         if request.method == "POST":
@@ -1277,6 +1309,7 @@ def registrar_rotas(app: Flask) -> None:
                         resultado=resultado,
                         leitura=True,
                         avaliacao_resumo=versao,
+                        missao_concluida=True,
                     )
 
                 return render_template(

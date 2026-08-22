@@ -1,9 +1,11 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\leitura.py
-# Data e hora do último recode: 30/07/2026 21:27 -03:00
-# Motivo da alteração: permitir recuperar a história exata vinculada à sessão de Leitura.
+# Data e hora do último recode: 22/08/2026 01:23 -03:00
+# Motivo da alteração: adicionar cinco histórias por faixa de 9 a 11 e 12 a 13 anos e filtrar novas leituras pela idade.
 
 from datetime import date
 from typing import Any
+
+from modules.tempo import data_app
 
 
 HISTORIAS = [
@@ -372,6 +374,166 @@ HISTORIAS = [
         ],
         "reflexao": "Que fenômeno do seu dia a dia você gostaria de observar e registrar?",
     },
+    {
+        "id": "lei-f911-01", "faixa_etaria": "9-11", "colecao": "Convivência",
+        "tema": "Cooperação e espaço público", "titulo": "O sábado da praça", "nivel": "basico",
+        "vocabulario": ["mutirão", "canteiro", "cooperação"],
+        "paginas": [
+            "A praça perto da escola estava com folhas espalhadas e dois bancos descascados. Em vez de apenas reclamar, a turma de Elisa propôs um mutirão para o sábado. A direção ajudou a conversar com as famílias e com os moradores do bairro.",
+            "No dia combinado, um grupo recolheu as folhas, outro lixou os bancos e as crianças menores desenharam placas para os canteiros. Quando faltou tinta, Elisa sugeriu terminar primeiro um banco, sem deixar vários serviços pela metade.",
+            "À tarde, a praça não estava perfeita, mas já parecia acolhedora. Os moradores combinaram uma escala simples para cuidar do local. Elisa percebeu que cooperação não é todo mundo fazer a mesma coisa: é cada pessoa assumir uma parte do objetivo comum.",
+        ],
+        "perguntas": [
+            {"id": "lei-f911-01-q1", "enunciado": "O que motivou o mutirão?", "alternativas": ["A praça precisava de cuidados", "A escola seria fechada", "Os bancos eram novos", "Haveria uma competição"], "correta": "A praça precisava de cuidados"},
+            {"id": "lei-f911-01-q2", "enunciado": "Por que Elisa sugeriu terminar primeiro um banco?", "alternativas": ["Para evitar vários serviços incompletos", "Para usar mais tinta", "Para trabalhar sozinha", "Para encerrar o mutirão"], "correta": "Para evitar vários serviços incompletos"},
+            {"id": "lei-f911-01-q3", "enunciado": "Qual é a principal ideia da história?", "alternativas": ["Cooperar é dividir responsabilidades por um objetivo", "Praças devem ficar sempre vazias", "Somente adultos cuidam do bairro", "Todos precisam executar a mesma tarefa"], "correta": "Cooperar é dividir responsabilidades por um objetivo"},
+        ],
+        "reflexao": "Que parte de um trabalho coletivo você consegue assumir com responsabilidade?",
+    },
+    {
+        "id": "lei-f911-02", "faixa_etaria": "9-11", "colecao": "Comunicação",
+        "tema": "Pesquisa e responsabilidade", "titulo": "A notícia do rádio", "nivel": "basico",
+        "vocabulario": ["fonte", "confirmar", "entrevista"],
+        "paginas": [
+            "A turma de Hugo criou um pequeno programa de rádio para o intervalo. Na primeira reunião, alguém contou que a biblioteca fecharia durante um mês. Hugo quis anunciar a informação imediatamente, pois achou que seria uma notícia importante.",
+            "Maya perguntou de onde vinha a informação. Ninguém sabia responder. Os dois procuraram a bibliotecária, que explicou: a biblioteca fecharia apenas na sexta-feira para organizar as estantes. Hugo reescreveu o aviso e incluiu uma entrevista curta com ela.",
+            "No dia da transmissão, o aviso ajudou os alunos a devolver os livros antes da sexta. Hugo compreendeu que rapidez não vale mais que precisão. Antes de divulgar algo, é necessário conhecer a fonte e confirmar o que realmente aconteceu.",
+        ],
+        "perguntas": [
+            {"id": "lei-f911-02-q1", "enunciado": "Qual informação apareceu na primeira reunião?", "alternativas": ["A biblioteca fecharia por um mês", "O rádio seria cancelado", "Os livros seriam vendidos", "A escola fecharia na sexta"], "correta": "A biblioteca fecharia por um mês"},
+            {"id": "lei-f911-02-q2", "enunciado": "O que mudou após a conversa com a bibliotecária?", "alternativas": ["A informação foi corrigida", "A biblioteca fechou por mais tempo", "Hugo desistiu do rádio", "Os alunos perderam os livros"], "correta": "A informação foi corrigida"},
+            {"id": "lei-f911-02-q3", "enunciado": "Que aprendizado orienta a história?", "alternativas": ["É preciso confirmar a fonte antes de divulgar", "Toda notícia deve ser engraçada", "Ser rápido é sempre mais importante", "Entrevistas não ajudam a informar"], "correta": "É preciso confirmar a fonte antes de divulgar"},
+        ],
+        "reflexao": "Como você pode verificar uma informação antes de compartilhá-la?",
+    },
+    {
+        "id": "lei-f911-03", "faixa_etaria": "9-11", "colecao": "Aventura",
+        "tema": "Orientação e planejamento", "titulo": "O mapa da trilha curta", "nivel": "intermediario",
+        "vocabulario": ["legenda", "referência", "percurso"],
+        "paginas": [
+            "Durante uma visita ao parque, Nina recebeu um mapa com duas trilhas. A trilha azul era mais curta, mas passava por uma ponte em manutenção. A trilha verde era mais longa e tinha placas em todo o percurso.",
+            "Nina e seu grupo queriam chegar logo ao mirante. Antes de decidir, observaram a legenda e perguntaram a uma monitora sobre a ponte. Ela explicou que o trecho azul estava fechado e indicou três pontos de referência da trilha verde.",
+            "O grupo escolheu o caminho seguro, marcou cada referência no mapa e chegou ao mirante sem se perder. A caminhada demorou alguns minutos a mais. Mesmo assim, Nina concluiu que o melhor caminho nem sempre é o mais curto, mas aquele que pode ser percorrido com informação e segurança.",
+        ],
+        "perguntas": [
+            {"id": "lei-f911-03-q1", "enunciado": "Por que a trilha azul não foi escolhida?", "alternativas": ["A ponte estava em manutenção", "Não aparecia no mapa", "Era muito longa", "Não levava ao mirante"], "correta": "A ponte estava em manutenção"},
+            {"id": "lei-f911-03-q2", "enunciado": "Como o grupo evitou se perder?", "alternativas": ["Marcou pontos de referência", "Correu sem parar", "Abandonou o mapa", "Seguiu a trilha azul"], "correta": "Marcou pontos de referência"},
+            {"id": "lei-f911-03-q3", "enunciado": "Qual conclusão resume a experiência?", "alternativas": ["Uma decisão segura usa informação, não apenas rapidez", "Todo caminho longo é perigoso", "Mapas substituem todas as perguntas", "Chegar primeiro é o objetivo principal"], "correta": "Uma decisão segura usa informação, não apenas rapidez"},
+        ],
+        "reflexao": "Que informações você procura antes de escolher um caminho ou tomar uma decisão?",
+    },
+    {
+        "id": "lei-f911-04", "faixa_etaria": "9-11", "colecao": "Ciência cotidiana",
+        "tema": "Natureza e investigação", "titulo": "A semana sem abelhas", "nivel": "intermediario",
+        "vocabulario": ["polinização", "hipótese", "observação"],
+        "paginas": [
+            "A horta da escola produzia flores de abóbora, mas poucos frutos começaram a crescer. Ravi percebeu também que quase não havia abelhas perto dos canteiros. Ele perguntou se as duas coisas poderiam estar relacionadas.",
+            "Com a professora, a turma pesquisou a polinização e decidiu observar a horta por uma semana. Registraram horários, insetos e flores visitadas. Também plantaram espécies que atraem abelhas, sem usar produtos que pudessem afastá-las.",
+            "Algumas semanas depois, mais insetos visitavam as flores e novos frutos surgiram. A turma não afirmou que uma única ação explicava tudo, mas os registros apoiavam a hipótese inicial. Ravi aprendeu que investigar é observar, registrar e comparar antes de concluir.",
+        ],
+        "perguntas": [
+            {"id": "lei-f911-04-q1", "enunciado": "O que Ravi observou na horta?", "alternativas": ["Poucos frutos e poucas abelhas", "Muitos frutos maduros", "Canteiros sem flores", "Insetos destruindo as plantas"], "correta": "Poucos frutos e poucas abelhas"},
+            {"id": "lei-f911-04-q2", "enunciado": "Para que serviram os registros da turma?", "alternativas": ["Comparar observações antes de concluir", "Escolher o maior fruto", "Substituir a pesquisa", "Eliminar todos os insetos"], "correta": "Comparar observações antes de concluir"},
+            {"id": "lei-f911-04-q3", "enunciado": "Qual ideia principal aparece no texto?", "alternativas": ["Investigar exige evidências e comparação", "Toda hipótese está automaticamente correta", "Abelhas são os únicos animais da horta", "Uma observação dispensa pesquisa"], "correta": "Investigar exige evidências e comparação"},
+        ],
+        "reflexao": "Que pergunta sobre a natureza você poderia investigar com observações?",
+    },
+    {
+        "id": "lei-f911-05", "faixa_etaria": "9-11", "colecao": "Esporte e escolhas",
+        "tema": "Liderança compartilhada", "titulo": "O jogo sem capitão", "nivel": "intermediario",
+        "vocabulario": ["estratégia", "revezar", "liderança"],
+        "paginas": [
+            "No torneio da escola, o capitão do time de Joana ficou doente. Alguns colegas disseram que, sem ele, ninguém saberia organizar as posições. Joana propôs que o grupo conversasse antes da partida e distribuísse as responsabilidades.",
+            "Caio ficou atento à defesa, Luan avisou o tempo restante e Joana ajudou nas substituições. Quando uma jogada falhou, eles mudaram a estratégia juntos, em vez de procurar um culpado. O time não venceu, mas conseguiu jogar de forma organizada.",
+            "Depois da partida, os colegas perceberam que liderança não precisa ficar concentrada em uma pessoa. Quando todos compreendem o objetivo, escutam uns aos outros e assumem responsabilidades, o grupo consegue tomar decisões mesmo diante de uma dificuldade.",
+        ],
+        "perguntas": [
+            {"id": "lei-f911-05-q1", "enunciado": "Qual problema o time enfrentou?", "alternativas": ["O capitão ficou doente", "A partida foi cancelada", "Ninguém conhecia as regras", "A quadra estava fechada"], "correta": "O capitão ficou doente"},
+            {"id": "lei-f911-05-q2", "enunciado": "Como o grupo se organizou?", "alternativas": ["Distribuiu responsabilidades", "Escolheu um culpado", "Desistiu do torneio", "Esperou o capitão chegar"], "correta": "Distribuiu responsabilidades"},
+            {"id": "lei-f911-05-q3", "enunciado": "O que a história mostra sobre liderança?", "alternativas": ["Ela pode ser compartilhada", "Ela depende apenas da vitória", "Ela exige uma única pessoa", "Ela impede mudanças de estratégia"], "correta": "Ela pode ser compartilhada"},
+        ],
+        "reflexao": "Como um grupo pode dividir responsabilidades sem perder o objetivo comum?",
+    },
+    {
+        "id": "lei-f1213-01", "faixa_etaria": "12-13", "colecao": "Mídia e sociedade",
+        "tema": "Informação e contexto", "titulo": "A notícia pela metade", "nivel": "intermediario",
+        "vocabulario": ["contexto", "manchete", "verificação"],
+        "paginas": [
+            "Um vídeo curto circulou no grupo da turma mostrando a diretora dizendo que os celulares seriam recolhidos. A gravação começava no meio de uma frase e terminava antes da explicação. A manchete afirmava que nenhum estudante poderia mais levar aparelho à escola.",
+            "Ícaro ficou indignado e quase compartilhou o vídeo. Sofia sugeriu procurar o comunicado completo. No site da escola, encontraram a reunião inteira: a diretora falava somente sobre o uso de celulares durante uma prova específica, para evitar consultas indevidas.",
+            "Os dois publicaram o link completo e explicaram a diferença. Alguns colegas disseram que o trecho não era falso, pois a diretora realmente pronunciara aquelas palavras. Sofia respondeu que uma informação também pode enganar quando retira o contexto necessário para compreender seu sentido.",
+        ],
+        "perguntas": [
+            {"id": "lei-f1213-01-q1", "enunciado": "O que a manchete afirmava?", "alternativas": ["Nenhum aluno poderia levar celular", "A escola cancelaria as provas", "A diretora deixaria o cargo", "Os celulares seriam distribuídos"], "correta": "Nenhum aluno poderia levar celular"},
+            {"id": "lei-f1213-01-q2", "enunciado": "Por que o vídeo levava a uma interpretação errada?", "alternativas": ["Retirava a fala de seu contexto", "Tinha baixa qualidade", "Era muito longo", "Não mostrava estudantes"], "correta": "Retirava a fala de seu contexto"},
+            {"id": "lei-f1213-01-q3", "enunciado": "Qual tese é defendida pela história?", "alternativas": ["Uma informação sem contexto pode enganar", "Toda gravação é necessariamente falsa", "Manchetes são suficientes para decidir", "Comunicados completos não devem ser lidos"], "correta": "Uma informação sem contexto pode enganar"},
+        ],
+        "reflexao": "Que sinais indicam que uma informação precisa de mais contexto?",
+    },
+    {
+        "id": "lei-f1213-02", "faixa_etaria": "12-13", "colecao": "Ambiente urbano",
+        "tema": "Responsabilidade coletiva", "titulo": "O rio sob a ponte", "nivel": "intermediario",
+        "vocabulario": ["nascente", "resíduo", "mobilização"],
+        "paginas": [
+            "Do ônibus, Helena via um rio estreito passando sob a ponte. Depois de uma chuva forte, garrafas e sacolas ficaram presas nas margens. Um colega disse que limpar aquele trecho resolveria o problema, e a turma decidiu investigar.",
+            "Ao conversar com moradores, descobriram que parte dos resíduos vinha de ruas sem coleta regular. Também souberam que a nascente estava preservada, mas alguns pontos do percurso recebiam descarte inadequado. O problema não começava nem terminava debaixo da ponte.",
+            "A turma organizou uma campanha, enviou os registros à prefeitura e apoiou um mutirão com orientação ambiental. A limpeza melhorou o local, mas Helena entendeu que ações pontuais precisam acompanhar mudanças permanentes: coleta adequada, fiscalização e participação dos moradores.",
+        ],
+        "perguntas": [
+            {"id": "lei-f1213-02-q1", "enunciado": "O que a turma viu após a chuva?", "alternativas": ["Resíduos presos nas margens", "A nascente seca", "Uma ponte destruída", "Peixes fora do rio"], "correta": "Resíduos presos nas margens"},
+            {"id": "lei-f1213-02-q2", "enunciado": "Por que limpar apenas a ponte não resolveria tudo?", "alternativas": ["As causas estavam em vários pontos", "A ponte era distante", "O rio não tinha nascente", "Os moradores recusaram ajuda"], "correta": "As causas estavam em vários pontos"},
+            {"id": "lei-f1213-02-q3", "enunciado": "Qual conclusão organiza o texto?", "alternativas": ["Problemas coletivos exigem ação imediata e mudanças permanentes", "Somente mutirões resolvem a poluição", "A chuva é a única causa dos resíduos", "Investigar atrasa qualquer solução"], "correta": "Problemas coletivos exigem ação imediata e mudanças permanentes"},
+        ],
+        "reflexao": "Como uma ação local pode enfrentar tanto o efeito quanto a causa de um problema?",
+    },
+    {
+        "id": "lei-f1213-03", "faixa_etaria": "12-13", "colecao": "Tecnologia e escolhas",
+        "tema": "Critérios e justiça", "titulo": "O algoritmo do recreio", "nivel": "intermediario",
+        "vocabulario": ["algoritmo", "critério", "transparência"],
+        "paginas": [
+            "Para organizar o uso da quadra, Pedro criou uma planilha que escolhia automaticamente uma turma por dia. Nas primeiras semanas, todos elogiaram a rapidez. Depois, perceberam que algumas turmas apareciam com frequência e outras quase nunca eram escolhidas.",
+            "Pedro revisou as regras e encontrou o motivo: a planilha dava prioridade a quem havia usado a quadra recentemente. O critério, criado para manter a participação, produzia o efeito contrário. Ele mostrou o erro ao grêmio e ouviu propostas dos colegas.",
+            "A nova versão passou a considerar quem esperava há mais tempo e publicou a ordem das próximas turmas. O caso ensinou que uma decisão automática não se torna justa apenas por ser feita por um programa. É preciso examinar os critérios, os resultados e quem pode ser prejudicado.",
+        ],
+        "perguntas": [
+            {"id": "lei-f1213-03-q1", "enunciado": "Que problema apareceu na primeira planilha?", "alternativas": ["Algumas turmas eram favorecidas", "A quadra ficou fechada", "A planilha apagou as turmas", "Ninguém queria jogar"], "correta": "Algumas turmas eram favorecidas"},
+            {"id": "lei-f1213-03-q2", "enunciado": "O que tornou a nova versão mais justa?", "alternativas": ["Considerar quem esperava há mais tempo", "Escolher sempre a mesma turma", "Esconder a ordem", "Eliminar todos os critérios"], "correta": "Considerar quem esperava há mais tempo"},
+            {"id": "lei-f1213-03-q3", "enunciado": "Qual ideia central o caso apresenta?", "alternativas": ["Sistemas automáticos também precisam ter critérios avaliados", "Programas nunca podem ajudar", "Rapidez garante justiça", "Critérios não influenciam resultados"], "correta": "Sistemas automáticos também precisam ter critérios avaliados"},
+        ],
+        "reflexao": "Que critérios tornam uma regra transparente e justa para um grupo?",
+    },
+    {
+        "id": "lei-f1213-04", "faixa_etaria": "12-13", "colecao": "Cidadania",
+        "tema": "Prioridades e orçamento", "titulo": "As escolhas do conselho", "nivel": "intermediario",
+        "vocabulario": ["orçamento", "prioridade", "justificativa"],
+        "paginas": [
+            "O conselho estudantil recebeu um orçamento limitado para melhorar uma área da escola. As propostas mais votadas foram instalar bancos no pátio, comprar novos materiais esportivos e criar uma cobertura para o bicicletário. O dinheiro não permitia realizar as três.",
+            "Em vez de repetir a votação, o conselho levantou custos e ouviu quem usava cada espaço. Descobriu que os materiais esportivos ainda poderiam ser reparados, enquanto muitas bicicletas ficavam expostas à chuva. Os bancos atenderiam mais pessoas, mas poderiam ser construídos em etapas.",
+            "O grupo decidiu iniciar a cobertura e reservar parte do valor para o primeiro banco. Publicou os critérios e os custos, inclusive para quem preferia outra escolha. A decisão não agradou a todos, mas mostrou que participação também exige justificar prioridades diante de recursos limitados.",
+        ],
+        "perguntas": [
+            {"id": "lei-f1213-04-q1", "enunciado": "Por que o conselho não realizou todas as propostas?", "alternativas": ["O orçamento era limitado", "Não houve votação", "Os estudantes desistiram", "A escola proibiu mudanças"], "correta": "O orçamento era limitado"},
+            {"id": "lei-f1213-04-q2", "enunciado": "Que informação influenciou a escolha da cobertura?", "alternativas": ["As bicicletas ficavam expostas à chuva", "Os materiais esportivos haviam acabado", "Os bancos eram proibidos", "A cobertura não tinha custo"], "correta": "As bicicletas ficavam expostas à chuva"},
+            {"id": "lei-f1213-04-q3", "enunciado": "O que torna a decisão responsável no texto?", "alternativas": ["Usar dados e explicar os critérios", "Agradar necessariamente a todos", "Escolher a proposta mais barata", "Evitar ouvir opiniões diferentes"], "correta": "Usar dados e explicar os critérios"},
+        ],
+        "reflexao": "Como você justificaria uma prioridade quando não é possível atender a todos?",
+    },
+    {
+        "id": "lei-f1213-05", "faixa_etaria": "12-13", "colecao": "Arte e percepção",
+        "tema": "Interpretação e escuta", "titulo": "O silêncio da exposição", "nivel": "intermediario",
+        "vocabulario": ["interpretação", "perspectiva", "curadoria"],
+        "paginas": [
+            "Na exposição da escola, uma fotografia mostrava uma cadeira vazia diante de uma janela. Para Daniel, a imagem transmitia solidão. Luísa achou que representava descanso. Os dois começaram a discutir sobre qual interpretação estava correta.",
+            "A professora pediu que cada um apontasse elementos da fotografia que sustentavam sua leitura. Daniel mencionou as cores frias e o espaço vazio. Luísa observou a luz suave e a janela aberta. Ambos encontraram evidências, embora chegassem a sentidos diferentes.",
+            "Na ficha da obra, a autora explicava que fotografara o quarto da avó depois de uma mudança. A informação acrescentou contexto, mas não apagou as percepções dos estudantes. Daniel concluiu que interpretar não é inventar qualquer resposta: é construir uma leitura apoiada na obra e aberta ao diálogo.",
+        ],
+        "perguntas": [
+            {"id": "lei-f1213-05-q1", "enunciado": "Como Daniel interpretou a fotografia?", "alternativas": ["Como solidão", "Como uma festa", "Como uma viagem", "Como um jogo"], "correta": "Como solidão"},
+            {"id": "lei-f1213-05-q2", "enunciado": "O que a professora pediu aos estudantes?", "alternativas": ["Que justificassem suas leituras com elementos da obra", "Que copiassem a ficha", "Que escolhessem uma única resposta", "Que ignorassem a fotografia"], "correta": "Que justificassem suas leituras com elementos da obra"},
+            {"id": "lei-f1213-05-q3", "enunciado": "Qual princípio de interpretação aparece no final?", "alternativas": ["Uma leitura deve ter evidências e aceitar diálogo", "Toda interpretação tem o mesmo valor sem justificativa", "A intenção da autora elimina outras leituras", "Obras de arte possuem apenas uma resposta"], "correta": "Uma leitura deve ter evidências e aceitar diálogo"},
+        ],
+        "reflexao": "Como duas interpretações diferentes podem ser bem justificadas?",
+    },
 ]
 
 
@@ -505,6 +667,7 @@ def obter_historia_do_dia(
     data_referencia: date | None = None,
     interesses: str | None = None,
     historias_excluidas: set[str] | None = None,
+    faixa_etaria: str | None = None,
 ) -> dict[str, Any]:
     if isinstance(nivel_leitura, int):
         nivel_alvo = max(1, min(5, nivel_leitura))
@@ -513,20 +676,27 @@ def obter_historia_do_dia(
         nivel_alvo = mapa.get((nivel_leitura or "basico").strip().lower(), 2)
 
     excluidas = historias_excluidas or set()
-    candidatas = [
+    banco_faixa = [
         historia
         for historia in HISTORIAS
+        if not faixa_etaria or historia.get("faixa_etaria") == faixa_etaria
+    ]
+    candidatas = [
+        historia
+        for historia in banco_faixa
         if _nivel_historia(historia) <= nivel_alvo + 1
         and historia["id"] not in excluidas
     ]
     if not candidatas:
         candidatas = [
             historia
-            for historia in HISTORIAS
+            for historia in banco_faixa
             if _nivel_historia(historia) <= nivel_alvo + 1
         ]
     if not candidatas:
-        candidatas = [historia for historia in HISTORIAS if _nivel_historia(historia) == 2]
+        candidatas = list(banco_faixa)
+    if not candidatas:
+        raise ValueError(f"Nenhuma história disponível para a faixa etária {faixa_etaria!r}.")
 
     preferidos = _interesses_normalizados(interesses)
     if preferidos:
@@ -539,7 +709,7 @@ def obter_historia_do_dia(
             candidatas = relacionadas
 
     candidatas.sort(key=lambda historia: (abs(_nivel_historia(historia) - nivel_alvo), historia["id"]))
-    referencia = data_referencia or date.today()
+    referencia = data_referencia or data_app()
     faixa = candidatas[: max(1, min(5, len(candidatas)))]
     indice = (referencia.toordinal() + int(aluno_id)) % len(faixa)
     historia = enriquecer_historia(faixa[indice])

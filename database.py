@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 02/08/2026 18:02 -03:00
-# Motivo da alteração: regularizar perfis antigos e bloquear o uso infantil sem consentimento parental ativo.
+# Data e hora do último recode: 22/08/2026 01:23 -03:00
+# Motivo da alteração: calcular o progresso diário conforme as matérias previstas para a idade do aluno.
 
 import hashlib
 import json
@@ -1403,14 +1403,31 @@ def obter_resumo_diario(
             (aluno_id,),
         ).fetchone()["total"]
 
+        anamnese = conexao.execute(
+            "SELECT idade FROM anamneses WHERE aluno_id = ?",
+            (aluno_id,),
+        ).fetchone()
+
     por_materia = {registro["materia"]: dict(registro) for registro in registros}
-    concluidas = sum(1 for registro in registros if registro["status"] == "concluida")
+    idade = int(anamnese["idade"]) if anamnese else 9
+    materias_previstas = (
+        {"portugues", "matematica"}
+        if idade <= 8
+        else {"portugues", "matematica", "leitura"}
+    )
+    concluidas = sum(
+        1
+        for registro in registros
+        if registro["status"] == "concluida"
+        and registro["materia"] in materias_previstas
+    )
+    total_materias = len(materias_previstas)
     return {
         "materias": por_materia,
         "concluidas": concluidas,
-        "progresso": round((concluidas / 3) * 100),
+        "progresso": round((concluidas / total_materias) * 100),
         "pontos": int(pontos_total),
-        "sequencia": 1 if concluidas == 3 else 0,
+        "sequencia": 1 if concluidas == total_materias else 0,
     }
 
 

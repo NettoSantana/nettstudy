@@ -1,16 +1,18 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\matematica.py
-# Data e hora do último recode: 30/07/2026 20:56 -03:00
-# Motivo da alteração: ampliar níveis 1 e 2 para cinco dias sem repetição e manter progressão adaptativa.
+# Data e hora do último recode: 22/08/2026 01:23 -03:00
+# Motivo da alteração: organizar cinco atividades de Matemática por faixa etária, com abordagem visual para crianças de 4 a 5 anos.
 
 from typing import Any
 
 
 def _q(codigo: str, nivel: int, habilidade: str, tema: str, enunciado: str,
-       alternativas: list[str], correta: str, dicas: list[str], explicacao: str) -> dict[str, Any]:
+       alternativas: list[str], correta: str, dicas: list[str], explicacao: str,
+       faixa_etaria: str | None = None, figura: str | None = None) -> dict[str, Any]:
     return {
         "id": codigo, "nivel": nivel, "habilidade": habilidade, "tema": tema,
         "enunciado": enunciado, "alternativas": alternativas, "correta": correta,
         "dicas": dicas, "explicacao": explicacao,
+        "faixa_etaria": faixa_etaria, "figura": figura,
     }
 
 
@@ -67,6 +69,99 @@ QUESTOES.extend([
     _q("mat-213",2,"geometria","formas","Qual forma tem quatro lados iguais?",["Círculo","Triângulo","Quadrado","Oval"],"Quadrado",["Conte os lados.","Eles possuem o mesmo tamanho.","O quadrado tem quatro lados iguais."],"O quadrado possui quatro lados iguais."),
     _q("mat-214",2,"numeros_quantidades","valor_posicional","No número 46, quantas dezenas há?",["4","6","40","46"],"4",["Observe o algarismo das dezenas.","Ele fica à esquerda.","Em 46 há quatro dezenas."],"O número 46 possui quatro dezenas."),
     _q("mat-215",2,"problemas","frutas","Há 28 laranjas em uma caixa e 10 são retiradas. Quantas ficam?",["8","18","20","38"],"18",["A quantidade diminui.","Calcule 28 - 10.","Vinte e oito menos dez é dezoito."],"Ficam dezoito laranjas."),
+])
+
+
+# Banco novo da metodologia por idade. As questões antigas permanecem acima para
+# que atividades iniciadas antes da atualização continuem podendo ser concluídas.
+QUESTOES.extend([
+    # 4 a 5 anos: contagem, comparação, formas e padrões com apoio visual.
+    _q("mat-f45-01", 1, "numeros_quantidades", "contagem", "Quantas maçãs aparecem?",
+       ["2", "3", "4", "5"], "3",
+       ["Aponte para cada maçã.", "Conte uma de cada vez.", "Há três maçãs."],
+       "A figura tem três maçãs.", "4-5", "🍎 🍎 🍎"),
+    _q("mat-f45-02", 1, "numeros_quantidades", "comparacao", "Qual grupo tem MAIS figuras?",
+       ["⭐ ⭐ ⭐ ⭐", "🍀 🍀", "🚗", "🌙 🌙 🌙"], "⭐ ⭐ ⭐ ⭐",
+       ["Conte as figuras de cada grupo.", "Procure o grupo com a maior quantidade.", "Quatro estrelas formam o maior grupo."],
+       "O grupo com quatro estrelas tem mais figuras.", "4-5", "🔎"),
+    _q("mat-f45-03", 1, "geometria", "formas", "Qual é o nome desta forma?",
+       ["Triângulo", "Círculo", "Quadrado", "Retângulo"], "Triângulo",
+       ["Conte as pontas.", "A figura tem três lados.", "É um triângulo."],
+       "A figura é um triângulo.", "4-5", "🔺"),
+    _q("mat-f45-04", 1, "adicao_visual", "juntar", "Havia 2 patinhos e chegou mais 1. Quantos ficaram?",
+       ["2", "3", "4", "5"], "3",
+       ["Conte os dois primeiros.", "Junte o patinho que chegou.", "Dois mais um são três."],
+       "Ficaram três patinhos.", "4-5", "🦆 🦆  +  🦆"),
+    _q("mat-f45-05", 1, "sequencias", "padroes", "Qual figura vem depois?",
+       ["🔴", "🔵", "🟢", "🟡"], "🔴",
+       ["Observe as cores que se repetem.", "Depois do azul volta a primeira cor.", "A próxima figura é vermelha."],
+       "O padrão alterna vermelho e azul.", "4-5", "🔴 🔵 🔴 🔵 ❓"),
+
+    # 6 a 8 anos: cálculo guiado e problemas curtos do cotidiano.
+    _q("mat-f68-01", 2, "adicao", "numeros", "Quanto é 7 + 5?",
+       ["10", "11", "12", "13"], "12",
+       ["Comece no 7.", "Conte mais cinco: 8, 9, 10, 11, 12.", "Sete mais cinco é doze."],
+       "7 + 5 = 12.", "6-8"),
+    _q("mat-f68-02", 2, "subtracao", "numeros", "Quanto é 14 - 6?",
+       ["6", "7", "8", "9"], "8",
+       ["A quantidade vai diminuir.", "Retire seis de quatorze.", "Quatorze menos seis é oito."],
+       "14 - 6 = 8.", "6-8"),
+    _q("mat-f68-03", 2, "sequencias", "padroes", "Complete: 5, 10, 15, ___.",
+       ["18", "20", "25", "30"], "20",
+       ["Observe quanto aumenta.", "A sequência cresce de cinco em cinco.", "Depois de 15 vem 20."],
+       "A sequência aumenta de cinco em cinco.", "6-8"),
+    _q("mat-f68-04", 2, "dinheiro", "compras", "Um suco custa R$ 6 e um pão custa R$ 4. Quanto custam juntos?",
+       ["R$ 8", "R$ 9", "R$ 10", "R$ 12"], "R$ 10",
+       ["Junte os dois preços.", "Calcule 6 + 4.", "Seis mais quatro é dez."],
+       "A compra custa dez reais.", "6-8"),
+    _q("mat-f68-05", 2, "medidas", "tempo", "A aula começa às 8h e termina às 10h. Quanto tempo dura?",
+       ["1 hora", "2 horas", "3 horas", "4 horas"], "2 horas",
+       ["Conte de 8h até 9h.", "Depois conte de 9h até 10h.", "São duas horas."],
+       "Das 8h às 10h passam duas horas.", "6-8"),
+
+    # 9 a 11 anos: operações, frações, medidas e resolução de problemas.
+    _q("mat-f911-01", 3, "multiplicacao", "grupos", "Uma estante tem 6 prateleiras com 8 livros em cada. Quantos livros há?",
+       ["42", "46", "48", "54"], "48",
+       ["São seis grupos de oito.", "Calcule 6 × 8.", "Seis vezes oito é quarenta e oito."],
+       "A estante tem 48 livros.", "9-11"),
+    _q("mat-f911-02", 3, "divisao", "partilha", "Quarenta e cinco figurinhas foram divididas entre 5 crianças. Quantas cada uma recebeu?",
+       ["7", "8", "9", "10"], "9",
+       ["Divida em cinco grupos iguais.", "Procure 5 × qual número = 45.", "5 × 9 = 45."],
+       "Cada criança recebeu nove figurinhas.", "9-11"),
+    _q("mat-f911-03", 3, "fracoes", "representacao", "Qual fração representa 3 partes de um total de 8?",
+       ["3/5", "3/8", "5/8", "8/3"], "3/8",
+       ["O total fica embaixo.", "As partes escolhidas ficam em cima.", "Três de oito é 3/8."],
+       "A fração é três oitavos.", "9-11"),
+    _q("mat-f911-04", 3, "geometria", "perimetro", "Um quadrado tem lados de 7 cm. Qual é o perímetro?",
+       ["14 cm", "21 cm", "28 cm", "49 cm"], "28 cm",
+       ["O quadrado tem quatro lados iguais.", "Some 7 quatro vezes.", "4 × 7 = 28."],
+       "O perímetro mede 28 centímetros.", "9-11"),
+    _q("mat-f911-05", 3, "problemas", "planejamento", "Uma turma arrecadou 135 livros e doou 48. Quantos restaram?",
+       ["77", "87", "93", "97"], "87",
+       ["A quantidade diminuiu.", "Calcule 135 - 48.", "Cento e trinta e cinco menos quarenta e oito é 87."],
+       "Restaram 87 livros.", "9-11"),
+
+    # 12 a 13 anos: proporcionalidade, porcentagem, álgebra e geometria.
+    _q("mat-f1213-01", 5, "porcentagem", "desconto", "Uma mochila de R$ 120 recebeu 25% de desconto. Qual é o novo preço?",
+       ["R$ 80", "R$ 90", "R$ 95", "R$ 100"], "R$ 90",
+       ["Calcule um quarto de 120.", "25% de 120 é 30.", "Retire 30 de 120."],
+       "Com desconto de R$ 30, a mochila custa R$ 90.", "12-13"),
+    _q("mat-f1213-02", 5, "algebra", "equacao", "Qual valor de x resolve 3x + 5 = 20?",
+       ["3", "4", "5", "6"], "5",
+       ["Retire 5 dos dois lados.", "Assim, 3x = 15.", "Divida 15 por 3."],
+       "O valor de x é 5.", "12-13"),
+    _q("mat-f1213-03", 5, "proporcionalidade", "receita", "Uma receita para 4 pessoas usa 2 xícaras de farinha. Quantas xícaras são necessárias para 10 pessoas?",
+       ["4", "5", "6", "8"], "5",
+       ["Duas xícaras servem quatro pessoas.", "Cada duas pessoas usam uma xícara.", "Dez pessoas usam cinco xícaras."],
+       "São necessárias cinco xícaras.", "12-13"),
+    _q("mat-f1213-04", 5, "geometria", "area", "Um triângulo tem base de 12 cm e altura de 7 cm. Qual é a área?",
+       ["42 cm²", "56 cm²", "84 cm²", "96 cm²"], "42 cm²",
+       ["Use base × altura ÷ 2.", "Calcule 12 × 7 = 84.", "Divida 84 por 2."],
+       "A área do triângulo é 42 cm².", "12-13"),
+    _q("mat-f1213-05", 5, "raciocinio_logico", "padroes", "Qual número completa: 2, 6, 12, 20, 30, ___?",
+       ["36", "40", "42", "48"], "42",
+       ["Observe as diferenças: 4, 6, 8, 10.", "A próxima diferença é 12.", "30 + 12 = 42."],
+       "A sequência cresce somando números pares consecutivos.", "12-13"),
 ])
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
