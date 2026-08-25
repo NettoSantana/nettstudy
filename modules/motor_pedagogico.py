@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\motor_pedagogico.py
-# Data e hora do último recode: 22/08/2026 02:41 -03:00
-# Motivo da alteração: iniciar cada matéria no nível sugerido pela avaliação inicial por faixa etária.
+# Data e hora do último recode: 25/08/2026 13:08 -03:00
+# Motivo da alteração: eliminar a recursão infinita ao reutilizar questões na geração do plano diário.
 
 import json
 import random
@@ -335,6 +335,7 @@ def gerar_plano_missao(
             item for item in questoes_faixa
             if int(item.get("nivel", 1)) <= nivel_alvo + 1
         ]
+    codigos_permitidos = {item["id"] for item in permitidas}
 
     revisao = [item for item in permitidas if int(item.get("nivel", 1)) < nivel_alvo]
     atuais = [item for item in permitidas if int(item.get("nivel", 1)) == nivel_alvo]
@@ -383,7 +384,7 @@ def gerar_plano_missao(
             valido = all(
                 codigo in mapa
                 and int(mapa[codigo].get("nivel", 1)) <= nivel_alvo + 1
-                and (codigo not in usados_ciclo or codigo in reforco)
+                and codigo in codigos_permitidos
                 for codigo in antigos
             )
             if int(tentativas or 0) > 0 or valido:
@@ -409,9 +410,15 @@ def gerar_plano_missao(
                 json.dumps(comp),
             ),
         )
-    return gerar_plano_missao(
-        caminho_banco, aluno_id, materia, questoes, data_ref
-    )
+        novo = conexao.execute(
+            """SELECT * FROM planos_missao_diaria
+               WHERE aluno_id = ? AND data_atividade = ? AND materia = ?""",
+            (aluno_id, data_ref, materia),
+        ).fetchone()
+        plano = dict(novo)
+        plano["codigos"] = json.loads(plano.pop("codigos_json"))
+        plano["composicao"] = json.loads(plano.pop("composicao_json"))
+        return plano
 
 
 def recalcular_perfil_por_anamnese(
