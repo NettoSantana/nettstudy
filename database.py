@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 22/08/2026 01:23 -03:00
-# Motivo da alteração: calcular o progresso diário conforme as matérias previstas para a idade do aluno.
+# Data e hora do último recode: 19/09/2026 09:49 -03:00
+# Motivo da alteração: migrar bancos antigos para incluir usuarios.atualizado_em na redefinição de acesso.
 
 import hashlib
 import json
@@ -335,8 +335,20 @@ def inicializar_banco(caminho_banco: str) -> None:
         conexao.executescript(RECUPERACAO_ACESSO_SCHEMA)
         conexao.executescript(VALIDACAO_EMAIL_SCHEMA)
         conexao.executescript(CONSENTIMENTO_PARENTAL_SCHEMA)
+        _migrar_coluna_atualizado_em_usuarios(conexao)
         _migrar_validacao_email(conexao)
         _criar_dados_demonstracao(conexao)
+
+
+def _migrar_coluna_atualizado_em_usuarios(conexao: sqlite3.Connection) -> None:
+    colunas = {
+        coluna["name"]
+        for coluna in conexao.execute(
+            "PRAGMA table_info(usuarios)"
+        ).fetchall()
+    }
+    if "atualizado_em" not in colunas:
+        conexao.execute("ALTER TABLE usuarios ADD COLUMN atualizado_em TEXT")
 
 
 def _migrar_validacao_email(conexao: sqlite3.Connection) -> None:
