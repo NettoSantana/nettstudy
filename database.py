@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 19/09/2026 10:03 -03:00
-# Motivo da alteração: validar a redefinição de acesso e aceitar identificadores antigos normalizados.
+# Data e hora do último recode: 19/09/2026 11:01 -03:00
+# Motivo da alteração: permitir que o responsável consulte e edite com segurança o usuário e o PIN do aluno.
 
 import hashlib
 import json
@@ -718,6 +718,7 @@ def listar_alunos_do_responsavel(
                 a.data_nascimento,
                 a.ano_escolar,
                 a.avatar,
+                trim(u.identificador) AS identificador,
                 ra.parentesco,
                 ra.principal
             FROM responsaveis r
@@ -725,9 +726,12 @@ def listar_alunos_do_responsavel(
                 ON ra.responsavel_id = r.id
             INNER JOIN alunos a
                 ON a.id = ra.aluno_id
+            INNER JOIN usuarios u
+                ON u.id = a.usuario_id
             WHERE r.usuario_id = ?
               AND r.ativo = 1
               AND a.ativo = 1
+              AND u.ativo = 1
             ORDER BY
                 ra.principal DESC,
                 a.nome_exibicao ASC
@@ -755,6 +759,7 @@ def buscar_aluno_do_responsavel(
                 a.data_nascimento,
                 a.ano_escolar,
                 a.avatar,
+                trim(u.identificador) AS identificador,
                 ra.parentesco,
                 ra.principal
             FROM responsaveis r
@@ -762,15 +767,100 @@ def buscar_aluno_do_responsavel(
                 ON ra.responsavel_id = r.id
             INNER JOIN alunos a
                 ON a.id = ra.aluno_id
+            INNER JOIN usuarios u
+                ON u.id = a.usuario_id
             WHERE r.usuario_id = ?
               AND a.id = ?
               AND r.ativo = 1
               AND a.ativo = 1
+              AND u.ativo = 1
             """,
             (usuario_responsavel_id, aluno_id),
         ).fetchone()
 
     return dict(registro) if registro else None
+
+
+def atualizar_acesso_aluno_do_responsavel(
+    caminho_banco: str,
+    usuario_responsavel_id: int,
+    aluno_id: int,
+    identificador: str,
+    novo_pin: str = "",
+) -> dict[str, Any]:
+    identificador_normalizado = (identificador or "").strip().lower()
+    if not identificador_normalizado:
+        raise ValueError("Informe o usuário do aluno.")
+    if novo_pin and (not novo_pin.isdigit() or len(novo_pin) != 4):
+        raise ValueError("O novo PIN deve conter exatamente 4 números.")
+
+    try:
+        with conectar(caminho_banco) as conexao:
+            aluno = conexao.execute(
+                """
+                SELECT a.usuario_id
+                FROM responsaveis r
+                INNER JOIN responsavel_aluno ra ON ra.responsavel_id = r.id
+                INNER JOIN alunos a ON a.id = ra.aluno_id
+                INNER JOIN usuarios u ON u.id = a.usuario_id
+                WHERE r.usuario_id = ?
+                  AND a.id = ?
+                  AND r.ativo = 1
+                  AND a.ativo = 1
+                  AND u.ativo = 1
+                  AND u.perfil = 'aluno'
+                """,
+                (usuario_responsavel_id, aluno_id),
+            ).fetchone()
+            if not aluno:
+                raise ValueError("Aluno não encontrado para esta conta.")
+
+            existente = conexao.execute(
+                """
+                SELECT id
+                FROM usuarios
+                WHERE lower(trim(identificador)) = ?
+                  AND id <> ?
+                """,
+                (identificador_normalizado, aluno["usuario_id"]),
+            ).fetchone()
+            if existente:
+                raise ValueError("Este usuário já está em uso.")
+
+            agora = datetime.now(timezone.utc).isoformat()
+            if novo_pin:
+                conexao.execute(
+                    """
+                    UPDATE usuarios
+                    SET identificador = ?, senha_hash = ?, atualizado_em = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        identificador_normalizado,
+                        generate_password_hash(novo_pin),
+                        agora,
+                        aluno["usuario_id"],
+                    ),
+                )
+            else:
+                conexao.execute(
+                    """
+                    UPDATE usuarios
+                    SET identificador = ?, atualizado_em = ?
+                    WHERE id = ?
+                    """,
+                    (identificador_normalizado, agora, aluno["usuario_id"]),
+                )
+    except sqlite3.IntegrityError as erro:
+        if "usuarios.identificador" in str(erro).lower():
+            raise ValueError("Este usuário já está em uso.") from erro
+        raise ValueError("Não foi possível atualizar o acesso do aluno.") from erro
+
+    return {
+        "aluno_id": aluno_id,
+        "identificador": identificador_normalizado,
+        "pin_alterado": bool(novo_pin),
+    }
 
 
 def listar_alunos_sem_consentimento_parental(
@@ -2339,10 +2429,28 @@ def criar_token_recuperacao_acesso(
             (responsavel["id"], token_hash, expira_em.isoformat()),
         )
 
+        alunos = conexao.execute(
+            """
+            SELECT
+                a.nome_exibicao,
+                a.nome_completo,
+                trim(u.identificador) AS identificador
+            FROM responsavel_aluno ra
+            INNER JOIN alunos a ON a.id = ra.aluno_id
+            INNER JOIN usuarios u ON u.id = a.usuario_id
+            WHERE ra.responsavel_id = ?
+              AND a.ativo = 1
+              AND u.ativo = 1
+            ORDER BY ra.principal DESC, a.nome_exibicao
+            """,
+            (responsavel["id"],),
+        ).fetchall()
+
     return {
         "token": token,
         "nome": responsavel["nome_completo"],
         "email": responsavel["email"],
+        "alunos": [dict(aluno) for aluno in alunos],
     }
 
 

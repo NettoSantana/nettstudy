@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 19/09/2026 10:03 -03:00
-# Motivo da alteração: confirmar a redefinição do PIN e informar o usuário correto do aluno.
+# Data e hora do último recode: 19/09/2026 11:01 -03:00
+# Motivo da alteração: mostrar e permitir a edição segura do usuário e do PIN do aluno pelo responsável.
 
 import os
 from functools import wraps
@@ -96,6 +96,7 @@ from database import (
     criar_token_validacao_email,
     validar_email_por_token,
     aplicar_reset_pedagogico_unico,
+    atualizar_acesso_aluno_do_responsavel,
     registrar_consentimento_parental_para_aluno_existente,
 )
 
@@ -285,6 +286,7 @@ def registrar_rotas(app: Flask) -> None:
                         recuperacao["email"],
                         recuperacao["nome"],
                         link,
+                        recuperacao["alunos"],
                     )
                 except RuntimeError:
                     app.logger.exception("Falha ao enviar e-mail de recuperação.")
@@ -711,6 +713,7 @@ def registrar_rotas(app: Flask) -> None:
                 "nome_completo": aluno_registrado["nome_completo"],
                 "ano_escolar": aluno_registrado["ano_escolar"] or "Não informado",
                 "parentesco": aluno_registrado["parentesco"] or "Responsável",
+                "identificador": aluno_registrado["identificador"],
                 "principal": bool(aluno_registrado["principal"]),
                 "sequencia": resumo_dia["sequencia"],
                 "pontos": resumo_dia["pontos"],
@@ -728,6 +731,65 @@ def registrar_rotas(app: Flask) -> None:
             aluno=aluno, anamnese=anamnese_registro, resumo_dia=resumo_dia,
             reset_missao=reset_missao, perfil_pedagogico=perfil,
             relatorio=relatorio, limite_alunos=5,
+        )
+
+    @app.route("/responsavel/alunos/<int:aluno_id>/acesso", methods=["GET", "POST"])
+    @login_obrigatorio("responsavel")
+    def editar_acesso_aluno(aluno_id: int):
+        usuario_id = int(session["usuario_id"])
+        aluno = buscar_aluno_do_responsavel(
+            app.config["DATABASE_PATH"],
+            usuario_id,
+            aluno_id,
+        )
+        if not aluno:
+            flash("Aluno não encontrado para esta conta.", "erro")
+            return redirect(url_for("dashboard_responsavel"))
+
+        dados = {"usuario_aluno": aluno["identificador"]}
+        if request.method == "POST":
+            dados["usuario_aluno"] = request.form.get("usuario_aluno", "").strip().lower()
+            novo_pin = request.form.get("novo_pin", "").strip()
+            confirmar_pin = request.form.get("confirmar_pin", "").strip()
+            senha_responsavel = request.form.get("senha_responsavel", "")
+            usuario_responsavel = buscar_usuario_por_id(
+                app.config["DATABASE_PATH"],
+                usuario_id,
+            )
+
+            if not dados["usuario_aluno"]:
+                flash("Informe o usuário do aluno.", "erro")
+            elif novo_pin != confirmar_pin:
+                flash("A confirmação do novo PIN não confere.", "erro")
+            elif novo_pin and (not novo_pin.isdigit() or len(novo_pin) != 4):
+                flash("O novo PIN deve conter exatamente 4 números.", "erro")
+            elif not usuario_responsavel or not check_password_hash(
+                usuario_responsavel["senha_hash"],
+                senha_responsavel,
+            ):
+                flash("A senha do responsável está incorreta.", "erro")
+            else:
+                try:
+                    resultado = atualizar_acesso_aluno_do_responsavel(
+                        app.config["DATABASE_PATH"],
+                        usuario_id,
+                        aluno_id,
+                        dados["usuario_aluno"],
+                        novo_pin,
+                    )
+                except ValueError as erro:
+                    flash(str(erro), "erro")
+                else:
+                    mensagem = f"Usuário de {aluno['nome_exibicao']} atualizado."
+                    if resultado["pin_alterado"]:
+                        mensagem = f"Usuário e PIN de {aluno['nome_exibicao']} atualizados."
+                    flash(mensagem, "sucesso")
+                    return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
+
+        return render_template(
+            "editar_acesso_aluno.html",
+            aluno=aluno,
+            dados=dados,
         )
 
     @app.route("/responsavel/alunos/novo", methods=["GET", "POST"])

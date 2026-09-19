@@ -1,0 +1,71 @@
+<!--
+Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\editar_acesso_aluno.html
+Data e hora do último recode: 19/09/2026 11:01 -03:00
+Motivo da alteração: permitir que o responsável edite o usuário e defina um novo PIN para o aluno.
+-->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>NettStudy | Editar acesso do aluno</title>
+    <style>
+        *{box-sizing:border-box}
+        body{margin:0;min-height:100vh;background:#f3f5ff;color:#18203a;font-family:Inter,Arial,sans-serif}
+        .pagina{min-height:100vh;display:grid;place-items:center;padding:24px}
+        .card{width:min(100%,560px);background:#fff;border:1px solid #dfe3f3;border-radius:24px;padding:32px;box-shadow:0 20px 50px rgba(30,43,90,.1)}
+        .marca{color:#4e5ce6;font-size:22px;font-weight:800;text-decoration:none}
+        h1{margin:24px 0 8px;font-size:34px}
+        .nota{color:#68718c;line-height:1.55}
+        .campo{display:grid;gap:8px;margin:18px 0}
+        .campo label{font-weight:700}
+        .campo input{width:100%;min-height:52px;border:1px solid #dfe3f3;border-radius:13px;padding:12px 14px;font:inherit;font-size:16px}
+        .botao{width:100%;min-height:52px;border:0;border-radius:13px;background:#4e5ce6;color:#fff;font:inherit;font-weight:800;cursor:pointer}
+        .voltar{display:block;margin-top:18px;text-align:center;color:#4e5ce6;font-weight:700;text-decoration:none}
+        .flash{padding:13px;border-radius:12px;margin:16px 0;background:#fff0f0;color:#9f2525}
+        .flash.sucesso{background:#eaf8ef;color:#24643a}
+        @media(max-width:560px){.pagina{padding:14px;place-items:start center}.card{padding:24px 20px;margin-top:10px}h1{font-size:30px}}
+    </style>
+</head>
+<body>
+<main class="pagina">
+    <section class="card">
+        <a class="marca" href="{{ url_for('dashboard_responsavel', aluno_id=aluno.id) }}">NettStudy</a>
+        <h1>Editar acesso de {{ aluno.nome_exibicao }}</h1>
+        <p class="nota">Altere o usuário usado no login. Para trocar o PIN, informe um novo PIN de quatro números. Se deixar os campos de PIN vazios, o PIN atual será mantido.</p>
+
+        {% with mensagens=get_flashed_messages(with_categories=true) %}
+            {% for categoria,mensagem in mensagens %}
+                <div class="flash {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="post">
+            <div class="campo">
+                <label for="usuario_aluno">Usuário do aluno</label>
+                <input id="usuario_aluno" name="usuario_aluno" value="{{ dados.usuario_aluno }}" autocapitalize="none" autocomplete="off" spellcheck="false" required>
+            </div>
+
+            <div class="campo">
+                <label for="novo_pin">Novo PIN, se desejar trocar</label>
+                <input id="novo_pin" name="novo_pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password">
+            </div>
+
+            <div class="campo">
+                <label for="confirmar_pin">Confirmar novo PIN</label>
+                <input id="confirmar_pin" name="confirmar_pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password">
+            </div>
+
+            <div class="campo">
+                <label for="senha_responsavel">Senha do responsável</label>
+                <input id="senha_responsavel" name="senha_responsavel" type="password" autocomplete="current-password" required>
+            </div>
+
+            <button class="botao" type="submit">Salvar acesso do aluno</button>
+        </form>
+
+        <a class="voltar" href="{{ url_for('dashboard_responsavel', aluno_id=aluno.id) }}">Voltar ao painel</a>
+    </section>
+</main>
+</body>
+</html>
