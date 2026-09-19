@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 19/09/2026 09:49 -03:00
-# Motivo da alteração: migrar bancos antigos para incluir usuarios.atualizado_em na redefinição de acesso.
+# Data e hora do último recode: 19/09/2026 10:03 -03:00
+# Motivo da alteração: validar a redefinição de acesso e aceitar identificadores antigos normalizados.
 
 import hashlib
 import json
@@ -641,7 +641,7 @@ def buscar_usuario_por_login(
                 senha_hash,
                 perfil
             FROM usuarios
-            WHERE identificador = ?
+            WHERE lower(trim(identificador)) = ?
               AND ativo = 1
             """,
             (identificador,),
@@ -2382,11 +2382,13 @@ def obter_recuperacao_por_token(
 
         alunos = conexao.execute(
             """
-            SELECT a.id, a.usuario_id, a.nome_exibicao, a.nome_completo
+            SELECT a.id, a.usuario_id, a.nome_exibicao, a.nome_completo, trim(u.identificador) AS identificador
             FROM responsavel_aluno ra
             INNER JOIN alunos a ON a.id = ra.aluno_id
+            INNER JOIN usuarios u ON u.id = a.usuario_id
             WHERE ra.responsavel_id = ?
               AND a.ativo = 1
+              AND u.ativo = 1
             ORDER BY ra.principal DESC, a.nome_exibicao
             """,
             (registro["responsavel_id"],),
@@ -2408,7 +2410,7 @@ def redefinir_senha_responsavel_por_token(
 
     agora = datetime.now(timezone.utc).isoformat()
     with conectar(caminho_banco) as conexao:
-        conexao.execute(
+        resultado = conexao.execute(
             """
             UPDATE usuarios
             SET senha_hash = ?, atualizado_em = ?
@@ -2416,6 +2418,8 @@ def redefinir_senha_responsavel_por_token(
             """,
             (generate_password_hash(nova_senha), agora, recuperacao["responsavel_usuario_id"]),
         )
+        if resultado.rowcount != 1:
+            return False
         conexao.execute(
             "UPDATE tokens_recuperacao_acesso SET usado_em = ? WHERE id = ?",
             (agora, recuperacao["token_id"]),
@@ -2442,7 +2446,7 @@ def redefinir_pin_aluno_por_token(
 
     agora = datetime.now(timezone.utc).isoformat()
     with conectar(caminho_banco) as conexao:
-        conexao.execute(
+        resultado = conexao.execute(
             """
             UPDATE usuarios
             SET senha_hash = ?, atualizado_em = ?
@@ -2450,6 +2454,8 @@ def redefinir_pin_aluno_por_token(
             """,
             (generate_password_hash(novo_pin), agora, aluno["usuario_id"]),
         )
+        if resultado.rowcount != 1:
+            return False
         conexao.execute(
             "UPDATE tokens_recuperacao_acesso SET usado_em = ? WHERE id = ?",
             (agora, recuperacao["token_id"]),

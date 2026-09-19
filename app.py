@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 22/08/2026 02:36 -03:00
-# Motivo da alteração: integrar a avaliação inicial por faixa etária ao perfil e às missões adaptativas.
+# Data e hora do último recode: 19/09/2026 10:03 -03:00
+# Motivo da alteração: confirmar a redefinição do PIN e informar o usuário correto do aluno.
 
 import os
 from functools import wraps
@@ -324,12 +324,22 @@ def registrar_rotas(app: Flask) -> None:
                     return redirect(url_for("login"))
             elif tipo == "aluno":
                 aluno_id = request.form.get("aluno_id", type=int)
+                aluno_recuperado = next(
+                    (
+                        item for item in recuperacao["alunos"]
+                        if aluno_id and int(item["id"]) == int(aluno_id)
+                    ),
+                    None,
+                )
                 if not nova_senha.isdigit() or len(nova_senha) < 4 or len(nova_senha) > 6:
                     flash("O novo PIN deve ter entre 4 e 6 números.", "erro")
-                elif aluno_id and redefinir_pin_aluno_por_token(
+                elif aluno_recuperado and redefinir_pin_aluno_por_token(
                     app.config["DATABASE_PATH"], token, aluno_id, nova_senha
                 ):
-                    flash("PIN do aluno atualizado. Ele já pode entrar.", "sucesso")
+                    flash(
+                        f"PIN atualizado. Entre com o usuário {aluno_recuperado['identificador']}.",
+                        "sucesso",
+                    )
                     return redirect(url_for("login"))
                 else:
                     flash("Selecione um aluno válido.", "erro")
