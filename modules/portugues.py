@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\portugues.py
-# Data e hora do último recode: 22/08/2026 01:23 -03:00
-# Motivo da alteração: organizar cinco atividades de Português por faixa etária, com abordagem visual para crianças de 4 a 5 anos.
+# Data e hora do último recode: 09/10/2026 15:07 -03:00
+# Motivo da alteração: ampliar atividades por idade e nível, variar Matemática e evitar repetição próxima preservando sessões existentes.
 
 from typing import Any
 
@@ -178,6 +178,97 @@ QUESTOES_COM_TEXTO = {
 for questao in QUESTOES:
     questao["usa_texto"] = questao["id"] in QUESTOES_COM_TEXTO
 
+
+# Situações curtas com fatos verificáveis e perguntas de habilidades diferentes.
+_CENARIOS_VARIADOS = [('levou', 'um livro', 'biblioteca', 'ler uma história'), ('levou', 'uma bola', 'quadra', 'jogar com os colegas'), ('levou', 'uma garrafa', 'parque', 'beber água'), ('levou', 'um caderno', 'escola', 'anotar a atividade'), ('levou', 'uma cesta', 'horta', 'colher verduras'), ('levou', 'uma toalha', 'praia', 'se secar'), ('levou', 'uma lanterna', 'acampamento', 'iluminar o caminho'), ('levou', 'um mapa', 'trilha', 'encontrar o caminho'), ('levou', 'um regador', 'jardim', 'regar as plantas'), ('levou', 'uma sacola', 'mercado', 'carregar as compras'), ('levou', 'um pincel', 'oficina de arte', 'pintar um quadro'), ('levou', 'um violão', 'aula de música', 'tocar uma canção'), ('levou', 'um capacete', 'pista', 'andar de bicicleta com proteção'), ('levou', 'um casaco', 'passeio', 'se proteger do frio'), ('levou', 'um ingresso', 'teatro', 'assistir à peça'), ('levou', 'uma lupa', 'laboratório', 'observar detalhes'), ('levou', 'um envelope', 'correio', 'enviar uma carta'), ('levou', 'uma caixa', 'feira', 'guardar os produtos'), ('levou', 'uma câmera', 'museu', 'registrar a visita permitida'), ('levou', 'um pote', 'cozinha', 'guardar os biscoitos'), ('levou', 'uma fita', 'sala', 'medir a mesa'), ('levou', 'um apito', 'campo', 'marcar o início do jogo'), ('levou', 'um prato', 'refeitório', 'servir a comida'), ('levou', 'uma pá', 'quintal', 'plantar uma muda'), ('levou', 'um lápis', 'aula de desenho', 'desenhar uma paisagem'), ('levou', 'um boné', 'praça', 'se proteger do sol'), ('levou', 'uma moeda', 'cantina', 'pagar o lanche'), ('levou', 'um relógio', 'treino', 'acompanhar o tempo'), ('levou', 'uma tesoura', 'aula de artes', 'recortar papel'), ('levou', 'uma mochila', 'viagem', 'transportar seus pertences')]
+_NOMES_VARIADOS = ['Bia', 'Caio', 'Lia', 'Davi', 'Rita', 'Nina', 'Leo', 'Ana', 'Ivo', 'Luana', 'Pedro', 'Sofia']
+for faixa in ("4-5", "6-8", "9-11", "12-13"):
+    for indice, (acao, objeto, lugar, finalidade) in enumerate(_CENARIOS_VARIADOS):
+        for pessoa, nome in enumerate(_NOMES_VARIADOS):
+            nivel = 1 + (indice + pessoa) % 5
+            texto = f"{nome} {acao} {objeto} para {lugar}. O objetivo era {finalidade}."
+            perguntas = [
+                ("localizacao_informacoes", f"Quem {acao} {objeto}?", nome,
+                 [outro for outro in _NOMES_VARIADOS if outro != nome][:3]),
+                ("localizacao_informacoes", f"O que {nome} levou?", objeto,
+                 [c[1] for c in _CENARIOS_VARIADOS if c[1] != objeto][:3]),
+                ("localizacao_informacoes", f"Para onde {nome} levou {objeto}?", lugar,
+                 [c[2] for c in _CENARIOS_VARIADOS if c[2] != lugar][:3]),
+            ]
+            if faixa != "4-5" and nivel >= 2:
+                perguntas.append(("interpretacao", f"Para que {nome} levou {objeto}?", finalidade,
+                    [c[3] for c in _CENARIOS_VARIADOS if c[3] != finalidade][:3]))
+            if faixa in {"9-11", "12-13"} and nivel >= 3:
+                perguntas.append(("classes_palavras", "Qual palavra do texto indica a ação realizada?", acao,
+                                  [nome, objeto, lugar]))
+            for numero, (habilidade, pergunta, correta, erradas) in enumerate(perguntas):
+                alternativas = [correta] + erradas
+                giro = (indice+pessoa+numero) % len(alternativas)
+                alternativas = alternativas[giro:] + alternativas[:giro]
+                codigo = f"por-v2-{faixa}-{indice}-{pessoa}-{numero}"
+                QUESTOES.append(_q(codigo, nivel, habilidade, "cotidiano",
+                    f"Leia: {texto}\n{pergunta}" if faixa != "4-5" else f"Ouça: {texto}\n{pergunta}",
+                    alternativas, correta, ["Retome a situação apresentada.",
+                    "Procure a pessoa, o objeto, o lugar ou a ação perguntada.",
+                    f"A resposta é {correta}."], f"Na situação: {texto} A resposta é {correta}.", faixa))
+
+
+
+# Vocabulário visual para a faixa inicial.
+QUESTOES.append(_q("por-v2-visual-0", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Cachorro', 'Gato', 'Peixe', 'Pássaro'], 'Cachorro', ["Observe a figura.", "Diga o nome em voz alta.", 'Cachorro'], 'A figura mostra: Cachorro.', "4-5", '🐶'))
+QUESTOES.append(_q("por-v2-visual-1", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Gato', 'Peixe', 'Pássaro', 'Cavalo'], 'Gato', ["Observe a figura.", "Diga o nome em voz alta.", 'Gato'], 'A figura mostra: Gato.', "4-5", '🐱'))
+QUESTOES.append(_q("por-v2-visual-2", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Peixe', 'Pássaro', 'Cavalo', 'Vaca'], 'Peixe', ["Observe a figura.", "Diga o nome em voz alta.", 'Peixe'], 'A figura mostra: Peixe.', "4-5", '🐟'))
+QUESTOES.append(_q("por-v2-visual-3", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Pássaro', 'Cavalo', 'Vaca', 'Porco'], 'Pássaro', ["Observe a figura.", "Diga o nome em voz alta.", 'Pássaro'], 'A figura mostra: Pássaro.', "4-5", '🐦'))
+QUESTOES.append(_q("por-v2-visual-4", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Cavalo', 'Vaca', 'Porco', 'Sapo'], 'Cavalo', ["Observe a figura.", "Diga o nome em voz alta.", 'Cavalo'], 'A figura mostra: Cavalo.', "4-5", '🐴'))
+QUESTOES.append(_q("por-v2-visual-5", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Vaca', 'Porco', 'Sapo', 'Borboleta'], 'Vaca', ["Observe a figura.", "Diga o nome em voz alta.", 'Vaca'], 'A figura mostra: Vaca.', "4-5", '🐮'))
+QUESTOES.append(_q("por-v2-visual-6", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Porco', 'Sapo', 'Borboleta', 'Tartaruga'], 'Porco', ["Observe a figura.", "Diga o nome em voz alta.", 'Porco'], 'A figura mostra: Porco.', "4-5", '🐷'))
+QUESTOES.append(_q("por-v2-visual-7", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Sapo', 'Borboleta', 'Tartaruga', 'Coelho'], 'Sapo', ["Observe a figura.", "Diga o nome em voz alta.", 'Sapo'], 'A figura mostra: Sapo.', "4-5", '🐸'))
+QUESTOES.append(_q("por-v2-visual-8", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Borboleta', 'Tartaruga', 'Coelho', 'Elefante'], 'Borboleta', ["Observe a figura.", "Diga o nome em voz alta.", 'Borboleta'], 'A figura mostra: Borboleta.', "4-5", '🦋'))
+QUESTOES.append(_q("por-v2-visual-9", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Tartaruga', 'Coelho', 'Elefante', 'Maçã'], 'Tartaruga', ["Observe a figura.", "Diga o nome em voz alta.", 'Tartaruga'], 'A figura mostra: Tartaruga.', "4-5", '🐢'))
+QUESTOES.append(_q("por-v2-visual-10", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Coelho', 'Elefante', 'Maçã', 'Banana'], 'Coelho', ["Observe a figura.", "Diga o nome em voz alta.", 'Coelho'], 'A figura mostra: Coelho.', "4-5", '🐰'))
+QUESTOES.append(_q("por-v2-visual-11", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Elefante', 'Maçã', 'Banana', 'Uva'], 'Elefante', ["Observe a figura.", "Diga o nome em voz alta.", 'Elefante'], 'A figura mostra: Elefante.', "4-5", '🐘'))
+QUESTOES.append(_q("por-v2-visual-12", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Maçã', 'Banana', 'Uva', 'Morango'], 'Maçã', ["Observe a figura.", "Diga o nome em voz alta.", 'Maçã'], 'A figura mostra: Maçã.', "4-5", '🍎'))
+QUESTOES.append(_q("por-v2-visual-13", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Banana', 'Uva', 'Morango', 'Laranja'], 'Banana', ["Observe a figura.", "Diga o nome em voz alta.", 'Banana'], 'A figura mostra: Banana.', "4-5", '🍌'))
+QUESTOES.append(_q("por-v2-visual-14", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Uva', 'Morango', 'Laranja', 'Abacaxi'], 'Uva', ["Observe a figura.", "Diga o nome em voz alta.", 'Uva'], 'A figura mostra: Uva.', "4-5", '🍇'))
+QUESTOES.append(_q("por-v2-visual-15", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Morango', 'Laranja', 'Abacaxi', 'Melancia'], 'Morango', ["Observe a figura.", "Diga o nome em voz alta.", 'Morango'], 'A figura mostra: Morango.', "4-5", '🍓'))
+QUESTOES.append(_q("por-v2-visual-16", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Laranja', 'Abacaxi', 'Melancia', 'Pera'], 'Laranja', ["Observe a figura.", "Diga o nome em voz alta.", 'Laranja'], 'A figura mostra: Laranja.', "4-5", '🍊'))
+QUESTOES.append(_q("por-v2-visual-17", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Abacaxi', 'Melancia', 'Pera', 'Carro'], 'Abacaxi', ["Observe a figura.", "Diga o nome em voz alta.", 'Abacaxi'], 'A figura mostra: Abacaxi.', "4-5", '🍍'))
+QUESTOES.append(_q("por-v2-visual-18", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Melancia', 'Pera', 'Carro', 'Ônibus'], 'Melancia', ["Observe a figura.", "Diga o nome em voz alta.", 'Melancia'], 'A figura mostra: Melancia.', "4-5", '🍉'))
+QUESTOES.append(_q("por-v2-visual-19", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Pera', 'Carro', 'Ônibus', 'Bicicleta'], 'Pera', ["Observe a figura.", "Diga o nome em voz alta.", 'Pera'], 'A figura mostra: Pera.', "4-5", '🍐'))
+QUESTOES.append(_q("por-v2-visual-20", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Carro', 'Cachorro', 'Gato', 'Peixe'], 'Carro', ["Observe a figura.", "Diga o nome em voz alta.", 'Carro'], 'A figura mostra: Carro.', "4-5", '🚗'))
+QUESTOES.append(_q("por-v2-visual-21", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Ônibus', 'Gato', 'Peixe', 'Pássaro'], 'Ônibus', ["Observe a figura.", "Diga o nome em voz alta.", 'Ônibus'], 'A figura mostra: Ônibus.', "4-5", '🚌'))
+QUESTOES.append(_q("por-v2-visual-22", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Bicicleta', 'Peixe', 'Pássaro', 'Cavalo'], 'Bicicleta', ["Observe a figura.", "Diga o nome em voz alta.", 'Bicicleta'], 'A figura mostra: Bicicleta.', "4-5", '🚲'))
+QUESTOES.append(_q("por-v2-visual-23", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Avião', 'Pássaro', 'Cavalo', 'Vaca'], 'Avião', ["Observe a figura.", "Diga o nome em voz alta.", 'Avião'], 'A figura mostra: Avião.', "4-5", '✈️'))
+QUESTOES.append(_q("por-v2-visual-24", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Barco', 'Cavalo', 'Vaca', 'Porco'], 'Barco', ["Observe a figura.", "Diga o nome em voz alta.", 'Barco'], 'A figura mostra: Barco.', "4-5", '🚤'))
+QUESTOES.append(_q("por-v2-visual-25", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Trem', 'Vaca', 'Porco', 'Sapo'], 'Trem', ["Observe a figura.", "Diga o nome em voz alta.", 'Trem'], 'A figura mostra: Trem.', "4-5", '🚂'))
+QUESTOES.append(_q("por-v2-visual-26", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Bola', 'Porco', 'Sapo', 'Borboleta'], 'Bola', ["Observe a figura.", "Diga o nome em voz alta.", 'Bola'], 'A figura mostra: Bola.', "4-5", '⚽'))
+QUESTOES.append(_q("por-v2-visual-27", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Livros', 'Sapo', 'Borboleta', 'Tartaruga'], 'Livros', ["Observe a figura.", "Diga o nome em voz alta.", 'Livros'], 'A figura mostra: Livros.', "4-5", '📚'))
+QUESTOES.append(_q("por-v2-visual-28", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Lápis', 'Borboleta', 'Tartaruga', 'Coelho'], 'Lápis', ["Observe a figura.", "Diga o nome em voz alta.", 'Lápis'], 'A figura mostra: Lápis.', "4-5", '✏️'))
+QUESTOES.append(_q("por-v2-visual-29", 1, "vocabulario_visual", "figuras", "Qual é o nome desta figura?", ['Violão', 'Tartaruga', 'Coelho', 'Elefante'], 'Violão', ["Observe a figura.", "Diga o nome em voz alta.", 'Violão'], 'A figura mostra: Violão.', "4-5", '🎸'))
+
+
+
+# Vocabulário e pontuação complementam as perguntas de localização.
+_PARES_OPOSTOS = [('feliz', 'triste'), ('alto', 'baixo'), ('grande', 'pequeno'), ('quente', 'frio'), ('claro', 'escuro'), ('perto', 'longe'), ('cheio', 'vazio'), ('rápido', 'lento'), ('aberto', 'fechado'), ('novo', 'velho'), ('forte', 'fraco'), ('seco', 'molhado'), ('leve', 'pesado'), ('largo', 'estreito'), ('limpo', 'sujo'), ('comprido', 'curto'), ('cedo', 'tarde'), ('entrar', 'sair'), ('subir', 'descer'), ('começar', 'terminar')]
+for faixa in ("6-8", "9-11", "12-13"):
+    for indice, (palavra, oposto) in enumerate(_PARES_OPOSTOS):
+        alternativas = [oposto] + [par[1] for par in _PARES_OPOSTOS if par[1] != oposto][:3]
+        giro = indice % 4
+        alternativas = alternativas[giro:] + alternativas[:giro]
+        QUESTOES.append(_q(f"por-v2-oposto-{faixa}-{indice}", 2, "sinonimos_antonimos", "opostos",
+            f"Qual é o contrário de {palavra}?", alternativas, oposto,
+            ["Procure uma ideia oposta.", "Compare o sentido das palavras.", f"O contrário é {oposto}."],
+            f"{palavra.capitalize()} e {oposto} têm sentidos opostos.", faixa))
+    for indice, nome in enumerate(_NOMES_VARIADOS):
+        for numero, (_, objeto, lugar, _) in enumerate(_CENARIOS_VARIADOS):
+            correta = f"{nome} levou {objeto} para {lugar}."
+            alternativas = [correta, correta[:-1], correta[0].lower()+correta[1:], correta.replace(" levou ", ", levou ")]
+            giro = (indice+numero) % 4
+            alternativas = alternativas[giro:] + alternativas[:giro]
+            QUESTOES.append(_q(f"por-v2-pontuacao-{faixa}-{indice}-{numero}", 2, "pontuacao", "frases",
+                "Qual frase começa com maiúscula, termina com ponto e não separa quem fez a ação do verbo?",
+                alternativas, correta, ["Veja o início e o fim da frase.", "Não separe o nome do verbo por vírgula.", correta],
+                "A frase começa com maiúscula, termina com ponto e mantém o nome junto ao verbo.", faixa))
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 

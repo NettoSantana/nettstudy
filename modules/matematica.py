@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\matematica.py
-# Data e hora do último recode: 22/08/2026 01:23 -03:00
-# Motivo da alteração: organizar cinco atividades de Matemática por faixa etária, com abordagem visual para crianças de 4 a 5 anos.
+# Data e hora do último recode: 09/10/2026 15:07 -03:00
+# Motivo da alteração: ampliar atividades por idade e nível, variar Matemática e evitar repetição próxima preservando sessões existentes.
 
 from typing import Any
 
@@ -163,6 +163,85 @@ QUESTOES.extend([
        ["Observe as diferenças: 4, 6, 8, 10.", "A próxima diferença é 12.", "30 + 12 = 42."],
        "A sequência cresce somando números pares consecutivos.", "12-13"),
 ])
+
+# Variações determinísticas: os mesmos códigos sempre produzem os mesmos dados.
+# Não há sorteio na correção nem dependência de serviço externo.
+for faixa, limite_base in (("4-5", 5), ("6-8", 12), ("9-11", 30), ("12-13", 80)):
+    for nivel in range(1, 6):
+        limite = limite_base + (nivel - 1) * (1 if faixa == "4-5" else limite_base)
+        for a in range(1, min(limite, 40) + 1):
+            for b in range(1, (5 if faixa == "4-5" else 12) + 1):
+                if faixa == "4-5" and a + b > 10:
+                    continue
+                operacoes = [("adicao_visual" if faixa == "4-5" else "adicao", a + b,
+                              f"Há {a} bolinhas e chegam mais {b}. Quantas ficam?", f"{a} + {b} = {a+b}")]
+                if a > b:
+                    operacoes.append(("subtracao", a-b,
+                                      f"Havia {a} bolinhas. Saíram {b}. Quantas ficaram?", f"{a} - {b} = {a-b}"))
+                if faixa in {"9-11", "12-13"}:
+                    operacoes.extend([
+                        ("multiplicacao", a*b, f"Há {a} caixas com {b} lápis em cada uma. Quantos lápis há?", f"{a} × {b} = {a*b}"),
+                        ("divisao", a, f"Distribua {a*b} fichas igualmente entre {b} pessoas. Quantas recebe cada pessoa?", f"{a*b} ÷ {b} = {a}"),
+                    ])
+                if faixa == "12-13":
+                    operacoes.append(("algebra", a, f"Qual é o valor de x em x + {b} = {a+b}?", f"x = {a+b} - {b} = {a}"))
+                for habilidade, valor, enunciado, conta in operacoes:
+                    enunciado = enunciado.replace("bolinhas", ("bolinhas", "estrelas", "fichas", "pedrinhas", "botões")[nivel-1])
+                    alternativas = [str(valor), str(valor+1), str(valor+2), str(max(0,valor-1))]
+                    alternativas = list(dict.fromkeys(alternativas))
+                    while len(alternativas) < 4:
+                        alternativas.append(str(valor+len(alternativas)+3))
+                    deslocamento = (a+b+nivel) % 4
+                    alternativas = alternativas[deslocamento:] + alternativas[:deslocamento]
+                    codigo = f"mat-v2-{faixa}-{nivel}-{habilidade}-{a}-{b}"
+                    figura = ("● " * a + "+ " + "● " * b) if faixa == "4-5" and habilidade == "adicao_visual" else None
+                    if faixa == "4-5" and habilidade == "subtracao":
+                        figura = "● " * a + f"(retire {b})"
+                    QUESTOES.append(_q(codigo, nivel, habilidade, "quantidades", enunciado,
+                        alternativas, str(valor), ["Observe as quantidades.",
+                        "Junte os grupos." if "adicao" in habilidade else "Use a operação indicada na pergunta.",
+                        conta], conta + ".", faixa, figura))
+
+
+# As crianças menores praticam a mesma operação com objetos visuais diferentes.
+for base in list(QUESTOES):
+    if base["id"].startswith("mat-v2-4-5-"):
+        for objeto, simbolo in (("patinhos", "🦆"), ("carrinhos", "🚗"), ("maçãs", "🍎"), ("balões", "🎈"), ("livros", "📚")):
+            nova = dict(base)
+            nova["id"] = base["id"] + "-" + objeto
+            for original in ("bolinhas", "estrelas", "fichas", "pedrinhas", "botões"):
+                nova["enunciado"] = nova["enunciado"].replace(original, objeto)
+            nova["figura"] = (base.get("figura") or "").replace("●", simbolo)
+            QUESTOES.append(nova)
+
+# Desafios para os mais velhos incluem frações, porcentagem e equações.
+for faixa in ("9-11", "12-13"):
+    for denominador in range(2, 13):
+        for numerador in range(1, denominador):
+            total = denominador * 12
+            valor = numerador * 12
+            QUESTOES.append(_q(f"mat-v2-fracao-{faixa}-{numerador}-{denominador}", 3, "fracoes", "partilha",
+                f"Uma coleção tem {total} figurinhas. Quanto é {numerador}/{denominador} dessa coleção?",
+                [str(valor), str(valor+1), str(valor+12), str(valor-1)], str(valor),
+                ["Divida pelo denominador.", f"{total} ÷ {denominador} = 12.", f"12 × {numerador} = {valor}."],
+                f"{numerador}/{denominador} de {total} é {valor}.", faixa))
+for percentual in range(5, 100, 5):
+    for preco in range(100, 1100, 100):
+        valor = preco * percentual // 100
+        QUESTOES.append(_q(f"mat-v2-percentual-{percentual}-{preco}", 4, "porcentagem", "compras",
+            f"Uma compra de R$ {preco} tem desconto de {percentual}%. Qual é o valor do desconto?",
+            [str(valor), str(valor+5), str(valor+10), str(valor-1)], str(valor),
+            ["Calcule a parte percentual do preço.", f"Multiplique {preco} por {percentual} e divida por 100.", str(valor)],
+            f"{preco} × {percentual} ÷ 100 = {valor} reais de desconto.", "12-13"))
+for fator in range(2, 13):
+    for resultado in range(1, 41):
+        termo = fator + 3
+        total = fator * resultado + termo
+        QUESTOES.append(_q(f"mat-v2-equacao-{fator}-{resultado}", 5, "algebra", "equacoes",
+            f"Qual é x na equação {fator}x + {termo} = {total}?",
+            [str(resultado), str(resultado+1), str(resultado+2), str(resultado-1)], str(resultado),
+            ["Retire o termo somado dos dois lados.", f"{fator}x = {total-termo}.", f"Divida por {fator}."],
+            f"x = ({total} - {termo}) ÷ {fator} = {resultado}.", "12-13"))
 
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 
