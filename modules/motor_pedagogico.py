@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\motor_pedagogico.py
-# Data e hora do último recode: 25/08/2026 13:08 -03:00
-# Motivo da alteração: eliminar a recursão infinita ao reutilizar questões na geração do plano diário.
+# Data e hora do último recode: 09/10/2026 15:07 -03:00
+# Motivo da alteração: ampliar atividades por idade e nível, variar Matemática e evitar repetição próxima preservando sessões existentes.
 
 import json
 import random
@@ -254,7 +254,7 @@ def _codigos_usados_ciclo(
     aluno_id: int,
     materia: str,
     data_ref: str,
-    dias: int = 5,
+    dias: int = 16,
 ) -> tuple[set[str], set[str]]:
     inicio = (date.fromisoformat(data_ref) - timedelta(days=max(1, dias - 1))).isoformat()
     with conectar(caminho_banco) as conexao:
@@ -285,6 +285,14 @@ def _codigos_usados_ciclo(
     return usados, codigos_reforco
 
 
+def _chave_conteudo(questao: dict[str, Any]) -> str:
+    # Nas tarefas de pontuação, as frases estão nas alternativas.
+    base = _normalizar(questao["enunciado"])
+    if questao.get("habilidade") == "pontuacao":
+        base += "|" + "|".join(sorted(_normalizar(str(valor)) for valor in questao["alternativas"]))
+    return base
+
+
 def _preencher_categoria(
     selecionadas: list[dict[str, Any]],
     grupo: list[dict[str, Any]],
@@ -292,7 +300,13 @@ def _preencher_categoria(
     foco: str | None,
 ) -> None:
     usados = {item["id"] for item in selecionadas}
-    disponiveis = [item for item in grupo if item["id"] not in usados]
+    textos = {_chave_conteudo(item) for item in selecionadas}
+    disponiveis = []
+    for item in grupo:
+        texto = _chave_conteudo(item)
+        if item["id"] not in usados and texto not in textos:
+            disponiveis.append(item)
+            textos.add(texto)
     selecionadas.extend(_escolher(disponiveis, quantidade, foco))
 
 
@@ -325,16 +339,53 @@ def gerar_plano_missao(
     usados_ciclo, reforco = _codigos_usados_ciclo(
         caminho_banco, aluno_id, materia, data_ref
     )
-    permitidas = [
-        item for item in questoes_faixa
-        if int(item.get("nivel", 1)) <= nivel_alvo + 1
-        and (item["id"] not in usados_ciclo or item["id"] in reforco)
-    ]
+    mapa_questoes = {item["id"]: item for item in questoes}
+    textos_usados = {
+        _chave_conteudo(mapa_questoes[codigo])
+        for codigo in usados_ciclo if codigo in mapa_questoes
+    }
+    habilidades_reforco = {
+        mapa_questoes[codigo].get("habilidade")
+        for codigo in reforco if codigo in mapa_questoes
+    }
+    candidatas = [item for item in questoes_faixa
+                  if int(item.get("nivel", 1)) <= nivel_alvo + 1]
+    quantidade = min(quantidade, len(candidatas))
+    comp = _composicao(quantidade, nivel_alvo) if quantidade else {"revisao": 0, "atual": 0, "desafio": 0}
+    permitidas = [item for item in candidatas
+                  if item["id"] not in usados_ciclo
+                  and _chave_conteudo(item) not in textos_usados]
+    unicas = {}
+    for item in sorted(permitidas, key=lambda item: abs(int(item.get("nivel", 1)) - nivel_alvo)):
+        unicas.setdefault(_chave_conteudo(item), item)
+    permitidas = list(unicas.values())
     if len(permitidas) < quantidade:
-        permitidas = [
-            item for item in questoes_faixa
-            if int(item.get("nivel", 1)) <= nivel_alvo + 1
-        ]
+        # Banco finito: completar somente com as menos recentes, sem liberar tudo.
+        with conectar(caminho_banco) as conexao:
+            registros = conexao.execute(
+                "SELECT data_atividade,codigos_json FROM planos_missao_diaria "
+                "WHERE aluno_id=? AND materia=? AND data_atividade<? ORDER BY data_atividade",
+                (aluno_id, materia, data_ref),
+            ).fetchall()
+        ultima_exposicao = {}
+        for registro in registros:
+            for codigo in json.loads(registro["codigos_json"]):
+                item = mapa_questoes.get(codigo)
+                if item:
+                    ultima_exposicao[_chave_conteudo(item)] = registro["data_atividade"]
+        ids_novos = {item["id"] for item in permitidas}
+        restantes = [item for item in candidatas if item["id"] not in ids_novos]
+        restantes.sort(key=lambda item: (ultima_exposicao.get(_chave_conteudo(item), ""), random.random()))
+        textos = {_chave_conteudo(item) for item in permitidas}
+        for item in restantes:
+            texto = _chave_conteudo(item)
+            if texto not in textos:
+                permitidas.append(item)
+                textos.add(texto)
+            if len(permitidas) >= quantidade:
+                break
+    if habilidades_reforco:
+        foco = next((item["habilidade"] for item in dominios if item["habilidade"] in habilidades_reforco), sorted(habilidades_reforco)[0])
     codigos_permitidos = {item["id"] for item in permitidas}
 
     revisao = [item for item in permitidas if int(item.get("nivel", 1)) < nivel_alvo]
@@ -349,7 +400,7 @@ def gerar_plano_missao(
     faltam = quantidade - len(selecionadas)
     if faltam > 0:
         reforcos_prioritarios = [
-            item for item in permitidas if item["id"] in reforco
+            item for item in permitidas if item.get("habilidade") in habilidades_reforco
         ]
         _preencher_categoria(selecionadas, reforcos_prioritarios, faltam, foco)
 
@@ -384,7 +435,6 @@ def gerar_plano_missao(
             valido = all(
                 codigo in mapa
                 and int(mapa[codigo].get("nivel", 1)) <= nivel_alvo + 1
-                and codigo in codigos_permitidos
                 for codigo in antigos
             )
             if int(tentativas or 0) > 0 or valido:
@@ -596,7 +646,7 @@ def simular_ciclo_diagnostico(
     aluno_id: int,
     questoes_portugues: list[dict[str, Any]],
     questoes_matematica: list[dict[str, Any]],
-    dias: int = 5,
+    dias: int = 16,
 ) -> list[dict[str, Any]]:
     perfil = garantir_perfil_pedagogico(caminho_banco, aluno_id)
     usados = {"portugues": set(), "matematica": set()}
@@ -643,7 +693,7 @@ def historias_lidas_ciclo(
     caminho_banco: str,
     aluno_id: int,
     data_atividade: str | None = None,
-    dias: int = 5,
+    dias: int = 16,
 ) -> set[str]:
     data_ref = data_atividade or data_iso_app()
     inicio = (date.fromisoformat(data_ref) - timedelta(days=max(1, dias - 1))).isoformat()
