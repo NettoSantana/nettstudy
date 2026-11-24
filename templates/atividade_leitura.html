@@ -1,7 +1,7 @@
 <!--
 Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\atividade_leitura.html
-Data e hora do último recode: 22/08/2026 00:59 -03:00
-Motivo da alteração: manter a história disponível durante as perguntas e até o envio final do resumo.
+Data e hora do último recode: 24/11/2026 20:48 -03:00
+Motivo da alteração: corrigir progressão por habilidade, diversificar tarefas e leituras e revisar propostas de escrita.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -150,10 +150,15 @@ Motivo da alteração: manter a história disponível durante as perguntas e at�
     {% elif fase == 'resumo' %}
         <section class="card">
             <p class="muted">Última etapa</p>
-            <h1>Conte com suas palavras</h1>
+            <h1>{{ historia.proposta.titulo if historia.proposta else "Conte com suas palavras" }}</h1>
             <p>
-                Explique quem participa, o que aconteceu e como a história terminou.
-                Escreva pelo menos 15 palavras.
+                {% if historia.proposta %}
+                    {{ historia.proposta.instrucao }}
+                    Escreva pelo menos {{ historia.proposta.minimo_palavras }} palavras.
+                {% else %}
+                    Explique quem participa, o que aconteceu e como a história terminou.
+                    Escreva pelo menos 15 palavras.
+                {% endif %}
             </p>
             <div class="hint">
                 <strong>Para pensar:</strong> {{ historia.reflexao }}
@@ -207,3 +212,4 @@ Motivo da alteração: manter a história disponível durante as perguntas e at�
 </main>
 </body>
 </html>
+

@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\avaliacao_resumo.py
-# Data e hora do último recode: 30/07/2026 21:17 -03:00
-# Motivo da alteração: manter a avaliação adaptativa como regra principal do resumo por nível.
+# Data e hora do último recode: 24/11/2026 20:48 -03:00
+# Motivo da alteração: corrigir progressão por habilidade, diversificar tarefas e leituras e revisar propostas de escrita.
 
 import re
 import unicodedata
@@ -86,8 +86,50 @@ def _proporcao_copia(resumo: str, historia: dict[str, Any]) -> float:
     return len(pares_resumo & pares_texto) / len(pares_resumo)
 
 
+def _avaliar_producao(historia: dict[str, Any], texto: str, nivel_aluno: int) -> dict[str, Any]:
+    proposta=historia["proposta"];tipo=proposta["tipo"]
+    palavras=re.findall(r"\b[\wÀ-ÿ]+\b",texto,flags=re.UNICODE)
+    normalizado=_normalizar(texto)
+    frases=[f.strip() for f in re.split(r"[.!?]+",texto) if f.strip()]
+    minimo=int(proposta["minimo_palavras"])
+    palavras_normais=_normalizar(texto).split()
+    funcionais=sum(p in PALAVRAS_IGNORADAS for p in palavras_normais)
+    parece_lista=len(palavras_normais)>=20 and funcionais/max(1,len(palavras_normais))<0.08
+    tokens=_palavras(texto)
+    diversidade=len(set(tokens))/max(1,len(tokens))
+    contexto=[p for p in proposta.get("palavras_contexto",[]) if re.search(r"\b"+re.escape(_normalizar(p))+r"\b",normalizado)]
+    copia=_proporcao_copia(texto,historia)
+    razoes=bool(re.search(r"\b(porque|pois|por isso|uma razao|alem disso)\b",normalizado))
+    contraste=bool(re.search(r"\b(mas|porem|embora|por outro lado|enquanto|diferente)\b",normalizado))
+    sequencia=bool(re.search(r"\b(depois|entao|antes|seguinte|quando|final)\b",normalizado))
+    # Feedback formal e textual: não é uma validação semântica ou nota de professor.
+    descricao={
+      "resumo":("Seleção e sequência",len(contexto)>=2 and sequencia,"Selecione os fatos essenciais e organize o que mudou."),
+      "opiniao":("Posição e justificativa",razoes and contraste,"Declare uma posição, justifique e considere uma objeção."),
+      "continuacao":("Desenvolvimento",sequencia and len(frases)>=4,"Desenvolva uma nova etapa em sequência, preservando o contexto."),
+      "comparacao":("Comparação",contraste and razoes,"Mostre diferenças e consequências, explicando a mudança.")}
+    rotulo,atende,orientacao=descricao[tipo]
+    criterios={
+      "extensao":{"titulo":"Extensão","nota":2 if len(palavras)>=minimo else 0,"maximo":2,"retorno":f"Escreva pelo menos {minimo} palavras; foram contadas {len(palavras)}."},
+      "contexto":{"titulo":"Relação com o texto","nota":2 if len(contexto)>=2 else 0,"maximo":2,"retorno":"Relacione sua produção a fatos específicos da leitura."},
+      "proposta":{"titulo":rotulo,"nota":2 if atende else 0,"maximo":2,"retorno":orientacao},
+      "organizacao":{"titulo":"Organização","nota":2 if len(frases)>=3 and not parece_lista else 0,"maximo":2,"retorno":"Organize frases completas que expliquem ações ou posições; evite listas de palavras."},
+      "autoria":{"titulo":"Palavras próprias","nota":2 if copia<0.65 and diversidade>=0.45 else 0,"maximo":2,"retorno":"Evite copiar a leitura ou repetir palavras para aumentar o texto."}}
+    pontos=sum(c["nota"] for c in criterios.values())
+    if parece_lista:
+        pontos=min(pontos,3)
+    valido=len(palavras)>=minimo and len(contexto)>=2 and atende and len(frases)>=3 and not parece_lista and copia<0.65 and diversidade>=0.45
+    status="concluido" if valido else "complementar" if len(palavras)>=minimo//2 else "refazer"
+    return {"pontuacao":pontos,"maximo":10,"status":status,"mensagem":"Sua produção foi registrada. Releia o texto e confira se as ideias e justificativas ficaram claras." if valido else "Revise os critérios indicados e envie novamente.",
+        "criterios":criterios,"pontos_fortes":[c["retorno"] for c in criterios.values() if c["nota"]==2],"melhorar":[c["retorno"] for c in criterios.values() if c["nota"]<2],
+        "total_palavras":len(palavras),"minimo_palavras":minimo,"nivel_aluno":nivel_aluno,"proporcao_copia":round(copia,3),"personagens_esperados":[],"palavras_chave_encontradas":contexto,"tipo_proposta":tipo}
+
+
+
 def avaliar_resumo(historia: dict[str, Any], resumo: str, nivel_aluno: int = 3) -> dict[str, Any]:
     resumo = (resumo or "").strip()
+    if historia.get("proposta"):
+        return _avaliar_producao(historia,resumo,nivel_aluno)
     palavras_resumo = _palavras(resumo)
     texto_normalizado = _normalizar(resumo)
     frases = [
@@ -249,3 +291,4 @@ def avaliar_resumo(historia: dict[str, Any], resumo: str, nivel_aluno: int = 3) 
         "personagens_esperados": personagens,
         "palavras_chave_encontradas": chaves_presentes,
     }
+

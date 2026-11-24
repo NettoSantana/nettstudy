@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\matematica.py
-# Data e hora do último recode: 09/10/2026 15:07 -03:00
-# Motivo da alteração: ampliar atividades por idade e nível, variar Matemática e evitar repetição próxima preservando sessões existentes.
+# Data e hora do último recode: 24/11/2026 20:48 -03:00
+# Motivo da alteração: corrigir progressão por habilidade, diversificar tarefas e leituras e revisar propostas de escrita.
 
 from typing import Any
 
@@ -243,6 +243,101 @@ for fator in range(2, 13):
             ["Retire o termo somado dos dois lados.", f"{fator}x = {total-termo}.", f"Divida por {fator}."],
             f"x = ({total} - {termo}) ÷ {fator} = {resultado}.", "12-13"))
 
+# Banco progressivo: as faixas numéricas e a operação mudam com o nível.
+from fractions import Fraction
+import random as _sorteio_conteudo
+
+def _numero_fracao(valor):
+    valor = Fraction(valor)
+    return str(valor.numerator) if valor.denominator == 1 else f"{valor.numerator}/{valor.denominator}"
+
+def _registrar_progressiva(codigo, faixa, nivel, habilidade, familia, enunciado, resposta, erradas, explicacao, assinatura, dados):
+    correta = str(resposta)
+    alternativas = list(dict.fromkeys([correta] + [str(x) for x in erradas if str(x) != correta]))[:4]
+    if len(alternativas) != 4:
+        raise ValueError(f"Alternativas inválidas: {codigo}")
+    _sorteio_conteudo.Random(codigo).shuffle(alternativas)
+    q = _q(codigo, nivel, habilidade, familia, enunciado, alternativas, correta,
+           ["Identifique o que a pergunta pede.", explicacao.split(".")[0]+".", explicacao], explicacao, faixa)
+    q.update(versao=3, familia=familia, assinatura=assinatura, verificacao=dados)
+    QUESTOES.append(q)
+
+for _faixa in ("6-8", "9-11", "12-13"):
+    for _nivel in range(1, 6):
+        _rng = _sorteio_conteudo.Random(f"curriculo-20261124-{_faixa}-{_nivel}")
+        for _i in range(90):
+            _codigo = f"mat-v3-{_faixa}-{_nivel}-{_i}"
+            if _faixa == "6-8":
+                _intervalos = ((2, 9), (10, 19), (20, 49), (50, 99), (100, 299))
+            else:
+                _intervalos = ((10, 49), (50, 149), (150, 499), (500, 1499), (1500, 4999))
+            _lo, _hi = _intervalos[_nivel-1]
+            _a, _b = _rng.randint(_lo, _hi), _rng.randint(_lo, _hi)
+            _r = _a + _b
+            _registrar_progressiva(_codigo+"-soma", _faixa, _nivel, "adicao", "calculo_adicao",
+                f"Calcule {_a} + {_b}.", _r, [_r+10, _r-1, _r+1],
+                f"Some os valores das unidades, dezenas e demais ordens. {_a} + {_b} = {_r}.",
+                f"soma:{min(_a,_b)}:{max(_a,_b)}", {"operacao":"soma", "a":_a,"b":_b})
+            _maior, _menor = _a+_b, _a
+            _registrar_progressiva(_codigo+"-sub", _faixa, _nivel, "subtracao", "calculo_subtracao",
+                f"Calcule {_maior} − {_menor}.", _b, [_b+10, _b+1, _b-1],
+                f"Subtraia por ordens, reagrupando quando necessário. {_maior} − {_menor} = {_b}.",
+                f"sub:{_maior}:{_menor}", {"operacao":"subtracao","a":_maior,"b":_menor})
+            _fator = _rng.randint(2, 5 if _nivel==1 else 12) if _nivel<5 else _rng.randint(13, 39)
+            _multiplicando = _rng.randint(2, 9) if _nivel==1 else _rng.randint(10**min(_nivel-1,3), 10**min(_nivel,4)-1)
+            if _faixa == "6-8":
+                _multiplicando = _rng.randint(1, 5+_nivel*2)
+            _r = _fator * _multiplicando
+            _registrar_progressiva(_codigo+"-mul", _faixa, _nivel, "multiplicacao", "grupos_multiplicacao",
+                f"Uma escola recebeu {_fator} caixas com {_multiplicando} lápis em cada caixa. Quantos lápis recebeu ao todo?",
+                _r, [_r+_fator, _r-_fator, _r+1],
+                f"Multiplique a quantidade de caixas pelos lápis de cada caixa. {_fator} × {_multiplicando} = {_r}.",
+                f"mul:{_fator}:{_multiplicando}", {"operacao":"produto","a":_fator,"b":_multiplicando})
+            _divisor = _rng.randint(2, 5 if _nivel==1 else 9 if _nivel<4 else 25)
+            _quociente = _rng.randint(2, 9 if _nivel==1 else 20 if _nivel==2 else 90 if _nivel==3 else 250)
+            _resto = _rng.randint(1,_divisor-1) if _nivel>=4 and _faixa!="6-8" else 0
+            _dividendo = _divisor*_quociente+_resto
+            if _resto:
+                _resposta = f"{_quociente} por grupo e sobram {_resto}"
+                _erradas = [f"{_quociente+1} por grupo e sobram {_resto}", f"{_quociente} por grupo e sobram 0", f"{_quociente-1} por grupo e sobram {_resto}"]
+            else:
+                _resposta = str(_quociente); _erradas=[str(_quociente+1),str(_quociente-1),str(_quociente+_divisor)]
+            _registrar_progressiva(_codigo+"-div", _faixa, _nivel, "divisao", "partilha_divisao",
+                f"Distribua {_dividendo} fichas igualmente entre {_divisor} grupos. Quantas ficam em cada grupo" + (" e quantas sobram?" if _resto else "?"),
+                _resposta, _erradas, f"A divisão é conferida pela multiplicação. {_dividendo} = {_divisor} × {_quociente} + {_resto}.",
+                f"div:{_dividendo}:{_divisor}", {"operacao":"divisao","a":_dividendo,"b":_divisor,"resto":_resto})
+            _compras = _rng.randint(2, 5+_nivel)
+            _preco = _rng.randint(2, 9) if _nivel<=2 else _rng.randint(12, 40+_nivel*10)
+            _extras = min(_compras*_preco-1, _rng.randint(1,9)*(_nivel if _nivel>=3 else 1))
+            _pago = _compras*_preco+_extras+_rng.randint(5,30)
+            if _nivel==1:
+                _r=_compras+_preco;_texto=f"Lia juntou {_compras} figurinhas de animais e {_preco} de esportes. Quantas juntou?";_expr=f"{_compras} + {_preco} = {_r}";_op="soma"
+            elif _nivel==2:
+                _r=_compras*_preco-_extras;_texto=f"Há {_compras} pacotes com {_preco} adesivos cada. Foram usados {_extras} adesivos. Quantos restaram?";_expr=f"{_compras} × {_preco} − {_extras} = {_r}";_op="produto_menos"
+            else:
+                _r=_pago-_compras*_preco-_extras;_texto=f"Bia comprou {_compras} cadernos de R$ {_preco} cada e uma caneta de R$ {_extras}. Pagou com R$ {_pago}. Qual foi o troco em reais?";_expr=f"{_pago} − ({_compras} × {_preco} + {_extras}) = {_r}";_op="troco"
+            _registrar_progressiva(_codigo+"-problema", _faixa, _nivel, "problemas", "problema_etapas",
+                _texto,_r,[_r+1,_r+2,_r+3], f"Organize as etapas antes de calcular. {_expr}.",
+                f"problema:{_nivel}:{_compras}:{_preco}:{_extras}:{_pago}",{"operacao":_op,"a":_compras,"b":_preco,"extra":_extras,"pago":_pago})
+            if _faixa != "6-8":
+                _d1=_rng.randint(3,12);_n1=_rng.randint(1,_d1-1)
+                _d2=_d1 if _nivel<=3 else _rng.randint(2,12)
+                _n2=_rng.randint(1,_d2-1)
+                if _nivel==1:
+                    _r=Fraction(_n1,_d1);_texto=f"Uma figura foi dividida em {_d1} partes iguais e {_n1} foram pintadas. Que fração representa a parte pintada?"
+                elif _nivel==2:
+                    _total=_d1*_rng.randint(3,20);_r=Fraction(_n1*_total,_d1);_texto=f"Quanto é {_n1}/{_d1} de {_total}?"
+                elif _nivel<5:
+                    _r=Fraction(_n1,_d1)+Fraction(_n2,_d2);_texto=f"Calcule {_n1}/{_d1} + {_n2}/{_d2}. Escolha a fração simplificada."
+                if _nivel==5:
+                    _r=(Fraction(_n1,_d1)+Fraction(_n2,_d2))*2;_texto=f"Calcule 2 × ({_n1}/{_d1} + {_n2}/{_d2}). Apresente o resultado simplificado."
+                _correta=_numero_fracao(_r)
+                _erradas=[_numero_fracao(_r+Fraction(k,_d1*_d2)) for k in (1,2,3)]
+                _registrar_progressiva(_codigo+"-fracao",_faixa,_nivel,"fracoes","fracoes_operacoes",_texto,_correta,_erradas,
+                    f"Use partes iguais e, na soma, denominadores comuns. O resultado simplificado é {_correta}.",
+                    "fracao:"+_texto,{"operacao":"fracao","esperado":str(_r)})
+
+
 QUESTOES_POR_ID = {questao["id"]: questao for questao in QUESTOES}
 
 
@@ -261,3 +356,4 @@ def enriquecer_resultado(resultado: dict[str, Any]) -> dict[str, Any]:
         if questao:
             detalhes.append({**questao, **item})
     return {**resultado, "detalhes": detalhes}
+
