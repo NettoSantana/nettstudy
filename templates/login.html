@@ -1,8 +1,6 @@
-<!--
-Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\login.html
-Data e hora do último recode: 30/07/2026 21:48 -03:00
-Motivo da alteração: aplicar a logo e o mascote oficiais sem alterar o fluxo de acesso.
--->
+<!-- Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\login.html -->
+<!-- Data e hora do último recode: 25/11/2026 19:11 -0300 -->
+<!-- Motivo da alteração: orientar acesso do aluno por link e manter senha do responsável. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -427,7 +425,7 @@ Motivo da alteração: aplicar a logo e o mascote oficiais sem alterar o fluxo d
 
                 <div class="campo">
                     <label for="senha">
-                        Senha ou PIN
+                        Senha do responsável
                     </label>
 
                     <input
@@ -449,9 +447,10 @@ Motivo da alteração: aplicar a logo e o mascote oficiais sem alterar o fluxo d
             </form>
 
             <a class="voltar" style="display:block;margin-top:18px;text-align:center;color:#4e5ce6;font-weight:700;text-decoration:none" href="{{ url_for('recuperar_acesso') }}">
-                Esqueci minha senha ou PIN
+                Esqueci minha senha
             </a>
 
+            <p>Aluno? Use o link enviado pelo responsável ou <a href="{{ url_for('dashboard_aluno') }}">abra no aparelho autorizado</a>.</p>
             <div class="separador">
                 <span>ou</span>
             </div>

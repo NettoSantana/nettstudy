@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\database.py
-# Data e hora do último recode: 19/09/2026 10:03 -03:00
-# Motivo da alteração: validar a redefinição de acesso e aceitar identificadores antigos normalizados.
+# Data e hora do último recode: 25/11/2026 19:11 -0300
+# Motivo da alteração: permitir cadastro por link sem exigir PIN do aluno.
 
 import hashlib
 import json
@@ -1002,7 +1002,7 @@ def cadastrar_aluno_para_responsavel(
         nome_exibicao_aluno = nome_aluno.split()[0]
     if not usuario_aluno:
         raise ValueError("Informe o usuário do aluno.")
-    if not pin_aluno.isdigit() or len(pin_aluno) != 4:
+    if pin_aluno and (not pin_aluno.isdigit() or len(pin_aluno) != 4):
         raise ValueError("O PIN do aluno deve conter exatamente 4 números.")
 
     try:
@@ -1039,7 +1039,7 @@ def cadastrar_aluno_para_responsavel(
                 INSERT INTO usuarios (nome, identificador, senha_hash, perfil)
                 VALUES (?, ?, ?, 'aluno')
                 """,
-                (nome_exibicao_aluno, usuario_aluno, generate_password_hash(pin_aluno)),
+                (nome_exibicao_aluno, usuario_aluno, generate_password_hash(pin_aluno or secrets.token_urlsafe(32))),
             )
             cursor_aluno = conexao.execute(
                 """

@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\modules\motor_pedagogico.py
-# Data e hora do último recode: 24/11/2026 20:48 -03:00
-# Motivo da alteração: corrigir progressão por habilidade, diversificar tarefas e leituras e revisar propostas de escrita.
+# Data e hora do último recode: 25/11/2026 19:11 -0300
+# Motivo da alteração: aplicar a dificuldade e a duração orientada por idade às novas missões.
 
 import json
 import random
@@ -9,6 +9,7 @@ import unicodedata
 from datetime import date, timedelta
 from typing import Any
 
+from modules.experiencia_aluno import agente, inicializar_experiencia, preferencias, revisar_plano
 from database import buscar_anamnese_por_aluno, conectar
 from modules.tempo import data_app, data_iso_app
 
@@ -89,6 +90,7 @@ STATUS_ROTULOS = {"nao_avaliada":"Não avaliada","em_diagnostico":"Em diagnósti
 
 
 def inicializar_motor_pedagogico(caminho_banco: str) -> None:
+    inicializar_experiencia(caminho_banco)
     with conectar(caminho_banco) as conexao:
         conexao.executescript(SCHEMA)
 
@@ -362,14 +364,18 @@ def gerar_plano_missao(caminho_banco: str, aluno_id: int, materia: str,
     dominios={d["habilidade"]:d for d in perfil["dominios"].get(materia,[])}
     praticados=[int(d["nivel"]) for d in dominios.values() if int(d.get("total_tentativas",0))>0]
     base=int(round(sum(praticados)/len(praticados))) if praticados else int(perfil[f"nivel_{materia}"])
-    base=max(1,min(5,base))
+    preferencia = preferencias(caminho_banco, aluno_id).get(materia, "normal")
+    ajuste = {"facil": -1, "normal": 0, "dificil": 1}[preferencia]
+    base = max(1, min(5, base + ajuste))
+    anamnese = buscar_anamnese_por_aluno(caminho_banco, aluno_id)
+    orientador = agente(int(anamnese["idade"])) if anamnese else None
     por_habilidade={}
     for q in banco:
         por_habilidade.setdefault(q["habilidade"],[]).append(q)
     rng=random.Random(f"{aluno_id}:{data_ref}:{materia}:curriculo3")
     for h in list(por_habilidade):
         dominio=dominios.get(h,{})
-        alvo=int(dominio["nivel"]) if int(dominio.get("total_tentativas",0))>0 else base
+        alvo=max(1, min(5, int(dominio["nivel"]) + ajuste)) if int(dominio.get("total_tentativas",0))>0 else base
         por_habilidade[h]=[q for q in por_habilidade[h] if max(1,alvo-1)<=int(q["nivel"])<=min(5,alvo+1)]
         if not por_habilidade[h]:
             del por_habilidade[h]
@@ -380,6 +386,8 @@ def gerar_plano_missao(caminho_banco: str, aluno_id: int, materia: str,
     habilidades.sort(key=lambda h:(0 if int(dominios.get(h,{}).get("total_tentativas",0))>0 and float(dominios[h]["dominio"])<55 else 1,
         min(ultima_familia.get(q.get("familia",h),"") for q in por_habilidade[h])))
     quantidade=min(int(perfil["quantidade_questoes"]),len(banco))
+    if orientador and faixa != "4-5":
+        quantidade = min(quantidade, orientador["quantidade"])
     selecionadas=[];usados=set();familias={};composicao={"revisao":0,"atual":0,"desafio":0}
     limite_recente=(date.fromisoformat(data_ref)-timedelta(days=15)).isoformat()
     novidades={q.get("assinatura") or _chave_conteudo(q) for qs in por_habilidade.values() for q in qs
@@ -390,7 +398,7 @@ def gerar_plano_missao(caminho_banco: str, aluno_id: int, materia: str,
                 break
             dominio=dominios.get(habilidade,{})
             # Domínios nunca praticados usam a base atual, sem prender o aluno ao cadastro antigo.
-            alvo=int(dominio["nivel"]) if int(dominio.get("total_tentativas",0))>0 else base
+            alvo=max(1, min(5, int(dominio["nivel"]) + ajuste)) if int(dominio.get("total_tentativas",0))>0 else base
             # Um desafio e uma revisão a cada cinco itens, os demais do nível da habilidade.
             categoria="desafio" if len(selecionadas)%5==4 and alvo<5 else "revisao" if len(selecionadas)%5==3 and alvo>1 else "atual"
             nivel_desejado=min(5,alvo+1) if categoria=="desafio" else max(1,alvo-1) if categoria=="revisao" else alvo
@@ -419,7 +427,13 @@ def gerar_plano_missao(caminho_banco: str, aluno_id: int, materia: str,
             composicao[real]+=1
         if len(selecionadas)>=quantidade:
             break
-    codigos=[q["id"] for q in selecionadas]
+    revisadas = revisar_plano(
+        selecionadas, por_habilidade, faixa,
+        lambda q: q.get("assinatura") or _chave_conteudo(q), quantidade,
+    )
+    if len(revisadas) != len(selecionadas) or not revisadas:
+        raise ValueError("A missão não passou pela revisão das questões.")
+    codigos = [q["id"] for q in revisadas]
     foco=habilidades[0] if habilidades else None
     with conectar(caminho_banco) as conexao:
         # INSERT OR IGNORE também protege duas requisições simultâneas.

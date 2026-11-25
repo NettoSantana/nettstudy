@@ -1,0 +1,57 @@
+<!-- Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\ativar_aluno.html -->
+<!-- Data e hora do último recode: 25/11/2026 19:11 -0300 -->
+<!-- Motivo da alteração: compartilhar um link e ativar o dispositivo do aluno. -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>Acesso do aluno | NettStudy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+<main class="content">
+    <section class="panel">
+        {% for categoria, mensagem in get_flashed_messages(with_categories=true) %}
+            <p role="alert">{{ mensagem }}</p>
+        {% endfor %}
+        {% if link %}
+            <h1>Link de acesso do aluno</h1>
+            <p>Compartilhe o link com o aluno. Ele é válido por 30 minutos e funciona uma única vez.</p>
+            <label for="link-aluno">Link de ativação</label>
+            <input id="link-aluno" value="{{ link }}" readonly>
+            <button class="button secondary" type="button" id="copiar">Copiar link</button>
+            <a href="{{ url_for('dashboard_responsavel', aluno_id=aluno.id) }}">Voltar ao painel</a>
+            <script>
+                document.querySelector('#copiar').addEventListener('click', async (event) => {
+                    const campo = document.querySelector('#link-aluno');
+                    campo.select();
+                    if (navigator.clipboard) {
+                        await navigator.clipboard.writeText(campo.value);
+                        event.target.textContent = 'Link copiado';
+                    }
+                });
+            </script>
+        {% else %}
+            <h1>Ativar acesso do aluno</h1>
+            <p>Use o link enviado pelo responsável no aparelho em que você vai estudar.</p>
+            <form method="post">
+                <input type="hidden" name="csrf" value="{{ csrf_nett() }}">
+                <input type="hidden" name="token" id="token">
+                <button class="button primary" id="ativar" disabled>Ativar neste aparelho</button>
+            </form>
+            <script>
+                const token = location.hash.slice(1);
+                if (/^[A-Za-z0-9_-]{43}$/.test(token)) {
+                    document.querySelector('#token').value = token;
+                    document.querySelector('#ativar').disabled = false;
+                    history.replaceState(null, '', location.pathname);
+                }
+            </script>
+            <a href="{{ url_for('dashboard_aluno') }}">Já ativei este aparelho</a>
+        {% endif %}
+    </section>
+</main>
+</body>
+</html>

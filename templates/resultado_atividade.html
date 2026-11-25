@@ -1,6 +1,6 @@
 <!-- Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\resultado_atividade.html -->
-<!-- Data e hora do último recode: 22/08/2026 01:23 -03:00 -->
-<!-- Motivo da alteração: encerrar a missão conforme as matérias previstas para a idade do aluno. -->
+<!-- Data e hora do último recode: 25/11/2026 19:11 -0300 -->
+<!-- Motivo da alteração: coletar avaliação da dificuldade pelo aluno. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -32,6 +32,18 @@
       <p>Você conquistou <strong>{{ resultado.pontos }} pontos</strong>.</p>
       {% if leitura %}
         <p>Resumo: <strong>{{ resultado.pontuacao_resumo }}/10</strong> na rubrica de compreensão.</p>
+      {% endif %}
+      {% set chave = {'Matemática':'matematica', 'Português':'portugues', 'Leitura':'leitura'}.get(materia) %}
+      {% if chave %}
+        <form method="post" action="{{ url_for('avaliar_materia', materia=chave) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_nett() }}">
+          <fieldset>
+            <legend>Como foi esta atividade?</legend>
+            {% for valor, rotulo in avaliacoes_nett.items() %}
+              <button type="submit" name="avaliacao" value="{{ valor }}">{{ rotulo }}</button>
+            {% endfor %}
+          </fieldset>
+        </form>
       {% endif %}
       {% if missao_concluida %}
         <a class="btn" href="{{ url_for('dashboard_aluno') }}">Voltar ao painel</a>

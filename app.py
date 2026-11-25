@@ -1,6 +1,8 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\app.py
-# Data e hora do último recode: 19/09/2026 10:03 -03:00
-# Motivo da alteração: confirmar a redefinição do PIN e informar o usuário correto do aluno.
+# Data e hora do último recode: 25/11/2026 19:11 -0300
+# Motivo da alteração: integrar ativação do aluno, preferências e avaliação das atividades preservando o histórico.
+
+from secrets import compare_digest, token_hex, token_urlsafe
 
 import os
 from functools import wraps
@@ -12,6 +14,13 @@ from werkzeug.security import check_password_hash
 from modules.email_service import enviar_email_recuperacao, enviar_email_validacao
 
 from config import Config
+from modules.experiencia_aluno import (
+    AVALIACOES, AVATARES, DIFICULDADES, MATERIAS, agente, avaliar_atividade,
+    preferencias, salvar_preferencias, sugerir_dificuldades,
+)
+from modules.acesso_aluno import (
+    consumir_link, emitir_link, inicializar_acesso, revogar_acessos, usuario_do_dispositivo,
+)
 from modules.avaliacao_resumo import avaliar_resumo
 from modules.anamnese_pedagogica import (
     concluir as concluir_anamnese_estruturada,
@@ -92,10 +101,8 @@ from database import (
     criar_token_recuperacao_acesso,
     obter_recuperacao_por_token,
     redefinir_senha_responsavel_por_token,
-    redefinir_pin_aluno_por_token,
     criar_token_validacao_email,
     validar_email_por_token,
-    aplicar_reset_pedagogico_unico,
     registrar_consentimento_parental_para_aluno_existente,
 )
 
@@ -111,7 +118,7 @@ def create_app() -> Flask:
     inicializar_banco(app.config["DATABASE_PATH"])
     inicializar_motor_pedagogico(app.config["DATABASE_PATH"])
     inicializar_anamnese_pedagogica(app.config["DATABASE_PATH"])
-    aplicar_reset_pedagogico_unico(app.config["DATABASE_PATH"])
+    inicializar_acesso(app.config["DATABASE_PATH"])
     inicializar_notificacoes(app.config["DATABASE_PATH"])
     app.register_blueprint(notificacoes_bp)
     registrar_contexto(app)
@@ -147,15 +154,33 @@ def registrar_contexto(app: Flask) -> None:
             "nome_produto": "NettStudy",
             "usuario_logado": session.get("nome"),
             "perfil_logado": session.get("perfil"),
+            "avaliacoes_nett": AVALIACOES,
+            "materias_nett": MATERIAS,
+            "csrf_nett": lambda: session.setdefault("csrf_nett", token_urlsafe(32)),
         }
 
 
 def registrar_rotas(app: Flask) -> None:
+    caminho = app.config["DATABASE_PATH"]
+
+    def csrf_valido():
+        esperado = session.get("csrf_nett", "")
+        return bool(esperado) and compare_digest(esperado.encode(), request.form.get("csrf", "").encode())
+
     @app.before_request
     def exigir_consentimento_parental_ativo():
         usuario_id = session.get("usuario_id")
         perfil = session.get("perfil")
         endpoint = request.endpoint or ""
+
+        if not usuario_id and endpoint in {"login", "dashboard_aluno", "iniciar_ou_continuar_missao"}:
+            usuario = usuario_do_dispositivo(caminho, request.cookies.get("nett_dispositivo", ""))
+            if usuario:
+                session.clear()
+                usuario_id, perfil = usuario["id"], "aluno"
+                session.update(usuario_id=usuario_id, nome=usuario["nome"], perfil=perfil)
+                if endpoint == "login" and request.method == "GET":
+                    return redirect(url_for("dashboard_aluno"))
 
         if not usuario_id or endpoint == "static" or endpoint.startswith("static"):
             return None
@@ -163,6 +188,11 @@ def registrar_rotas(app: Flask) -> None:
         if perfil == "aluno":
             if endpoint in {"sair", "health"}:
                 return None
+            dispositivo = usuario_do_dispositivo(caminho, request.cookies.get("nett_dispositivo", ""))
+            if not dispositivo or dispositivo["id"] != usuario_id:
+                session.clear()
+                flash("Peça um novo link de acesso ao responsável.", "aviso")
+                return None if endpoint == "login" else redirect(url_for("login"))
             if not aluno_possui_consentimento_parental_ativo(
                 app.config["DATABASE_PATH"],
                 int(usuario_id),
@@ -216,7 +246,7 @@ def registrar_rotas(app: Flask) -> None:
                 identificador,
             )
 
-            if not usuario or not check_password_hash(
+            if not usuario or usuario["perfil"] != "responsavel" or not check_password_hash(
                 usuario["senha_hash"],
                 senha,
             ):
@@ -245,24 +275,7 @@ def registrar_rotas(app: Flask) -> None:
                     )
                     return redirect(url_for("regularizar_consentimento_parental"))
 
-            if usuario["perfil"] == "aluno" and not aluno_possui_consentimento_parental_ativo(
-                app.config["DATABASE_PATH"],
-                int(usuario["id"]),
-            ):
-                session.clear()
-                flash(
-                    "O responsável precisa autorizar este perfil antes do acesso do aluno.",
-                    "aviso",
-                )
-                return redirect(url_for("login"))
-
-            destino = (
-                "dashboard_responsavel"
-                if usuario["perfil"] == "responsavel"
-                else "dashboard_aluno"
-            )
-
-            return redirect(url_for(destino))
+            return redirect(url_for("dashboard_responsavel"))
 
         return render_template("login.html")
 
@@ -322,30 +335,10 @@ def registrar_rotas(app: Flask) -> None:
                 ):
                     flash("Senha do responsável atualizada. Faça login.", "sucesso")
                     return redirect(url_for("login"))
-            elif tipo == "aluno":
-                aluno_id = request.form.get("aluno_id", type=int)
-                aluno_recuperado = next(
-                    (
-                        item for item in recuperacao["alunos"]
-                        if aluno_id and int(item["id"]) == int(aluno_id)
-                    ),
-                    None,
-                )
-                if not nova_senha.isdigit() or len(nova_senha) < 4 or len(nova_senha) > 6:
-                    flash("O novo PIN deve ter entre 4 e 6 números.", "erro")
-                elif aluno_recuperado and redefinir_pin_aluno_por_token(
-                    app.config["DATABASE_PATH"], token, aluno_id, nova_senha
-                ):
-                    flash(
-                        f"PIN atualizado. Entre com o usuário {aluno_recuperado['identificador']}.",
-                        "sucesso",
-                    )
-                    return redirect(url_for("login"))
-                else:
-                    flash("Selecione um aluno válido.", "erro")
             else:
                 flash("Escolha qual acesso deseja recuperar.", "erro")
 
+        recuperacao["alunos"] = []
         return render_template(
             "redefinir_acesso.html",
             token=token,
@@ -657,13 +650,91 @@ def registrar_rotas(app: Flask) -> None:
 
     @app.get("/sair")
     def sair():
+        era_aluno = session.get("perfil") == "aluno"
         session.clear()
         flash("Você saiu do NettStudy.", "sucesso")
-        return redirect(url_for("inicio"))
+        resposta = redirect(url_for("inicio"))
+        if era_aluno:
+            resposta.delete_cookie("nett_dispositivo")
+        return resposta
 
     @app.get("/portal")
     def portal():
         return render_template("portal.html")
+
+    @app.route("/ativar-aluno", methods=["GET", "POST"])
+    def ativar_aluno():
+        if request.method == "POST":
+            if not csrf_valido():
+                return "Solicitação inválida.", 400
+            ativacao = consumir_link(caminho, request.form.get("token", ""))
+            if ativacao:
+                usuario_id, dispositivo = ativacao
+                usuario = usuario_do_dispositivo(caminho, dispositivo)
+                if usuario and aluno_possui_consentimento_parental_ativo(caminho, usuario_id):
+                    session.clear()
+                    session.update(usuario_id=usuario_id, nome=usuario["nome"], perfil="aluno")
+                    resposta = redirect(url_for("dashboard_aluno"))
+                    resposta.set_cookie("nett_dispositivo", dispositivo, max_age=90 * 86400,
+                        httponly=True, secure=request.is_secure or app.config["BASE_URL"].startswith("https://"),
+                        samesite="Lax")
+                    return resposta
+            flash("Link inválido, vencido ou já usado. Peça outro ao responsável.", "erro")
+        return render_template("ativar_aluno.html"), {"Cache-Control": "no-store"}
+
+    @app.post("/responsavel/alunos/<int:aluno_id>/acesso")
+    @login_obrigatorio("responsavel")
+    def acesso_aluno(aluno_id):
+        if not csrf_valido():
+            return "Solicitação inválida.", 400
+        aluno = buscar_aluno_do_responsavel(caminho, int(session["usuario_id"]), aluno_id)
+        if not aluno:
+            return "Aluno indisponível.", 404
+        usuario_id = int(aluno["usuario_id"])
+        if request.form.get("acao") == "revogar":
+            revogar_acessos(caminho, usuario_id)
+            flash("Links pendentes e dispositivos revogados.", "sucesso")
+            return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
+        if not aluno_possui_consentimento_parental_ativo(caminho, usuario_id):
+            return "Autorização parental necessária.", 403
+        base_url = app.config["BASE_URL"]
+        if app.config["SESSION_COOKIE_SECURE"] and not base_url.startswith("https://"):
+            return "O endereço seguro do NettStudy precisa ser configurado.", 503
+        link = base_url + url_for("ativar_aluno") + "#" + emitir_link(caminho, usuario_id)
+        return render_template("ativar_aluno.html", link=link, aluno=aluno), {"Cache-Control": "no-store"}
+
+    @app.post("/responsavel/alunos/<int:aluno_id>/preferencias")
+    @login_obrigatorio("responsavel")
+    def preferencias_aluno(aluno_id):
+        if not csrf_valido():
+            return "Solicitação inválida.", 400
+        if not buscar_aluno_do_responsavel(caminho, int(session["usuario_id"]), aluno_id):
+            return "Aluno indisponível.", 404
+        dificuldades = {materia: request.form.get(materia, "") for materia in MATERIAS}
+        try:
+            salvar_preferencias(caminho, aluno_id, request.form.get("avatar", ""), dificuldades)
+        except ValueError as erro:
+            return str(erro), 400
+        flash("Preferências salvas para as próximas atividades.", "sucesso")
+        return redirect(url_for("dashboard_responsavel", aluno_id=aluno_id))
+
+    @app.post("/aluno/atividade/<materia>/avaliar")
+    @login_obrigatorio("aluno")
+    def avaliar_materia(materia):
+        if not csrf_valido():
+            return "Solicitação inválida.", 400
+        aluno = _aluno_logado_com_anamnese()
+        dia = data_iso_app()
+        if not aluno or materia not in MATERIAS or obter_resumo_diario(
+            caminho, aluno["id"], dia,
+        )["materias"].get(materia, {}).get("status") != "concluida":
+            return "Atividade indisponível.", 404
+        try:
+            avaliar_atividade(caminho, aluno["id"], materia, dia, request.form.get("avaliacao", ""))
+        except ValueError as erro:
+            return str(erro), 400
+        flash("Obrigado por avaliar a atividade.", "sucesso")
+        return redirect(url_for("iniciar_ou_continuar_missao"))
 
     @app.get("/responsavel")
     @login_obrigatorio("responsavel")
@@ -723,11 +794,19 @@ def registrar_rotas(app: Flask) -> None:
         reset_missao = obter_reset_missao_dia(app.config["DATABASE_PATH"], aluno_id, data_iso_app()) if aluno else None
         perfil = garantir_perfil_pedagogico(app.config["DATABASE_PATH"], aluno_id) if aluno and anamnese_registro else None
         relatorio = obter_relatorio_pedagogico(app.config["DATABASE_PATH"], aluno_id) if perfil else None
+        escolhas = preferencias(caminho, aluno_id) if aluno else {}
+        desempenho = {
+            materia: sum(d["dominio"] for d in praticados) / len(praticados)
+            for materia, dominios in (perfil["dominios"].items() if perfil else [])
+            if (praticados := [d for d in dominios if d["total_tentativas"]])
+        }
+        sugestoes = sugerir_dificuldades(caminho, aluno_id, desempenho) if aluno else {}
         return render_template(
             "dashboard_responsavel.html", responsavel=responsavel, alunos=alunos,
             aluno=aluno, anamnese=anamnese_registro, resumo_dia=resumo_dia,
             reset_missao=reset_missao, perfil_pedagogico=perfil,
-            relatorio=relatorio, limite_alunos=5,
+            relatorio=relatorio, limite_alunos=5, avatar=aluno_registrado["avatar"] if aluno else None,
+            avatares=AVATARES, dificuldades=DIFICULDADES, escolhas=escolhas, sugestoes=sugestoes,
         )
 
     @app.route("/responsavel/alunos/novo", methods=["GET", "POST"])
@@ -754,11 +833,9 @@ def registrar_rotas(app: Flask) -> None:
             flash("O limite é de cinco alunos por responsável.", "aviso")
             return redirect(url_for("dashboard_responsavel"))
 
-        dados = {"nome_aluno": "", "nome_exibicao_aluno": "", "ano_escolar": "", "usuario_aluno": "", "parentesco": "Responsável"}
+        dados = {"nome_aluno": "", "nome_exibicao_aluno": "", "ano_escolar": "", "parentesco": "Responsável"}
         if request.method == "POST":
             dados = {chave: request.form.get(chave, "").strip() for chave in dados}
-            pin = request.form.get("pin_aluno", "").strip()
-            confirmar = request.form.get("confirmar_pin", "").strip()
             consentimento_aceito = request.form.get(
                 "consentimento_parental",
                 "",
@@ -767,19 +844,11 @@ def registrar_rotas(app: Flask) -> None:
                 "declaracao_responsavel",
                 "",
             ).strip().lower() in {"1", "on", "true", "sim"}
-            if pin != confirmar:
-                flash("A confirmação do PIN não confere.", "erro")
-                return render_template(
-                    "novo_aluno.html",
-                    dados=dados,
-                    total_alunos=len(alunos),
-                    versao_termo_consentimento=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
-                ), 400
             try:
                 cadastro = cadastrar_aluno_para_responsavel(
                     app.config["DATABASE_PATH"], usuario_id,
                     dados["nome_aluno"], dados["nome_exibicao_aluno"], dados["ano_escolar"],
-                    dados["usuario_aluno"], pin, dados["parentesco"],
+                    f"aluno-{token_hex(12)}", "", dados["parentesco"],
                     consentimento_aceito=consentimento_aceito,
                     declaracao_responsavel=declaracao_responsavel,
                     versao_termo=VERSAO_TERMO_CONSENTIMENTO_PARENTAL,
@@ -883,7 +952,8 @@ def registrar_rotas(app: Flask) -> None:
             session.clear()
             flash("O cadastro do aluno não foi encontrado. Entre novamente.", "erro")
             return redirect(url_for("login"))
-        if not buscar_anamnese_por_aluno(app.config["DATABASE_PATH"], int(aluno["id"])):
+        anamnese_aluno = buscar_anamnese_por_aluno(caminho, aluno["id"])
+        if not anamnese_aluno:
             session.clear()
             flash("O responsável precisa concluir a avaliação inicial antes das atividades.", "aviso")
             return redirect(url_for("login"))
@@ -904,6 +974,7 @@ def registrar_rotas(app: Flask) -> None:
             atividades_concluidas=resumo_dia["concluidas"],
             progresso=resumo_dia["progresso"],
             personalizacao=personalizacao, fluxo=fluxo,
+            orientador=agente(int(anamnese_aluno["idade"])),
         )
 
     @app.get("/missao")
@@ -1139,9 +1210,11 @@ def registrar_rotas(app: Flask) -> None:
             app.config["DATABASE_PATH"],
             int(aluno["id"]),
         )
+        preferencia_leitura = preferencias(caminho, aluno["id"]).get("leitura", "normal")
+        ajuste_leitura = {"facil": -1, "normal": 0, "dificil": 1}[preferencia_leitura]
         historia = obter_historia_do_dia(
             aluno_id=int(aluno["id"]),
-            nivel_leitura=int(perfil_leitura["nivel_leitura"]),
+            nivel_leitura=max(1, min(5, int(perfil_leitura["nivel_leitura"]) + ajuste_leitura)),
             interesses=perfil_leitura.get("temas_preferidos", ""),
             historias_excluidas=historias_lidas_ciclo(
                 app.config["DATABASE_PATH"], int(aluno["id"]), data_atividade

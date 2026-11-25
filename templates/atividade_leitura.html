@@ -1,8 +1,6 @@
-<!--
-Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\atividade_leitura.html
-Data e hora do último recode: 24/11/2026 20:48 -03:00
-Motivo da alteração: corrigir progressão por habilidade, diversificar tarefas e leituras e revisar propostas de escrita.
--->
+<!-- Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\atividade_leitura.html -->
+<!-- Data e hora do último recode: 25/11/2026 19:11 -0300 -->
+<!-- Motivo da alteração: guiar planejamento, escrita e revisão da redação. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -160,6 +158,11 @@ Motivo da alteração: corrigir progressão por habilidade, diversificar tarefas
                     Escreva pelo menos 15 palavras.
                 {% endif %}
             </p>
+            <ol>
+                <li><details open><summary>Planeje</summary>Anote sua ideia principal e escolha um detalhe da história que ajude a explicá-la.</details></li>
+                <li><details><summary>Escreva</summary>Apresente sua ideia, desenvolva-a com suas palavras e encerre o texto de acordo com a proposta.</details></li>
+                <li><details><summary>Revise</summary>Releia a proposta, confira se suas frases estão ligadas e veja se atingiu o mínimo de palavras.</details></li>
+            </ol>
             <div class="hint">
                 <strong>Para pensar:</strong> {{ historia.reflexao }}
             </div>

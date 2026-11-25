@@ -1,6 +1,6 @@
 # Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\scripts\validar_ciclo_pedagogico.py
-# Data e hora do último recode: 30/07/2026 21:17 -03:00
-# Motivo da alteração: validar quantidade, níveis e capacidade de cinco dias sem repetição.
+# Data e hora do último recode: 25/11/2026 19:11 -0300
+# Motivo da alteração: validar leituras de três ou quatro páginas e interpretar ausência de texto de apoio como falso.
 
 from modules.leitura import HISTORIAS
 from modules.matematica import QUESTOES as QUESTOES_MATEMATICA
@@ -54,9 +54,10 @@ def validar_leitura() -> None:
     if len(HISTORIAS) < 15:
         raise AssertionError("Leitura: são necessárias ao menos 15 histórias.")
     for historia in HISTORIAS:
-        if len(historia.get("paginas", [])) != 3:
+        paginas_validas = {3, 4} if historia.get("versao") == 3 else {3}
+        if len(historia.get("paginas", [])) not in paginas_validas:
             raise AssertionError(
-                f"Leitura: {historia['id']} deve possuir três páginas."
+                f"Leitura: {historia['id']} possui quantidade inválida de páginas."
             )
         if len(historia.get("perguntas", [])) != 3:
             raise AssertionError(
@@ -77,7 +78,7 @@ if __name__ == "__main__":
 from modules.portugues import QUESTOES as QUESTOES_PORTUGUES, QUESTOES_COM_TEXTO
 from modules.leitura import HISTORIAS, NIVEL_NUMERICO
 
-assert all(q.get("usa_texto") == (q["id"] in QUESTOES_COM_TEXTO) for q in QUESTOES_PORTUGUES)
+assert all(bool(q.get("usa_texto")) == (q["id"] in QUESTOES_COM_TEXTO) for q in QUESTOES_PORTUGUES)
 assert not next(q for q in QUESTOES_PORTUGUES if q["id"] == "por-115")["usa_texto"]
 assert next(q for q in QUESTOES_PORTUGUES if q["id"] == "por-301")["usa_texto"]
 assert len([h for h in HISTORIAS if h.get("nivel") == "iniciante"]) >= 5

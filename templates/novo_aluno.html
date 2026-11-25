@@ -1,8 +1,6 @@
-<!--
-Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\novo_aluno.html
-Data e hora do último recode: 02/08/2026 18:02 -03:00
-Motivo da alteração: exigir consentimento parental específico antes da criação de cada perfil infantil.
--->
+<!-- Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\NETTSTUDY\templates\novo_aluno.html -->
+<!-- Data e hora do último recode: 25/11/2026 19:11 -0300 -->
+<!-- Motivo da alteração: permitir cadastro do aluno sem usuário e PIN preenchidos manualmente. -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -120,54 +118,7 @@ Motivo da alteração: exigir consentimento parental específico antes da criaç
                         </select>
                     </div>
 
-                    <div class="campo">
-                        <label for="usuario_aluno">Usuário do aluno</label>
-                        <input
-                            id="usuario_aluno"
-                            name="usuario_aluno"
-                            value="{{ dados.usuario_aluno }}"
-                            autocapitalize="none"
-                            autocomplete="new-username"
-                            spellcheck="false"
-                            data-lpignore="true"
-                            data-form-type="other"
-                            required
-                        >
-                    </div>
-
-                    <div class="campo">
-                        <label for="pin_aluno">PIN de 4 números</label>
-                        <input
-                            id="pin_aluno"
-                            name="pin_aluno"
-                            type="password"
-                            value=""
-                            inputmode="numeric"
-                            pattern="[0-9]{4}"
-                            maxlength="4"
-                            autocomplete="new-password"
-                            data-lpignore="true"
-                            data-form-type="other"
-                            required
-                        >
-                    </div>
-
-                    <div class="campo">
-                        <label for="confirmar_pin">Confirmar PIN</label>
-                        <input
-                            id="confirmar_pin"
-                            name="confirmar_pin"
-                            type="password"
-                            value=""
-                            inputmode="numeric"
-                            pattern="[0-9]{4}"
-                            maxlength="4"
-                            autocomplete="new-password"
-                            data-lpignore="true"
-                            data-form-type="other"
-                            required
-                        >
-                    </div>
+                    <p>O acesso do aluno será ativado por link no painel do responsável.</p>
                 </div>
 
                 <section class="consentimento-caixa" aria-labelledby="titulo-consentimento">
